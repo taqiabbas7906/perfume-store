@@ -15,11 +15,11 @@ export async function syncUserToDB(token: string) {
     try {
         const decoded = await admin.auth().verifyIdToken(token)
         await connectDB()
-        let user = await User.findOne({ email: decoded.email })
+        let user = await User.findOne({ email: decoded.email?.toLowerCase() })
         if (!user) {
             user = await User.create({
                 name: decoded.name || decoded.email,
-                email: decoded.email,
+                email: decoded.email?.toLowerCase(),
                 image: decoded.picture,
                 role: "user",
                 emailVerified: new Date(),

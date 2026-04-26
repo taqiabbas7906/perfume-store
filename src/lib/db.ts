@@ -18,6 +18,7 @@ export async function connectDB() {
   if (!global.mongoose.promise) {
     global.mongoose.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
+      maxPoolSize: 10,
     })
   }
 
