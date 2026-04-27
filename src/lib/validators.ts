@@ -181,7 +181,7 @@ export const updateProfileSchema = z.object({
 // Change password validator
 export const changePasswordSchema = z
   .object({
-    currentPassword: passwordSchema,
+    currentPassword: z.string().optional(),
     newPassword: passwordSchema,
     confirmPassword: passwordSchema,
   })

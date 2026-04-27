@@ -9,8 +9,6 @@ export async function authFetch(
   if (!user) {
     throw new Error('Not authenticated')
   }
-
-  // forceRefresh: true always gets a fresh token
   const token = await user.getIdToken(true)
 
   return fetch(url, {

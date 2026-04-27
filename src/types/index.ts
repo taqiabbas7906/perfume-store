@@ -1,15 +1,16 @@
 import { Types } from "mongoose";
 
 export interface IUser {
-    _id: Types.ObjectId
-    name: string
-    email: string
-    password?: string
-    role: "user" | "admin"
-    image?: string
-    emailVerified?: Date
-    createdAt: Date
-    updatedAt: Date
+  _id: Types.ObjectId
+  name: string
+  email: string
+  password?: string
+  firebaseUid: string
+  role: 'user' | 'admin'
+  image?: string
+  emailVerified?: Date
+  createdAt: Date
+  updatedAt: Date
 }
 export interface IProduct {
     _id: Types.ObjectId
