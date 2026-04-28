@@ -3,6 +3,8 @@ import { admin } from '@/lib/firebase-admin'
 import { getAuthUser } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { changePasswordSchema } from '@/lib/validators'
+import { connectDB } from '@/lib/db'
+import User from '@/models/User'
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
       return validation.response
     }
 
-    const { newPassword } = validation.data
+    const { currentPassword, newPassword } = validation.data
 
     const firebaseUser = await admin.auth().getUserByEmail(user.email)
 
@@ -34,35 +36,48 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const providerData = firebaseUser.providerData
+    if (user.hasPassword) {
+      if (!currentPassword) {
+        return NextResponse.json(
+          { error: 'Current password is required' },
+          { status: 400 }
+        )
+      }
 
-    const isEmailProvider = providerData.some(
-      (provider) => provider.providerId === 'password'
-    )
+      const { signInWithEmailAndPassword } = await import('firebase/auth')
+      const { auth } = await import('@/lib/firebase')
 
-    if (isEmailProvider) {
-      await admin.auth().updateUser(user.firebaseUid as string, {
-        password: newPassword,
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'Password changed successfully',
-      })
-    } else {
-      await admin.auth().updateUser(user.firebaseUid as string, {
-        password: newPassword,
-        email: user.email,
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'Password set successfully. You can now login with email and password too.',
-      })
+      try {
+        await signInWithEmailAndPassword(auth, user.email, currentPassword)
+      } catch (err: any) {
+        if (
+          err.code === 'auth/wrong-password' ||
+          err.code === 'auth/invalid-credential'
+        ) {
+          return NextResponse.json(
+            { error: 'Current password is incorrect' },
+            { status: 400 }
+          )
+        }
+        throw err
+      }
     }
 
-  } catch (error: any) {
+    await admin.auth().updateUser(user.firebaseUid as string, {
+      password: newPassword,
+    })
 
+    await connectDB()
+    await User.findByIdAndUpdate(user._id, { hasPassword: true })
+
+    return NextResponse.json({
+      success: true,
+      message: user.hasPassword
+        ? 'Password changed successfully'
+        : 'Password set successfully. You can now login with email and password too.',
+    })
+
+  } catch (error: any) {
     if (error.code === 'auth/requires-recent-login') {
       return NextResponse.json(
         { error: 'Please login again before changing your password' },

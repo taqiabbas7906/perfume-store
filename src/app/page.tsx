@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { logout } from '@/lib/logout'
 import { authFetch } from '@/lib/api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
   const { user, token, loading } = useAuth()
@@ -12,9 +12,33 @@ export default function Home() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [hasPassword, setHasPassword] = useState(false)
+  const [checkingPassword, setCheckingPassword] = useState(true)
 
   const isGoogleUser = user?.providerData?.[0]?.providerId === 'google.com'
-  const isEmailUser = user?.providerData?.[0]?.providerId === 'password'
+  const isFacebookUser = user?.providerData?.[0]?.providerId === 'facebook.com'
+  const isAppleUser = user?.providerData?.[0]?.providerId === 'apple.com'
+  const isSocialUser = isGoogleUser || isFacebookUser || isAppleUser
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData()
+    }
+  }, [user])
+
+  const fetchUserData = async () => {
+    try {
+      const res = await authFetch('/api/auth/me')
+      const data = await res.json()
+      if (data.user) {
+        setHasPassword(data.user.hasPassword)
+      }
+    } catch (err) {
+      console.log('Error fetching user data:', err)
+    } finally {
+      setCheckingPassword(false)
+    }
+  }
 
   const handleChangePassword = async () => {
     setMessage('')
@@ -23,7 +47,7 @@ export default function Home() {
       const res = await authFetch('/api/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({
-          currentPassword: isEmailUser ? currentPassword : '',
+          currentPassword: hasPassword ? currentPassword : '',
           newPassword,
           confirmPassword,
         }),
@@ -33,6 +57,10 @@ export default function Home() {
 
       if (data.success) {
         setMessage(data.message)
+        setHasPassword(true)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
       } else {
         setError(data.error)
       }
@@ -56,16 +84,16 @@ export default function Home() {
 
           <div style={{ marginTop: '20px' }}>
             <h2>
-              {isGoogleUser ? 'Set Password' : 'Change Password'}
+              {!hasPassword ? 'Set Password' : 'Change Password'}
             </h2>
 
-            {isGoogleUser && (
-              <p style={{ color: 'blue', fontSize: '14px' }}>
-                You signed in with Google. You can set a password to also login with email.
+            {isSocialUser && !hasPassword && (
+              <p style={{ color: 'blue', fontSize: '14px', marginBottom: '10px' }}>
+                You signed in with social login. Set a password to also login with email.
               </p>
             )}
 
-            {isEmailUser && (
+            {hasPassword && (
               <input
                 type="password"
                 placeholder="Current password"
@@ -93,7 +121,7 @@ export default function Home() {
               onClick={handleChangePassword}
               style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
             >
-              {isGoogleUser ? 'Set Password' : 'Change Password'}
+              {!hasPassword ? 'Set Password' : 'Change Password'}
             </button>
 
             {message && (

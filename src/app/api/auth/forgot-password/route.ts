@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error: any) {
-
     if (error.code === 'auth/user-not-found') {
       return NextResponse.json(
         { error: 'No account found with this email' },

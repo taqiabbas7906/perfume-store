@@ -19,6 +19,8 @@ export async function syncUserToDB(token: string) {
 
     let user = await User.findOne({ email: decoded.email?.toLowerCase() })
 
+    const isEmailProvider = decoded.firebase?.sign_in_provider === 'password'
+
     if (!user) {
       user = await User.create({
         name: decoded.name || decoded.email,
@@ -26,6 +28,7 @@ export async function syncUserToDB(token: string) {
         firebaseUid: decoded.uid,
         image: decoded.picture || '',
         role: 'user',
+        hasPassword: isEmailProvider,
         emailVerified: new Date(),
       })
     }

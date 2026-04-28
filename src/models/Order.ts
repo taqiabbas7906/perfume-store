@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
 import { IOrder } from '@/types'
 
 const OrderItemSchema = new Schema(
@@ -23,6 +23,44 @@ const OrderItemSchema = new Schema(
     image: {
       type: String,
       required: true,
+    },
+  },
+  { _id: false }
+)
+
+const OrderLogSchema = new Schema(
+  {
+    ipAddress: {
+      type: String,
+      required: true,
+    },
+    userAgent: {
+      type: String,
+      required: true,
+    },
+    browser: {
+      type: String,
+      default: 'Unknown',
+    },
+    device: {
+      type: String,
+      default: 'Unknown',
+    },
+    os: {
+      type: String,
+      default: 'Unknown',
+    },
+    country: {
+      type: String,
+      default: 'Unknown',
+    },
+    city: {
+      type: String,
+      default: 'Unknown',
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
     },
   },
   { _id: false }
@@ -74,13 +112,16 @@ const OrderSchema = new Schema<IOrder>(
       type: Number,
       default: 0,
     },
+    orderLog: {
+      type: OrderLogSchema,
+      required: true,
+    },
   },
   {
     timestamps: true,
   }
 )
 
-const Order: Model<IOrder> =
-  mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
+const Order = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema)
 
 export default Order
