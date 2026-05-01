@@ -31,7 +31,7 @@ export const loginSchema = z.object({
 })
 
 // Product validator
-export const productSchema = z.object({
+const baseProductSchema = z.object({
   name: z
     .string()
     .min(2, 'Product name must be at least 2 characters')
@@ -52,6 +52,11 @@ export const productSchema = z.object({
     .number()
     .min(0, 'Price cannot be negative')
     .max(100000, 'Price is too high'),
+  discountedPrice: z
+    .number()
+    .min(0, 'Discounted price cannot be negative')
+    .max(100000, 'Discounted price is too high')
+    .optional(),
   category: z.enum(['men', 'women', 'unisex']),
   quantity: z
     .number()
@@ -68,6 +73,20 @@ export const productSchema = z.object({
   active: z.boolean().default(true),
 })
 
+export const productSchema = baseProductSchema.refine(
+  (data) => {
+    if (data.discountedPrice !== undefined) {
+      return data.discountedPrice < data.price
+    }
+    return true
+  },
+  {
+    message: 'Discounted price must be less than original price',
+    path: ['discountedPrice'],
+  }
+)
+
+export const productUpdateSchema = baseProductSchema.partial()
 // Cart item validator
 export const cartItemSchema = z.object({
   productId: z

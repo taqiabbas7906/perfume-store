@@ -20,6 +20,7 @@ export interface IProduct {
   slug: string
   description: string
   price: number
+  discountedPrice?: number
   category: 'men' | 'women' | 'unisex'
   images: string[]
   quantity: number
@@ -30,7 +31,6 @@ export interface IProduct {
   createdAt: Date
   updatedAt: Date
 }
-
 export interface ICartItem {
   product: Types.ObjectId | IProduct
   quantity: number

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
 import { IProduct } from '@/types'
 
 const ProductSchema = new Schema<IProduct>(
@@ -19,6 +19,9 @@ const ProductSchema = new Schema<IProduct>(
     price: {
       type: Number,
       required: true,
+    },
+    discountedPrice: {
+      type: Number,
     },
     category: {
       type: String,
@@ -56,8 +59,6 @@ const ProductSchema = new Schema<IProduct>(
   }
 )
 
-const Product: Model<IProduct> =
-  mongoose.models.Product ||
-  mongoose.model<IProduct>('Product', ProductSchema)
+const Product = mongoose.models.Product || mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product
