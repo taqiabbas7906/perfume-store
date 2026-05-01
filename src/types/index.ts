@@ -28,9 +28,14 @@ export interface IProduct {
   sizes: string[]
   featured: boolean
   active: boolean
+  // Soft-delete / audit fields
+  deletedAt?: Date | null
+  deletedBy?: Types.ObjectId | null
+  deleteReason?: string
   createdAt: Date
   updatedAt: Date
 }
+
 export interface ICartItem {
   product: Types.ObjectId | IProduct
   quantity: number
