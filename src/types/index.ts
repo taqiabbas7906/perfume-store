@@ -10,8 +10,19 @@ export interface IUser {
   role: 'user' | 'admin'
   image?: string
   emailVerified?: Date
+  loginAttempts?: number
+  lockUntil?: Date
+  lastLogin?: Date
   createdAt: Date
   updatedAt: Date
+}
+
+export interface ISku {
+  sku: string
+  variant: string
+  originalPrice: number
+  discountedPrice?: number
+  quantity: number
 }
 
 export interface IProduct {
@@ -19,19 +30,12 @@ export interface IProduct {
   name: string
   slug: string
   description: string
-  price: number
-  discountedPrice?: number
   category: 'men' | 'women' | 'unisex'
   images: string[]
-  quantity: number
   brand: string
-  sizes: string[]
+  skus: ISku[]
   featured: boolean
   active: boolean
-  // Soft-delete / audit fields
-  deletedAt?: Date | null
-  deletedBy?: Types.ObjectId | null
-  deleteReason?: string
   createdAt: Date
   updatedAt: Date
 }

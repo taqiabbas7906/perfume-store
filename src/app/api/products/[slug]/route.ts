@@ -4,12 +4,17 @@ import Product from '@/models/Product'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { productUpdateSchema } from '@/lib/validators'
+import { logger } from '@/lib/logger'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const rateLimitResponse = await rateLimit(req)
+    if (rateLimitResponse) return rateLimitResponse
+
     await connectDB()
 
     const { slug } = await params
@@ -17,7 +22,7 @@ export async function GET(
     const product = await Product.findOne({
       slug,
       active: true,
-    }).lean()
+    }).select('-__v').lean()
 
     if (!product) {
       return NextResponse.json(
@@ -26,9 +31,17 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ success: true, product })
+    return NextResponse.json(
+      { success: true, product },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=300',
+        },
+      }
+    )
 
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error fetching product', { error: error.message, slug: (await params).slug })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -41,9 +54,13 @@ export async function PUT(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const rateLimitResponse = await rateLimit(req)
+    if (rateLimitResponse) return rateLimitResponse
+
     const user = await getAuthAdmin(req)
 
     if (!user) {
+      logger.security('Unauthorized product update attempt')
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -59,6 +76,7 @@ export async function PUT(
     const validation = validateData(productUpdateSchema, body)
 
     if (!validation.success) {
+      logger.warn('Product update validation failed', { errors: validation })
       return validation.response
     }
 
@@ -83,45 +101,49 @@ export async function PUT(
       )
     }
 
-    const finalPrice = data.price !== undefined ? data.price : existingProduct.price
-    const finalDiscountedPrice = data.discountedPrice !== undefined 
-      ? data.discountedPrice 
-      : existingProduct.discountedPrice
-
-    if (
-      finalDiscountedPrice !== undefined &&
-      finalDiscountedPrice !== null &&
-      finalDiscountedPrice >= finalPrice
-    ) {
-      return NextResponse.json(
-        { error: 'Discounted price must be less than original price' },
-        { status: 400 }
-      )
+    if (data.skus) {
+      const skuValues = data.skus.map((sku: any) => sku.sku)
+      const duplicateSkus = skuValues.filter((item: string, index: number) => skuValues.indexOf(item) !== index)
+      
+      if (duplicateSkus.length > 0) {
+        return NextResponse.json(
+          { error: 'Duplicate SKUs found: ' + duplicateSkus.join(', ') },
+          { status: 400 }
+        )
+      }
     }
 
     const product = await Product.findOneAndUpdate(
       { slug, active: true },
       { $set: data },
       { returnDocument: 'after' }
-    ).lean()
+    ).select('-__v').lean()
+
+    logger.info('Product updated', { productId: product?._id, userId: user._id, slug })
 
     return NextResponse.json({ success: true, product })
 
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error updating product', { error: error.message, slug: (await params).slug })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const rateLimitResponse = await rateLimit(req)
+    if (rateLimitResponse) return rateLimitResponse
+
     const user = await getAuthAdmin(req)
 
     if (!user) {
+      logger.security('Unauthorized product deletion attempt')
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -136,7 +158,7 @@ export async function DELETE(
       { slug },
       { $set: { active: false } },
       { returnDocument: 'after' }
-    ).lean()
+    ).select('-__v').lean()
 
     if (!product) {
       return NextResponse.json(
@@ -145,12 +167,15 @@ export async function DELETE(
       )
     }
 
+    logger.info('Product deleted (soft)', { productId: product._id, userId: user._id, slug })
+
     return NextResponse.json({
       success: true,
       message: 'Product deleted successfully',
     })
 
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error deleting product', { error: error.message, slug: (await params).slug })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

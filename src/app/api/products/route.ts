@@ -4,9 +4,14 @@ import Product from '@/models/Product'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { productSchema } from '@/lib/validators'
+import { rateLimit } from '@/lib/rateLimit'
+import { logger } from '@/lib/logger'
 
 export async function GET(req: NextRequest) {
   try {
+    const rateLimitResponse = await rateLimit(req)
+    if (rateLimitResponse) return rateLimitResponse
+
     await connectDB()
 
     const { searchParams } = new URL(req.url)
@@ -17,41 +22,48 @@ export async function GET(req: NextRequest) {
     const maxPrice = searchParams.get('maxPrice')
     const featured = searchParams.get('featured')
     const sort = searchParams.get('sort')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '12')
+    const page = Math.max(1, Math.min(100, parseInt(searchParams.get('page') || '1')))
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '12')))
 
     const query: any = { active: true }
 
-    if (category) {
+    if (category && ['men', 'women', 'unisex'].includes(category)) {
       query.category = category
     }
 
     if (search) {
+      const sanitizedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
+        { name: { $regex: sanitizedSearch, $options: 'i' } },
+        { brand: { $regex: sanitizedSearch, $options: 'i' } },
+        { description: { $regex: sanitizedSearch, $options: 'i' } },
       ]
     }
 
     if (minPrice || maxPrice) {
-      query.price = {}
-      if (minPrice) query.price.$gte = parseFloat(minPrice)
-      if (maxPrice) query.price.$lte = parseFloat(maxPrice)
+      const min = parseFloat(minPrice || '0')
+      const max = parseFloat(maxPrice || '100000')
+      
+      if (!isNaN(min) && !isNaN(max) && min >= 0 && max <= 100000 && max >= min) {
+        query['skus.originalPrice'] = { $gte: min, $lte: max }
+      }
     }
 
     if (featured === 'true') {
       query.featured = true
     }
 
+    const allowedSorts = ['price_asc', 'price_desc', 'newest', 'oldest']
     let sortQuery: any = { createdAt: -1 }
 
-    if (sort === 'price_asc') sortQuery = { price: 1 }
-    if (sort === 'price_desc') sortQuery = { price: -1 }
-    if (sort === 'newest') sortQuery = { createdAt: -1 }
-    if (sort === 'oldest') sortQuery = { createdAt: 1 }
+    if (sort && allowedSorts.includes(sort)) {
+      if (sort === 'price_asc') sortQuery = { 'skus.originalPrice': 1 }
+      if (sort === 'price_desc') sortQuery = { 'skus.originalPrice': -1 }
+      if (sort === 'newest') sortQuery = { createdAt: -1 }
+      if (sort === 'oldest') sortQuery = { createdAt: 1 }
+    }
 
-    const skip = (page - 1) * limit
+    const skip = Math.min((page - 1) * limit, 10000)
 
     const total = await Product.countDocuments(query)
 
@@ -59,21 +71,30 @@ export async function GET(req: NextRequest) {
       .sort(sortQuery)
       .skip(skip)
       .limit(limit)
+      .select('-__v')
       .lean()
 
-    return NextResponse.json({
-      success: true,
-      products,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-        hasMore: page < Math.ceil(total / limit),
+    return NextResponse.json(
+      {
+        success: true,
+        products,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+          hasMore: page < Math.ceil(total / limit),
+        },
       },
-    })
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=60',
+        },
+      }
+    )
 
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error fetching products', { error: error.message })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -83,9 +104,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitResponse = await rateLimit(req)
+    if (rateLimitResponse) return rateLimitResponse
+
     const user = await getAuthAdmin(req)
 
     if (!user) {
+      logger.security('Unauthorized product creation attempt')
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -99,6 +124,7 @@ export async function POST(req: NextRequest) {
     const validation = validateData(productSchema, body)
 
     if (!validation.success) {
+      logger.warn('Product validation failed', { errors: validation })
       return validation.response
     }
 
@@ -113,14 +139,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const skuValues = data.skus.map((sku: any) => sku.sku)
+    const duplicateSkus = skuValues.filter((item: string, index: number) => skuValues.indexOf(item) !== index)
+    
+    if (duplicateSkus.length > 0) {
+      return NextResponse.json(
+        { error: 'Duplicate SKUs found: ' + duplicateSkus.join(', ') },
+        { status: 400 }
+      )
+    }
+
     const product = await Product.create(data)
+
+    logger.info('Product created', { productId: product._id, userId: user._id, slug: product.slug })
 
     return NextResponse.json(
       { success: true, product },
       { status: 201 }
     )
 
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Error creating product', { error: error.message, stack: error.stack })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -31,6 +31,25 @@ export const loginSchema = z.object({
 })
 
 // Product validator
+const skuSchema = z.object({
+  sku: z.string().min(3).max(50).trim(),
+  variant: z.string().min(1).max(50).trim(),
+  originalPrice: z.number().min(0).max(100000),
+  discountedPrice: z.number().min(0).max(100000).optional(),
+  quantity: z.number().min(0).int(),
+}).refine(
+  (data) => {
+    if (data.discountedPrice !== undefined) {
+      return data.discountedPrice < data.originalPrice
+    }
+    return true
+  },
+  {
+    message: 'Discounted price must be less than original price',
+    path: ['discountedPrice'],
+  }
+)
+
 const baseProductSchema = z.object({
   name: z
     .string()
@@ -41,6 +60,7 @@ const baseProductSchema = z.object({
     .string()
     .min(2, 'Slug must be at least 2 characters')
     .max(100, 'Slug is too long')
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Invalid slug format')
     .toLowerCase()
     .trim(),
   description: z
@@ -48,43 +68,19 @@ const baseProductSchema = z.object({
     .min(10, 'Description must be at least 10 characters')
     .max(2000, 'Description is too long')
     .trim(),
-  price: z
-    .number()
-    .min(0, 'Price cannot be negative')
-    .max(100000, 'Price is too high'),
-  discountedPrice: z
-    .number()
-    .min(0, 'Discounted price cannot be negative')
-    .max(100000, 'Discounted price is too high')
-    .optional(),
   category: z.enum(['men', 'women', 'unisex']),
-  quantity: z
-    .number()
-    .min(0, 'Quantity cannot be negative')
-    .int('Quantity must be a whole number'),
   brand: z
     .string()
     .min(2, 'Brand must be at least 2 characters')
     .max(50, 'Brand is too long')
     .trim(),
-  sizes: z.array(z.string()).default([]),
-  images: z.array(z.string()).default([]),
+  skus: z.array(skuSchema).min(1, 'Product must have at least one SKU'),
+  images: z.array(z.string().url()).default([]),
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
 })
 
-export const productSchema = baseProductSchema.refine(
-  (data) => {
-    if (data.discountedPrice !== undefined) {
-      return data.discountedPrice < data.price
-    }
-    return true
-  },
-  {
-    message: 'Discounted price must be less than original price',
-    path: ['discountedPrice'],
-  }
-)
+export const productSchema = baseProductSchema
 
 export const productUpdateSchema = baseProductSchema.partial()
 // Cart item validator

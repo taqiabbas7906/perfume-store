@@ -1,0 +1,2 @@
+{"timestamp":"2026-05-03T07:31:27.372Z","level":"info","message":"Product deleted (soft)","meta":{"productId":"69f5cab296fda5bb52e49ac3","userId":"69f0795e389389040a40cbb5","slug":"oud-royal"}}
+{"timestamp":"2026-05-03T07:37:15.082Z","level":"info","message":"Product created","meta":{"productId":"69f6fb2a2584c5397c7f6d93","userId":"69f0795e389389040a40cbb5","slug":"oud-royal"}}
