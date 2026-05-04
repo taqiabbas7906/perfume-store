@@ -5,43 +5,15 @@ import User from '@/models/User'
 import { IUser } from '@/types'
 
 export async function getAuthUser(req: NextRequest) {
-  try {
-    const authHeader = req.headers.get('Authorization')
+  const email = req.headers.get('x-user-email')
+  if (!email) return null
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return null
-    }
-
-    const token = authHeader.split(' ')[1]
-
-    if (!token) return null
-
-    const decoded = await getUserFromToken(token)
-
-    if (!decoded) return null
-
-    await connectDB()
-
-    const user = await User.findOne({ email: decoded.email }).lean<IUser>()
-
-    return user
-
-  } catch (error) {
-    return null
-  }
+  await connectDB()
+  return User.findOne({ email: email.toLowerCase(), active: true }).lean<IUser>()
 }
 
 export async function getAuthAdmin(req: NextRequest) {
-  try {
-    const user = await getAuthUser(req)
-
-    if (!user) return null
-
-    if (user.role !== 'admin') return null
-
-    return user
-
-  } catch (error) {
-    return null
-  }
+  const user = await getAuthUser(req)
+  if (!user || user.role !== 'admin') return null
+  return user
 }

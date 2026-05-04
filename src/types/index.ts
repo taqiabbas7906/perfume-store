@@ -10,6 +10,7 @@ export interface IUser {
   role: 'user' | 'admin'
   image?: string
   emailVerified?: Date
+  active: boolean
   loginAttempts?: number
   lockUntil?: Date
   lastLogin?: Date

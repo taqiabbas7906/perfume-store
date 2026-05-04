@@ -44,6 +44,11 @@ const UserSchema = new Schema<IUser>(
     emailVerified: {
       type: Date,
     },
+    active: {
+  type: Boolean,
+  default: true,
+  index: true,
+},
     loginAttempts: {
       type: Number,
       default: 0,

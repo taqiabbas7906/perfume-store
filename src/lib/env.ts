@@ -20,7 +20,7 @@ export function validateEnv() {
   })
 
   if (missing.length > 0) {
-    logger.error('Missing required environment variables', { missing })
+    logger.warn(`Missing required environment variables ${missing}`)
     throw new Error(`Missing environment variables: ${missing.join(', ')}`)
   }
 

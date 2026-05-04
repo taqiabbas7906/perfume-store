@@ -1,47 +1,16 @@
 import { NextRequest } from 'next/server'
-import { UAParser } from 'ua-parser-js'
 
-export async function getRequestInfo(req: NextRequest) {
-  const userAgent = req.headers.get('user-agent') || 'Unknown'
-  
+export function getRequestInfo(req: NextRequest) {
   const forwarded = req.headers.get('x-forwarded-for')
-  const realIp = req.headers.get('x-real-ip')
-  const ipAddress = forwarded
-    ? forwarded.split(',')[0].trim()
-    : realIp || 'Unknown'
+  const ip = req.headers.get('x-real-ip') || (forwarded?.split(',').pop()?.trim()) || 'unknown'
 
-  const parser = new UAParser(userAgent)
-  const result = parser.getResult()
-
-  const browser = result.browser.name
-    ? `${result.browser.name} ${result.browser.version}`
-    : 'Unknown'
-
-  const os = result.os.name
-    ? `${result.os.name} ${result.os.version}`
-    : 'Unknown'
-
-  const device = result.device.type || 'desktop'
-
-  let country = 'Unknown'
-  let city = 'Unknown'
-
-  try {
-    const geoRes = await fetch(`https://ipapi.co/${ipAddress}/json/`)
-    const geoData = await geoRes.json()
-    country = geoData.country_name || 'Unknown'
-    city = geoData.city || 'Unknown'
-  } catch {
-    country = 'Unknown'
-    city = 'Unknown'
-  }
+  // Cloudflare provides these headers without external calls
+  const country = req.headers.get('cf-ipcountry') || 'unknown'
+  const city = req.headers.get('cf-ipcity') || 'unknown'
 
   return {
-    ipAddress,
-    userAgent,
-    browser,
-    device,
-    os,
+    ipAddress: ip,
+    userAgent: req.headers.get('user-agent') || 'unknown',
     country,
     city,
     timestamp: new Date(),

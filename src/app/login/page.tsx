@@ -30,13 +30,18 @@ export default function LoginPage() {
     }
   }, [user, loading, router])
 
-  const saveUserToDB = async (token: string) => {
-    await fetch('/api/auth/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    })
-  }
+  // src/app/login/page.tsx — change saveUserToDB to use Authorization header
+const saveUserToDB = async (token: string) => {
+  const res = await fetch('/api/auth/sync', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({}),
+  })
+  if (!res.ok) throw new Error('Sync failed')
+}
 
   const handleGoogle = async () => {
     try {

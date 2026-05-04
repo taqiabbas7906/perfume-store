@@ -1,64 +1,105 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logger } from './logger'
+// src/lib/rateLimit.ts
+import { NextRequest, NextResponse } from "next/server";
+import { logger } from "./logger";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
-interface RateLimitRecord {
-  count: number
-  resetAt: number
+let globalRateLimiter: Ratelimit | null = null;
+let authRateLimiter: Ratelimit | null = null;
+
+function getRedisClient() {
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
 }
 
-const rateLimitStore = new Map<string, RateLimitRecord>()
-
-const WINDOW_MS = 60 * 1000
-const MAX_REQUESTS = 100
-
-function cleanupExpired() {
-  const now = Date.now()
-  for (const [key, record] of rateLimitStore.entries()) {
-    if (record.resetAt < now) {
-      rateLimitStore.delete(key)
-    }
+function getGlobalLimiter() {
+  if (!globalRateLimiter) {
+    globalRateLimiter = new Ratelimit({
+      redis: getRedisClient(),
+      limiter: Ratelimit.slidingWindow(100, "1 m"),
+      prefix: "rl:global",
+    });
   }
+  return globalRateLimiter;
 }
 
-setInterval(cleanupExpired, 60000)
+function getAuthLimiter() {
+  if (!authRateLimiter) {
+    authRateLimiter = new Ratelimit({
+      redis: getRedisClient(),
+      limiter: Ratelimit.slidingWindow(5, "15 m"),
+      prefix: "rl:auth",
+    });
+  }
+  return authRateLimiter;
+}
 
-export async function rateLimit(req: NextRequest): Promise<NextResponse | null> {
-  const forwarded = req.headers.get('x-forwarded-for')
-  const realIp = req.headers.get('x-real-ip')
-  const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'unknown'
+function getTrustedIp(req: NextRequest): string {
+  // Vercel sets x-real-ip from their edge, not from user-controlled headers
+  // Never trust x-forwarded-for unless behind a known, trusted proxy
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp;
 
-  const now = Date.now()
-  const record = rateLimitStore.get(ip)
-
-  if (!record || record.resetAt < now) {
-    rateLimitStore.set(ip, {
-      count: 1,
-      resetAt: now + WINDOW_MS,
-    })
-    return null
+  // Fallback for local dev
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // Take the LAST entry (most recent trusted proxy), not first
+    const ips = forwarded.split(",").map((s) => s.trim());
+    return ips[ips.length - 1];
   }
 
-  record.count++
+  return "unknown";
+}
 
-  if (record.count > MAX_REQUESTS) {
-    logger.security('Rate limit exceeded', { ip, path: req.nextUrl.pathname })
-    
+export async function rateLimit(
+  req: NextRequest,
+): Promise<NextResponse | null> {
+  const ip = getTrustedIp(req);
+  const { success, limit, remaining, reset } =
+    await getGlobalLimiter().limit(ip);
+
+  if (!success) {
+    logger.warn({ ip }, `Rate limit exceeded [${name}]`);
     return NextResponse.json(
       {
-        error: 'Too many requests',
-        retryAfter: Math.ceil((record.resetAt - now) / 1000),
+        error: "Too many requests",
+        retryAfter: Math.ceil((reset - Date.now()) / 1000),
       },
       {
         status: 429,
         headers: {
-          'Retry-After': Math.ceil((record.resetAt - now) / 1000).toString(),
-          'X-RateLimit-Limit': MAX_REQUESTS.toString(),
-          'X-RateLimit-Remaining': Math.max(0, MAX_REQUESTS - record.count).toString(),
-          'X-RateLimit-Reset': new Date(record.resetAt).toISOString(),
+          "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString(),
+          "X-RateLimit-Limit": limit.toString(),
+          "X-RateLimit-Remaining": remaining.toString(),
         },
-      }
-    )
+      },
+    );
   }
+  return null;
+}
 
-  return null
+export async function authRateLimit(
+  req: NextRequest,
+): Promise<NextResponse | null> {
+  const ip = getTrustedIp(req);
+  const { success, reset } = await getAuthLimiter().limit(ip);
+
+  if (!success) {
+    logger.warn({ ip }, `Rate limit exceeded [${name}]`);
+    return NextResponse.json(
+      {
+        error: "Too many requests",
+        retryAfter: Math.ceil((reset - Date.now()) / 1000),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString(),
+        },
+      },
+    );
+  }
+  return null;
 }
