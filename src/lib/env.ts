@@ -1,43 +1,66 @@
+import { z } from 'zod'
 import { logger } from './logger'
 
-const requiredEnvVars = [
-  'MONGODB_URI',
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'FIREBASE_PROJECT_ID',
-  'FIREBASE_CLIENT_EMAIL',
-  'FIREBASE_PRIVATE_KEY',
-]
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-export function validateEnv() {
-  const missing: string[] = []
+  // Database
+  MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
 
-  requiredEnvVars.forEach((key) => {
-    if (!process.env[key]) {
-      missing.push(key)
-    }
-  })
+  // Firebase Admin
+  FIREBASE_PROJECT_ID: z.string().min(1),
+  FIREBASE_CLIENT_EMAIL: z.string().email(),
+  FIREBASE_PRIVATE_KEY: z.string().min(1),
 
-  if (missing.length > 0) {
-    logger.warn(`Missing required environment variables ${missing}`)
-    throw new Error(`Missing environment variables: ${missing.join(', ')}`)
+  // Firebase Client (NEXT_PUBLIC_*)
+  NEXT_PUBLIC_FIREBASE_API_KEY: z.string().min(1),
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: z.string().min(1),
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().min(1),
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().optional(),
+  NEXT_PUBLIC_FIREBASE_APP_ID: z.string().optional(),
+
+  // App
+  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  COOKIE_SECRET: z.string().min(32).optional(),
+
+  // Optional integrations
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  ALLOWED_ORIGINS: z.string().optional(),
+  LOG_LEVEL: z.string().optional(),
+})
+
+let cached: z.infer<typeof envSchema> | null = null
+
+/**
+ * Returns the validated env. Throws on the first call if any required
+ * variable is missing/invalid. Subsequent calls return the cached value.
+ *
+ * Call this from server-only code paths. Do NOT import from client components.
+ */
+export function getEnv() {
+  if (cached) return cached
+  const parsed = envSchema.safeParse(process.env)
+  if (!parsed.success) {
+    const formatted = parsed.error.flatten().fieldErrors
+    logger.error({ formatted }, 'Invalid environment variables')
+    throw new Error(`Invalid environment variables: ${JSON.stringify(formatted)}`)
   }
-
-  logger.info('Environment validation passed')
+  cached = parsed.data
+  return cached
 }
 
-export const env = {
-  mongodbUri: process.env.MONGODB_URI!,
-  firebase: {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+// Convenience export. Validation happens at first access.
+export const env = new Proxy({} as z.infer<typeof envSchema>, {
+  get(_target, prop: string) {
+    return getEnv()[prop as keyof z.infer<typeof envSchema>]
   },
-  firebaseAdmin: {
-    projectId: process.env.FIREBASE_PROJECT_ID!,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-  },
-  nodeEnv: process.env.NODE_ENV || 'development',
-}
+})

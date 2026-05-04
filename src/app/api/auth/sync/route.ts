@@ -1,19 +1,17 @@
-// src/app/api/auth/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { syncUserToDB } from '@/lib/auth'
 import { syncRateLimit } from '@/lib/authRateLimit'
 
 export async function POST(req: NextRequest) {
-  const rl = await syncRateLimit(req)
-  if (rl) return rl
+  const limited = await syncRateLimit(req)
+  if (limited) return limited
 
   try {
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    const auth = req.headers.get('authorization')
+    if (!auth?.toLowerCase().startsWith('bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const token = authHeader.split(' ')[1]
+    const token = auth.slice(7).trim()
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const user = await syncUserToDB(token)
@@ -21,7 +19,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 401 })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        image: user.image,
+        hasPassword: user.hasPassword,
+      },
+    })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

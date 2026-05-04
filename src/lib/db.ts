@@ -1,27 +1,55 @@
-import mongoose from 'mongoose';
+import mongoose from 'mongoose'
 
-const MONGODB_URI = process.env.MONGODB_URI!
-
-if (!MONGODB_URI) {
-  throw new Error('Please define MONGODB_URI in .env.local')
+/**
+ * Connection cache to survive Next.js HMR & serverless cold starts.
+ *
+ * We use `globalThis.__mongooseCache` (private name) to avoid colliding
+ * with mongoose's own type aliases.
+ */
+type MongooseCache = {
+  conn: typeof mongoose | null
+  promise: Promise<typeof mongoose> | null
 }
 
-if (!global.mongoose) {
-  global.mongoose = { conn: null, promise: null }
+const globalForMongoose = globalThis as unknown as {
+  __mongooseCache?: MongooseCache
 }
 
-export async function connectDB() {
-  if (global.mongoose.conn) {
-    return global.mongoose.conn
+const cache: MongooseCache =
+  globalForMongoose.__mongooseCache ??
+  (globalForMongoose.__mongooseCache = { conn: null, promise: null })
+
+export async function connectDB(): Promise<typeof mongoose> {
+  if (cache.conn) return cache.conn
+
+  const uri = process.env.MONGODB_URI
+  if (!uri) {
+    throw new Error('MONGODB_URI environment variable is not set')
   }
 
-  if (!global.mongoose.promise) {
-    global.mongoose.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-      maxPoolSize: 10,
-    })
+  if (!cache.promise) {
+    cache.promise = mongoose
+      .connect(uri, {
+        bufferCommands: false,
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5_000,
+        socketTimeoutMS: 45_000,
+      })
+      .catch((err) => {
+        // Reset promise so a future call can retry.
+        cache.promise = null
+        throw err
+      })
   }
 
-  global.mongoose.conn = await global.mongoose.promise
-  return global.mongoose.conn
+  cache.conn = await cache.promise
+  return cache.conn
+}
+
+export async function disconnectDB(): Promise<void> {
+  if (cache.conn) {
+    await mongoose.disconnect()
+    cache.conn = null
+    cache.promise = null
+  }
 }

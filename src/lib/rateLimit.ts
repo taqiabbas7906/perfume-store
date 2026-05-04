@@ -1,105 +1,132 @@
-// src/lib/rateLimit.ts
-import { NextRequest, NextResponse } from "next/server";
-import { logger } from "./logger";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { NextRequest, NextResponse } from 'next/server'
+import { logger } from './logger'
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
 
-let globalRateLimiter: Ratelimit | null = null;
-let authRateLimiter: Ratelimit | null = null;
+let redisClient: Redis | null = null
+const limiterCache = new Map<string, Ratelimit>()
 
-function getRedisClient() {
-  return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+function isUpstashConfigured(): boolean {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  )
 }
 
-function getGlobalLimiter() {
-  if (!globalRateLimiter) {
-    globalRateLimiter = new Ratelimit({
-      redis: getRedisClient(),
-      limiter: Ratelimit.slidingWindow(100, "1 m"),
-      prefix: "rl:global",
-    });
+function getRedisClient(): Redis | null {
+  if (!isUpstashConfigured()) return null
+  if (!redisClient) {
+    redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    })
   }
-  return globalRateLimiter;
+  return redisClient
 }
 
-function getAuthLimiter() {
-  if (!authRateLimiter) {
-    authRateLimiter = new Ratelimit({
-      redis: getRedisClient(),
-      limiter: Ratelimit.slidingWindow(5, "15 m"),
-      prefix: "rl:auth",
-    });
+interface LimiterConfig {
+  /** unique name used as Redis prefix and log tag */
+  name: string
+  /** number of requests allowed in the window */
+  limit: number
+  /** sliding window duration, e.g. \"1 m\", \"15 m\" */
+  window: `${number} ${'s' | 'm' | 'h' | 'd'}`
+}
+
+function getLimiter(config: LimiterConfig): Ratelimit | null {
+  const redis = getRedisClient()
+  if (!redis) return null
+  let limiter = limiterCache.get(config.name)
+  if (!limiter) {
+    limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(config.limit, config.window),
+      prefix: `rl:${config.name}`,
+      analytics: false,
+    })
+    limiterCache.set(config.name, limiter)
   }
-  return authRateLimiter;
+  return limiter
 }
 
-function getTrustedIp(req: NextRequest): string {
-  // Vercel sets x-real-ip from their edge, not from user-controlled headers
-  // Never trust x-forwarded-for unless behind a known, trusted proxy
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp) return realIp;
+/**
+ * Best-effort IP extraction.
+ *
+ * Header trust order:
+ * 1. `x-real-ip` — set by trusted reverse proxies (Vercel, Cloudflare proxy, Nginx)
+ * 2. `x-forwarded-for` — last entry is the most-recent (closest) trusted proxy
+ *
+ * Never trust the FIRST entry of x-forwarded-for in untrusted environments,
+ * because clients can prepend arbitrary values.
+ */
+function getClientIp(req: NextRequest): string {
+  const realIp = req.headers.get('x-real-ip')
+  if (realIp) return realIp.trim()
 
-  // Fallback for local dev
-  const forwarded = req.headers.get("x-forwarded-for");
+  const forwarded = req.headers.get('x-forwarded-for')
   if (forwarded) {
-    // Take the LAST entry (most recent trusted proxy), not first
-    const ips = forwarded.split(",").map((s) => s.trim());
-    return ips[ips.length - 1];
+    const ips = forwarded
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (ips.length) return ips[ips.length - 1]
   }
 
-  return "unknown";
+  return 'unknown'
 }
 
-export async function rateLimit(
+async function applyLimit(
   req: NextRequest,
+  config: LimiterConfig
 ): Promise<NextResponse | null> {
-  const ip = getTrustedIp(req);
-  const { success, limit, remaining, reset } =
-    await getGlobalLimiter().limit(ip);
+  const limiter = getLimiter(config)
+  // No Redis configured -> fail open in dev, log once per cold start.
+  if (!limiter) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn({ limiter: config.name }, 'Upstash Redis not configured – rate limit skipped')
+    }
+    return null
+  }
 
-  if (!success) {
-    logger.warn({ ip }, `Rate limit exceeded [${name}]`);
+  const ip = getClientIp(req)
+  try {
+    const { success, limit, remaining, reset } = await limiter.limit(ip)
+    if (success) return null
+
+    const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
+    logger.warn({ ip, limiter: config.name, retryAfter }, `Rate limit exceeded [${config.name}]`)
+
     return NextResponse.json(
-      {
-        error: "Too many requests",
-        retryAfter: Math.ceil((reset - Date.now()) / 1000),
-      },
+      { error: 'Too many requests', retryAfter },
       {
         status: 429,
         headers: {
-          "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString(),
-          "X-RateLimit-Limit": limit.toString(),
-          "X-RateLimit-Remaining": remaining.toString(),
+          'Retry-After': retryAfter.toString(),
+          'X-RateLimit-Limit': limit.toString(),
+          'X-RateLimit-Remaining': remaining.toString(),
+          'X-RateLimit-Reset': new Date(reset).toISOString(),
         },
-      },
-    );
+      }
+    )
+  } catch (err) {
+    // Never block traffic if Upstash is unavailable.
+    logger.error({ err, limiter: config.name }, 'Rate limiter error')
+    return null
   }
-  return null;
 }
 
-export async function authRateLimit(
-  req: NextRequest,
-): Promise<NextResponse | null> {
-  const ip = getTrustedIp(req);
-  const { success, reset } = await getAuthLimiter().limit(ip);
+// Pre-configured limiters
+const GLOBAL: LimiterConfig = { name: 'global', limit: 100, window: '1 m' }
+const AUTH: LimiterConfig = { name: 'auth', limit: 5, window: '15 m' }
 
-  if (!success) {
-    logger.warn({ ip }, `Rate limit exceeded [${name}]`);
-    return NextResponse.json(
-      {
-        error: "Too many requests",
-        retryAfter: Math.ceil((reset - Date.now()) / 1000),
-      },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString(),
-        },
-      },
-    );
-  }
-  return null;
+export function rateLimit(req: NextRequest) {
+  return applyLimit(req, GLOBAL)
+}
+
+export function authRateLimit(req: NextRequest) {
+  return applyLimit(req, AUTH)
+}
+
+/** Custom limiter for one-off use in routes */
+export function customRateLimit(req: NextRequest, config: LimiterConfig) {
+  return applyLimit(req, config)
 }

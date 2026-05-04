@@ -1,17 +1,21 @@
-// src/app/api/auth/change-password/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { admin } from '@/lib/firebase-admin'
+import { getAdmin } from '@/lib/firebase-admin'
 import { getAuthUser } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { changePasswordRateLimit } from '@/lib/authRateLimit'
 import { changePasswordSchema } from '@/lib/validators'
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
-import { verifyPassword } from '@/lib/password'
+import { logger } from '@/lib/logger'
 
-async function verifyCurrentPasswordViaRestAPI(email: string, password: string): Promise<boolean> {
+/**
+ * Verify the user's current password by attempting a password sign-in via the
+ * Identity Toolkit REST API. The Firebase Admin SDK has no native equivalent.
+ */
+async function verifyCurrentPassword(email: string, password: string): Promise<boolean> {
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+  if (!apiKey) return false
   try {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!
     const res = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
       {
@@ -27,15 +31,19 @@ async function verifyCurrentPasswordViaRestAPI(email: string, password: string):
 }
 
 export async function POST(req: NextRequest) {
-  const rl = await changePasswordRateLimit(req)
-  if (rl) return rl
+  const limited = await changePasswordRateLimit(req)
+  if (limited) return limited
 
   try {
     const user = await getAuthUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await req.json()
-    const validation = validateData(changePasswordSchema, body)
+    const body = await req.json().catch(() => null)
+    if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+
+    // The discriminator must come from the server-trusted user record, NOT the client.
+    const merged = { ...body, hasPassword: user.hasPassword }
+    const validation = validateData(changePasswordSchema, merged)
     if (!validation.success) return validation.response
 
     const { currentPassword, newPassword } = validation.data
@@ -44,26 +52,31 @@ export async function POST(req: NextRequest) {
       if (!currentPassword) {
         return NextResponse.json({ error: 'Current password is required' }, { status: 400 })
       }
-
-      const valid = await verifyCurrentPasswordViaRestAPI(user.email, currentPassword)
-      if (!valid) {
+      const ok = await verifyCurrentPassword(user.email, currentPassword)
+      if (!ok) {
         return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 })
       }
     }
 
-    await admin.auth().updateUser(user.firebaseUid as string, { password: newPassword })
+    await getAdmin().auth().updateUser(user.firebaseUid, { password: newPassword })
 
     await connectDB()
     await User.findByIdAndUpdate(user._id, { hasPassword: true })
 
+    logger.info({ userId: user._id }, 'Password changed')
     return NextResponse.json({
       success: true,
-      message: user.hasPassword ? 'Password changed successfully' : 'Password set successfully.',
+      message: user.hasPassword ? 'Password changed successfully' : 'Password set successfully',
     })
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { code?: string; message?: string }
     if (error.code === 'auth/requires-recent-login') {
-      return NextResponse.json({ error: 'Please login again before changing your password' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Please login again before changing your password' },
+        { status: 401 }
+      )
     }
+    logger.error({ err: error.message }, 'change-password failed')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

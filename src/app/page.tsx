@@ -3,46 +3,64 @@
 import { useAuth } from '@/context/AuthContext'
 import { logout } from '@/lib/logout'
 import { authFetch } from '@/lib/api'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export default function Home() {
   const { user, token, loading } = useAuth()
+
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [hasPassword, setHasPassword] = useState(false)
-  const [checkingPassword, setCheckingPassword] = useState(true)
 
-  const isGoogleUser = user?.providerData?.[0]?.providerId === 'google.com'
-  const isFacebookUser = user?.providerData?.[0]?.providerId === 'facebook.com'
-  const isAppleUser = user?.providerData?.[0]?.providerId === 'apple.com'
+  // SAFE provider access (fix TS crash)
+  const providerId = user?.providerData?.[0]?.providerId ?? ''
+
+  const isGoogleUser = providerId === 'google.com'
+  const isFacebookUser = providerId === 'facebook.com'
+  const isAppleUser = providerId === 'apple.com'
   const isSocialUser = isGoogleUser || isFacebookUser || isAppleUser
 
-  useEffect(() => {
-    if (user) {
-      fetchUserData()
-    }
-  }, [user])
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       const res = await authFetch('/api/auth/me')
       const data = await res.json()
-      if (data.user) {
-        setHasPassword(data.user.hasPassword)
+
+      if (data?.user) {
+        setHasPassword(Boolean(data.user.hasPassword))
       }
-    } catch (err) {
-      console.log('Error fetching user data:', err)
-    } finally {
-      setCheckingPassword(false)
+    } catch {
+      // silent fail
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    void fetchUserData().catch(() => {
+      if (cancelled) return
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user, fetchUserData])
 
   const handleChangePassword = async () => {
     setMessage('')
     setError('')
+
+    if (!newPassword || !confirmPassword) {
+      setError('Password fields cannot be empty')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
     try {
       const res = await authFetch('/api/auth/change-password', {
         method: 'POST',
@@ -56,16 +74,16 @@ export default function Home() {
       const data = await res.json()
 
       if (data.success) {
-        setMessage(data.message)
+        setMessage(data.message || 'Password updated successfully')
         setHasPassword(true)
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       } else {
-        setError(data.error)
+        setError(data.error || 'Something went wrong')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError((err as Error).message)
     }
   }
 
@@ -77,15 +95,13 @@ export default function Home() {
     <main style={{ maxWidth: '400px', margin: '100px auto', padding: '20px' }}>
       {user ? (
         <div>
-          <h1>Welcome {user.displayName || user.email}</h1>
-          <p>Email: {user.email}</p>
+          <h1>Welcome {user.displayName || user.email || 'User'}</h1>
+          <p>Email: {user.email ?? 'N/A'}</p>
           <p>Token exists: {token ? 'Yes' : 'No'}</p>
-          <p>Login provider: {user?.providerData?.[0]?.providerId}</p>
+          <p>Login provider: {providerId || 'unknown'}</p>
 
           <div style={{ marginTop: '20px' }}>
-            <h2>
-              {!hasPassword ? 'Set Password' : 'Change Password'}
-            </h2>
+            <h2>{!hasPassword ? 'Set Password' : 'Change Password'}</h2>
 
             {isSocialUser && !hasPassword && (
               <p style={{ color: 'blue', fontSize: '14px', marginBottom: '10px' }}>
@@ -100,6 +116,7 @@ export default function Home() {
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+                data-testid="current-password-input"
               />
             )}
 
@@ -109,32 +126,34 @@ export default function Home() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+              data-testid="new-password-input"
             />
+
             <input
               type="password"
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+              data-testid="confirm-password-input"
             />
+
             <button
               onClick={handleChangePassword}
               style={{ width: '100%', padding: '10px', marginBottom: '10px' }}
+              data-testid="change-password-btn"
             >
               {!hasPassword ? 'Set Password' : 'Change Password'}
             </button>
 
-            {message && (
-              <p style={{ color: 'green' }}>{message}</p>
-            )}
-            {error && (
-              <p style={{ color: 'red' }}>{error}</p>
-            )}
+            {message && <p style={{ color: 'green' }}>{message}</p>}
+            {error && <p style={{ color: 'red' }}>{error}</p>}
           </div>
 
           <button
             onClick={logout}
             style={{ width: '100%', padding: '10px' }}
+            data-testid="logout-btn"
           >
             Logout
           </button>

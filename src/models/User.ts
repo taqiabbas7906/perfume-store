@@ -1,6 +1,6 @@
 import mongoose, { Schema } from 'mongoose'
 import { IUser } from '@/types'
-import { hashPassword, verifyPassword } from '@/lib/password'
+import { verifyPassword } from '@/lib/password'
 
 const UserSchema = new Schema<IUser>(
   {
@@ -11,6 +11,7 @@ const UserSchema = new Schema<IUser>(
       minlength: 2,
       maxlength: 100,
     },
+    // unique:true creates the index — do NOT add a separate `.index()` call.
     email: {
       type: String,
       required: true,
@@ -25,56 +26,37 @@ const UserSchema = new Schema<IUser>(
       required: true,
       unique: true,
     },
-    password: {
-      type: String,
-    },
-    hasPassword: {
-      type: Boolean,
-      default: false,
-    },
+    password: { type: String, select: false },
+    hasPassword: { type: Boolean, default: false },
     role: {
       type: String,
       enum: ['user', 'admin'],
       default: 'user',
+      index: true,
     },
     image: {
       type: String,
-      match: /^https?:\/\/.+/,
+      validate: {
+        validator: (v: string | undefined) => !v || /^https?:\/\/.+/.test(v),
+        message: 'image must be a valid URL',
+      },
     },
-    emailVerified: {
-      type: Date,
-    },
-    active: {
-  type: Boolean,
-  default: true,
-  index: true,
-},
-    loginAttempts: {
-      type: Number,
-      default: 0,
-    },
-    lockUntil: {
-      type: Date,
-    },
-    lastLogin: {
-      type: Date,
-    },
+    emailVerified: { type: Date },
+    active: { type: Boolean, default: true, index: true },
+    loginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Date },
+    lastLogin: { type: Date },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 )
-
-UserSchema.index({ email: 1 })
-UserSchema.index({ firebaseUid: 1 })
 
 UserSchema.virtual('isLocked').get(function () {
   return !!(this.lockUntil && this.lockUntil > new Date())
 })
 
-UserSchema.methods.comparePassword = async function (candidatePassword: string) {
+UserSchema.methods.comparePassword = async function (candidate: string) {
   if (!this.password) return false
-  return verifyPassword(candidatePassword, this.password)
+  return verifyPassword(candidate, this.password)
 }
 
 UserSchema.methods.incLoginAttempts = async function () {
@@ -85,18 +67,17 @@ UserSchema.methods.incLoginAttempts = async function () {
     })
   }
 
-  const updates: any = { $inc: { loginAttempts: 1 } }
-
+  const updates: Record<string, unknown> = { $inc: { loginAttempts: 1 } }
   const maxAttempts = 5
-  const lockTime = 2 * 60 * 60 * 1000
-
+  const lockTime = 2 * 60 * 60 * 1000 // 2h
   if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked) {
     updates.$set = { lockUntil: new Date(Date.now() + lockTime) }
   }
-
   return this.updateOne(updates)
 }
 
-const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema)
+const User =
+  (mongoose.models.User as mongoose.Model<IUser>) ||
+  mongoose.model<IUser>('User', UserSchema)
 
 export default User
