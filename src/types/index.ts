@@ -22,142 +22,44 @@ export interface IUser {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * PRODUCT TYPES
- * ───────────────────────────────────────────────────────────── */
-export type ProductType =
-  | 'perfume'
-  | 'lipstick'
-  | 'makeup'
-  | 'jewelry'
-  | 'skincare'
-  | 'other'
-
-/* ─────────────────────────────────────────────────────────────
- * PRODUCT IMAGES
- * ───────────────────────────────────────────────────────────── */
-export interface IProductImage {
-  url: string
-  alt?: string
-  isPrimary?: boolean
-}
-
-/* ─────────────────────────────────────────────────────────────
- * VARIANT OPTIONS (KEY FIX FOR SKU SYSTEM)
- * Each SKU = unique combination of these
- * ───────────────────────────────────────────────────────────── */
-export interface IVariantOptions {
-  ml?: number              // perfume size
-  color?: string           // lipstick color
-  shade?: string
-  finish?: string
-  size?: string            // jewelry size
-  material?: string
-}
-
-/* ─────────────────────────────────────────────────────────────
- * PRODUCT VARIANT (EACH = UNIQUE SKU)
- * ───────────────────────────────────────────────────────────── */
-export interface IProductVariant {
-  sku: string
-  label: string
-  originalPrice: number
-  discountedPrice?: number
-  quantity: number
-
-  /**
-   * IMPORTANT:
-   * Defines uniqueness of SKU (ml, color, shade, etc.)
-   */
-  options?: IVariantOptions
-
-  images?: string[]
-}
-
-/* ─────────────────────────────────────────────────────────────
- * PER-FLAVOR PRODUCT ATTRIBUTES
- * ───────────────────────────────────────────────────────────── */
-
-/* PERFUME */
-export interface IPerfumeAttributes {
-  notes?: {
-    top?: string[]
-    middle?: string[]
-    base?: string[]
-  }
-  concentration?: 'EDT' | 'EDP' | 'Parfum' | 'EDC' | 'Extrait'
-  gender?: 'men' | 'women' | 'unisex'
-  longevity?: 'low' | 'moderate' | 'long' | 'eternal'
-  sillage?: 'soft' | 'moderate' | 'strong' | 'enormous'
-  yearLaunched?: number
-  perfumer?: string[]
-}
-
-/* LIPSTICK */
-export interface ILipstickAttributes {
-  finish?: 'matte' | 'gloss' | 'satin' | 'metallic' | 'sheer'
-  shade?: string
-  formulation?: 'liquid' | 'stick' | 'pencil' | 'balm'
-  longLasting?: boolean
-  spfProtection?: number
-}
-
-/* MAKEUP */
-export interface IMakeupAttributes {
-  finish?: 'matte' | 'gloss' | 'satin' | 'cream'
-  skinType?: string[]
-  waterproof?: boolean
-}
-
-/* JEWELRY */
-export interface IJewelryAttributes {
-  material?: string
-  gemstone?: string
-  size?: string
-  weightGrams?: number
-}
-
-/* ─────────────────────────────────────────────────────────────
- * FINAL ATTRIBUTE UNION (IMPORTANT)
- * ───────────────────────────────────────────────────────────── */
-export type IProductAttributes =
-  | IPerfumeAttributes
-  | ILipstickAttributes
-  | IMakeupAttributes
-  | IJewelryAttributes
-  | Record<string, unknown>
-
-/* ─────────────────────────────────────────────────────────────
  * PRODUCT
  * ───────────────────────────────────────────────────────────── */
 export interface IProduct {
   _id: Types.ObjectId
-
   name: string
   slug: string
   description: string
 
-  productType: ProductType
+  productType:
+    | 'perfume'
+    | 'lipstick'
+    | 'makeup'
+    | 'jewelry'
+    | 'skincare'
+    | 'other'
 
   brand: string
   category: string
   tags: string[]
 
-  images: IProductImage[]
+  images: {
+    url: string
+    alt?: string
+    isPrimary?: boolean
+  }[]
 
-  /**
-   * IMPORTANT:
-   * Each variant = unique SKU (ml/color/shade/etc.)
-   */
-  variants: IProductVariant[]
+  variants: {
+    sku: string
+    label: string
+    originalPrice: number
+    discountedPrice?: number
+    quantity: number
+    options?: Record<string, any>
+    images?: string[]
+  }[]
 
-  /**
-   * Typed by productType at runtime validation
-   */
-  attributes: IProductAttributes
+  attributes: Record<string, any>
 
-  /* ────────────────
-   * Aggregates
-   * ──────────────── */
   minPrice: number
   maxPrice: number
   totalStock: number
@@ -177,10 +79,14 @@ export interface IProduct {
  * CART
  * ───────────────────────────────────────────────────────────── */
 export interface ICartItem {
-  product: Types.ObjectId | IProduct
+  productId: Types.ObjectId
   variantSku: string
   quantity: number
   price: number
+  name?: string
+  variantLabel?: string
+  image?: string
+  addedAt?: Date
 }
 
 export interface ICart {
@@ -188,29 +94,43 @@ export interface ICart {
   user?: Types.ObjectId
   sessionId?: string
   items: ICartItem[]
-  expiresAt: Date
+  expiresAt?: Date
+  createdAt: Date
+  updatedAt: Date
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * ORDER STATUS (UNIFIED)
+ * ───────────────────────────────────────────────────────────── */
+export type OrderStatus =
+  | 'pending'
+  | 'paid'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'failed'
+  | 'refunded'
+
+export type PaymentStatus =
+  | 'pending'
+  | 'authorized'
+  | 'completed'
+  | 'failed'
+  | 'canceled'
+  | 'refunded'
 
 /* ─────────────────────────────────────────────────────────────
  * ORDER
  * ───────────────────────────────────────────────────────────── */
 export interface IOrderItem {
-  product: Types.ObjectId | IProduct
+  productId: Types.ObjectId
   variantSku: string
   name: string
-  variantLabel: string
+  image: string
   price: number
   quantity: number
-  image: string
+  subtotal: number
 }
-
-export type OrderStatus =
-  | 'pending'
-  | 'paid'
-  | 'processing'
-  | 'dispatched'
-  | 'delivered'
-  | 'cancelled'
 
 export interface IShippingAddress {
   name: string
@@ -223,25 +143,45 @@ export interface IShippingAddress {
 export interface IOrderLog {
   ipAddress: string
   userAgent: string
-  browser: string
-  device: string
-  os: string
-  country: string
-  city: string
+  browser?: string
+  device?: string
+  os?: string
+  country?: string
+  city?: string
   timestamp: Date
 }
 
 export interface IOrder {
   _id: Types.ObjectId
   user: Types.ObjectId | IUser
+
   items: IOrderItem[]
   shippingAddress: IShippingAddress
+
   status: OrderStatus
-  paymentIntentId: string
+
+  subtotal: number
+  discount: number
+  shipping: number
+  tax: number
   totalAmount: number
-  voucherUsed?: Types.ObjectId
-  discount?: number
+  currency: string
+
+  idempotencyKey: string
+  paymentIdempotencyKey?: string
+
+  paymentIntentId: string
+  squarePaymentId?: string
+  squareOrderId?: string
+
+  paymentStatus: PaymentStatus
+  paymentError?: string
+  paidAt?: Date
+  voucherUsed?: Types.ObjectId | null
+  inventoryReleased: boolean
+
   orderLog: IOrderLog
+
   createdAt: Date
   updatedAt: Date
 }

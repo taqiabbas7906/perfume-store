@@ -3,6 +3,10 @@ import { logger } from './logger'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
+/* ───────────────────────────────────────────── */
+/* Redis client setup */
+/* ───────────────────────────────────────────── */
+
 let redisClient: Redis | null = null
 const limiterCache = new Map<string, Ratelimit>()
 
@@ -26,11 +30,19 @@ function getRedisClient(): Redis | null {
   return redisClient
 }
 
-interface LimiterConfig {
+/* ───────────────────────────────────────────── */
+/* Limiter config */
+/* ───────────────────────────────────────────── */
+
+export interface LimiterConfig {
   name: string
   limit: number
   window: `${number} ${'s' | 'm' | 'h' | 'd'}`
 }
+
+/* ───────────────────────────────────────────── */
+/* Limiter factory (cached) */
+/* ───────────────────────────────────────────── */
 
 function getLimiter(config: LimiterConfig): Ratelimit | null {
   const redis = getRedisClient()
@@ -52,19 +64,10 @@ function getLimiter(config: LimiterConfig): Ratelimit | null {
   return limiter
 }
 
-/* ───────────────────────────────────────────────────────────── */
-/* IP extraction (FIXED for real proxy environments) */
-/* ───────────────────────────────────────────────────────────── */
+/* ───────────────────────────────────────────── */
+/* IP extraction (correct proxy-safe version) */
+/* ───────────────────────────────────────────── */
 
-/**
- * Correct trust order:
- * 1. x-real-ip (trusted proxies like Vercel / Cloudflare)
- * 2. x-forwarded-for FIRST entry (original client IP)
- *
- * IMPORTANT:
- * - LAST entry is usually closest proxy → NOT user
- * - FIRST entry is usually original client → more correct
- */
 function getClientIp(req: NextRequest): string {
   const realIp = req.headers.get('x-real-ip')
   if (realIp) return realIp.trim()
@@ -77,14 +80,16 @@ function getClientIp(req: NextRequest): string {
       .filter(Boolean)
 
     if (ips.length > 0) {
-      return ips[0] // FIX: was ips[ips.length - 1]
+      return ips[0] // correct: original client IP
     }
   }
 
   return 'unknown'
 }
 
-/* ───────────────────────────────────────────────────────────── */
+/* ───────────────────────────────────────────── */
+/* Core limiter logic */
+/* ───────────────────────────────────────────── */
 
 async function applyLimit(
   req: NextRequest,
@@ -92,12 +97,12 @@ async function applyLimit(
 ): Promise<NextResponse | null> {
   const limiter = getLimiter(config)
 
-  // Fail-open if Redis not configured
+  // Fail-open strategy (never break API if Redis is down)
   if (!limiter) {
     if (process.env.NODE_ENV === 'production') {
       logger.warn(
         { limiter: config.name },
-        'Upstash Redis not configured – rate limit skipped'
+        'Rate limit skipped (Redis not configured)'
       )
     }
     return null
@@ -121,7 +126,10 @@ async function applyLimit(
     )
 
     return NextResponse.json(
-      { error: 'Too many requests', retryAfter },
+      {
+        error: 'Too many requests',
+        retryAfter,
+      },
       {
         status: 429,
         headers: {
@@ -133,18 +141,14 @@ async function applyLimit(
       }
     )
   } catch (err) {
-    logger.error(
-      { err, limiter: config.name },
-      'Rate limiter error'
-    )
-
+    logger.error({ err, limiter: config.name }, 'Rate limiter error')
     return null
   }
 }
 
-/* ───────────────────────────────────────────────────────────── */
-/* Predefined limiters */
-/* ───────────────────────────────────────────────────────────── */
+/* ───────────────────────────────────────────── */
+/* Base limiters */
+/* ───────────────────────────────────────────── */
 
 const GLOBAL: LimiterConfig = {
   name: 'global',
@@ -158,6 +162,38 @@ const AUTH: LimiterConfig = {
   window: '15 m',
 }
 
+/* ───────────────────────────────────────────── */
+/* Feature-specific limiters (MERGED FROM EMERGENT IDEA) */
+/* ───────────────────────────────────────────── */
+
+const CART: LimiterConfig = {
+  name: 'cart',
+  limit: 60,
+  window: '1 m',
+}
+
+const ORDERS: LimiterConfig = {
+  name: 'orders',
+  limit: 20,
+  window: '1 m',
+}
+
+const PAYMENTS: LimiterConfig = {
+  name: 'payments',
+  limit: 10,
+  window: '1 m',
+}
+
+const WEBHOOKS: LimiterConfig = {
+  name: 'webhooks',
+  limit: 200,
+  window: '1 m',
+}
+
+/* ───────────────────────────────────────────── */
+/* Public API helpers */
+/* ───────────────────────────────────────────── */
+
 export function rateLimit(req: NextRequest) {
   return applyLimit(req, GLOBAL)
 }
@@ -165,6 +201,26 @@ export function rateLimit(req: NextRequest) {
 export function authRateLimit(req: NextRequest) {
   return applyLimit(req, AUTH)
 }
+
+export function cartRateLimit(req: NextRequest) {
+  return applyLimit(req, CART)
+}
+
+export function ordersRateLimit(req: NextRequest) {
+  return applyLimit(req, ORDERS)
+}
+
+export function paymentsRateLimit(req: NextRequest) {
+  return applyLimit(req, PAYMENTS)
+}
+
+export function webhooksRateLimit(req: NextRequest) {
+  return applyLimit(req, WEBHOOKS)
+}
+
+/* ───────────────────────────────────────────── */
+/* Advanced usage (optional) */
+/* ───────────────────────────────────────────── */
 
 export function customRateLimit(
   req: NextRequest,

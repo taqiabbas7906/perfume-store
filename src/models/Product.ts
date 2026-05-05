@@ -14,66 +14,31 @@ const ProductImageSchema = new Schema(
 )
 
 /* ─────────────────────────────────────────────
- * VARIANT (SKU-level unit)
- * Each ml / shade = separate SKU (IMPORTANT)
+ * VARIANT
  * ───────────────────────────────────────────── */
 const VariantSchema = new Schema(
   {
-    sku: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 64,
-    },
+    sku: { type: String, required: true, trim: true },
 
-    label: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 1,
-      maxlength: 80,
-    },
+    label: { type: String, required: true, trim: true },
 
-    originalPrice: {
-      type: Number,
-      required: true,
-      min: 0,
-      max: 1_000_000,
-    },
+    originalPrice: { type: Number, required: true, min: 0 },
 
     discountedPrice: {
       type: Number,
       min: 0,
-      max: 1_000_000,
       validate: {
-        validator: function (this: { originalPrice: number }, v: number) {
+        validator(this: any, v: number) {
           return v == null || v < this.originalPrice
         },
-        message: 'discountedPrice must be less than originalPrice',
       },
     },
 
-    quantity: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0,
-      validate: {
-        validator: Number.isInteger,
-        message: 'quantity must be integer',
-      },
-    },
+    quantity: { type: Number, required: true, min: 0, default: 0 },
 
-    options: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
+    options: { type: Schema.Types.Mixed, default: {} },
 
-    images: {
-      type: [String],
-      default: [],
-    },
+    images: { type: [String], default: [] },
   },
   { _id: false }
 )
@@ -83,89 +48,43 @@ const VariantSchema = new Schema(
  * ───────────────────────────────────────────── */
 const ProductSchema = new Schema<IProduct>(
   {
-    name: { type: String, required: true, trim: true, minlength: 2, maxlength: 200 },
+    name: { type: String, required: true, trim: true },
 
-    slug: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    },
+    slug: { type: String, required: true, unique: true, index: true },
 
-    description: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 10,
-      maxlength: 5000,
-    },
+    description: { type: String, required: true },
 
     productType: {
       type: String,
+      enum: ['perfume', 'lipstick', 'makeup', 'jewelry', 'skincare', 'other'],
       required: true,
-      enum: ['perfume', 'lipstick', 'other'],
-      index: true,
     },
 
-    brand: {
-      type: String,
-      required: true,
-      trim: true,
-      index: true,
-    },
+    brand: { type: String, required: true, index: true },
 
-    category: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      index: true,
-    },
+    category: { type: String, required: true, index: true },
 
-    tags: {
-      type: [String],
-      default: [],
-      index: true,
-    },
+    tags: { type: [String], default: [] },
 
-    images: {
-      type: [ProductImageSchema],
-      default: [],
-    },
+    images: { type: [ProductImageSchema], default: [] },
 
     variants: {
       type: [VariantSchema],
       required: true,
-      validate: {
-        validator: (v: unknown[]) => Array.isArray(v) && v.length > 0,
-        message: 'At least one variant required',
-      },
+      validate: (v: unknown[]) => Array.isArray(v) && v.length > 0,
     },
 
-    /* ─────────────────────────────────────────────
-     * Dynamic product-specific fields
-     * perfume → notes, concentration
-     * lipstick → shade, finish
-     * ───────────────────────────────────────────── */
-    attributes: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
+    attributes: { type: Schema.Types.Mixed, default: {} },
 
-    /* ─────────────────────────────────────────────
-     * Aggregates (used for filtering/sorting)
-     * ───────────────────────────────────────────── */
-    minPrice: { type: Number, default: 0, index: true },
+    minPrice: { type: Number, default: 0 },
     maxPrice: { type: Number, default: 0 },
-    totalStock: { type: Number, default: 0, index: true },
+    totalStock: { type: Number, default: 0 },
 
-    ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
+    ratingAverage: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
 
-    featured: { type: Boolean, default: false, index: true },
-    active: { type: Boolean, default: true, index: true },
+    featured: { type: Boolean, default: false },
+    active: { type: Boolean, default: true },
 
     publishedAt: { type: Date },
   },
@@ -173,51 +92,28 @@ const ProductSchema = new Schema<IProduct>(
 )
 
 /* ─────────────────────────────────────────────
- * INDEXES (FIXED - NO BROKEN skus.sku INDEX)
+ * SAFE INDEXES (FIXED)
  * ───────────────────────────────────────────── */
-ProductSchema.index({ active: 1, productType: 1, brand: 1 })
-ProductSchema.index({ active: 1, category: 1, minPrice: 1 })
+ProductSchema.index({ active: 1, category: 1 })
+ProductSchema.index({ active: 1, brand: 1 })
 
-/**
- * ✅ IMPORTANT FIX:
- * This replaces your broken `skus.sku` index
- * Now correctly targets variants array
- */
-ProductSchema.index(
-  { 'variants.sku': 1 },
-  {
-    unique: true,
-    sparse: true,
-    partialFilterExpression: {
-      'variants.sku': { $exists: true, $ne: null },
-    },
-  }
-)
+// ✅ SAFE: NO unique array index
+ProductSchema.index({ 'variants.sku': 1 })
 
 /* ─────────────────────────────────────────────
- * TEXT SEARCH INDEX
- * ───────────────────────────────────────────── */
-ProductSchema.index(
-  { name: 'text', description: 'text', brand: 'text', tags: 'text' },
-  {
-    weights: { name: 5, brand: 3, tags: 2, description: 1 },
-    name: 'product_text_index',
-  }
-)
-
-/* ─────────────────────────────────────────────
- * AGGREGATION HOOK
+ * PRE-SAVE HOOK
  * ───────────────────────────────────────────── */
 ProductSchema.pre('save', function () {
   if (this.isModified('variants')) {
     const prices = this.variants.map((v) =>
-      v.discountedPrice != null ? v.discountedPrice : v.originalPrice
+      v.discountedPrice ?? v.originalPrice
     )
 
-    this.minPrice = prices.length ? Math.min(...prices) : 0
-    this.maxPrice = prices.length ? Math.max(...prices) : 0
+    this.minPrice = Math.min(...prices)
+    this.maxPrice = Math.max(...prices)
+
     this.totalStock = this.variants.reduce(
-      (sum, v) => sum + (v.quantity || 0),
+      (sum, v) => sum + v.quantity,
       0
     )
   }
@@ -227,9 +123,7 @@ ProductSchema.pre('save', function () {
   }
 })
 
-/* ─────────────────────────────────────────────
- * SAFE MODEL EXPORT (Next.js hot reload safe)
- * ───────────────────────────────────────────── */
+/* ───────────────────────────────────────────── */
 const Product =
   mongoose.models.Product ||
   mongoose.model<IProduct>('Product', ProductSchema)

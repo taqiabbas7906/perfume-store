@@ -62,6 +62,15 @@ export async function getAuthUser(req: NextRequest): Promise<IUser | null> {
   return user
 }
 
+export function getGuestSessionId(req: NextRequest): string | null {
+  const raw = req.headers.get('x-cart-session')
+  if (!raw) return null
+  const sid = raw.trim()
+  if (sid.length < 8 || sid.length > 128) return null
+  if (!/^[A-Za-z0-9_\-:.]+$/.test(sid)) return null
+  return sid
+}
+
 /* ───────────────────────────────────────────── */
 
 export async function getAuthAdmin(req: NextRequest): Promise<IUser | null> {
