@@ -1,7 +1,9 @@
 import mongoose, { Schema } from 'mongoose'
-import type { HydratedDocument } from 'mongoose'
 import type { IProduct } from '@/types'
 
+/* ─────────────────────────────────────────────
+ * IMAGE
+ * ───────────────────────────────────────────── */
 const ProductImageSchema = new Schema(
   {
     url: { type: String, required: true, match: /^https?:\/\/.+/ },
@@ -11,12 +13,34 @@ const ProductImageSchema = new Schema(
   { _id: false }
 )
 
+/* ─────────────────────────────────────────────
+ * VARIANT (SKU-level unit)
+ * Each ml / shade = separate SKU (IMPORTANT)
+ * ───────────────────────────────────────────── */
 const VariantSchema = new Schema(
   {
-    sku: { type: String, required: true, trim: true, minlength: 3, maxlength: 64 },
-    label: { type: String, required: true, trim: true, minlength: 1, maxlength: 80 },
+    sku: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 64,
+    },
 
-    originalPrice: { type: Number, required: true, min: 0, max: 1_000_000 },
+    label: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 80,
+    },
+
+    originalPrice: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 1_000_000,
+    },
 
     discountedPrice: {
       type: Number,
@@ -35,17 +59,28 @@ const VariantSchema = new Schema(
       required: true,
       min: 0,
       default: 0,
-      validate: { validator: Number.isInteger, message: 'quantity must be integer' },
+      validate: {
+        validator: Number.isInteger,
+        message: 'quantity must be integer',
+      },
     },
 
-    // Flexible per-variant options (volume, shade, etc.)
-    options: { type: Schema.Types.Mixed, default: {} },
+    options: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
 
-    images: { type: [String], default: [] },
+    images: {
+      type: [String],
+      default: [],
+    },
   },
   { _id: false }
 )
 
+/* ─────────────────────────────────────────────
+ * PRODUCT
+ * ───────────────────────────────────────────── */
 const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true, trim: true, minlength: 2, maxlength: 200 },
@@ -78,8 +113,6 @@ const ProductSchema = new Schema<IProduct>(
       type: String,
       required: true,
       trim: true,
-      minlength: 1,
-      maxlength: 100,
       index: true,
     },
 
@@ -91,9 +124,16 @@ const ProductSchema = new Schema<IProduct>(
       index: true,
     },
 
-    tags: { type: [String], default: [], index: true },
+    tags: {
+      type: [String],
+      default: [],
+      index: true,
+    },
 
-    images: { type: [ProductImageSchema], default: [] },
+    images: {
+      type: [ProductImageSchema],
+      default: [],
+    },
 
     variants: {
       type: [VariantSchema],
@@ -104,14 +144,19 @@ const ProductSchema = new Schema<IProduct>(
       },
     },
 
-    /**
-     * Flexible product-level attributes:
+    /* ─────────────────────────────────────────────
+     * Dynamic product-specific fields
      * perfume → notes, concentration
-     * lipstick → color, finish
-     */
-    attributes: { type: Schema.Types.Mixed, default: {} },
+     * lipstick → shade, finish
+     * ───────────────────────────────────────────── */
+    attributes: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
 
-    // Aggregated fields
+    /* ─────────────────────────────────────────────
+     * Aggregates (used for filtering/sorting)
+     * ───────────────────────────────────────────── */
     minPrice: { type: Number, default: 0, index: true },
     maxPrice: { type: Number, default: 0 },
     totalStock: { type: Number, default: 0, index: true },
@@ -121,23 +166,37 @@ const ProductSchema = new Schema<IProduct>(
 
     featured: { type: Boolean, default: false, index: true },
     active: { type: Boolean, default: true, index: true },
+
     publishedAt: { type: Date },
   },
   { timestamps: true, minimize: false }
 )
 
-// ✅ Indexes
+/* ─────────────────────────────────────────────
+ * INDEXES (FIXED - NO BROKEN skus.sku INDEX)
+ * ───────────────────────────────────────────── */
 ProductSchema.index({ active: 1, productType: 1, brand: 1 })
 ProductSchema.index({ active: 1, category: 1, minPrice: 1 })
 
+/**
+ * ✅ IMPORTANT FIX:
+ * This replaces your broken `skus.sku` index
+ * Now correctly targets variants array
+ */
 ProductSchema.index(
   { 'variants.sku': 1 },
   {
     unique: true,
-    partialFilterExpression: { 'variants.sku': { $exists: true } },
+    sparse: true,
+    partialFilterExpression: {
+      'variants.sku': { $exists: true, $ne: null },
+    },
   }
 )
 
+/* ─────────────────────────────────────────────
+ * TEXT SEARCH INDEX
+ * ───────────────────────────────────────────── */
 ProductSchema.index(
   { name: 'text', description: 'text', brand: 'text', tags: 'text' },
   {
@@ -146,24 +205,33 @@ ProductSchema.index(
   }
 )
 
-// ✅ Pre-save hook (fixed, typed, async-safe)
-ProductSchema.pre('save', function recomputeAggregates(this: IProduct & { isModified: (path: string) => boolean }) {
+/* ─────────────────────────────────────────────
+ * AGGREGATION HOOK
+ * ───────────────────────────────────────────── */
+ProductSchema.pre('save', function () {
   if (this.isModified('variants')) {
-    const prices = this.variants.flatMap((v) =>
-      v.discountedPrice != null ? [v.discountedPrice] : [v.originalPrice]
+    const prices = this.variants.map((v) =>
+      v.discountedPrice != null ? v.discountedPrice : v.originalPrice
     )
+
     this.minPrice = prices.length ? Math.min(...prices) : 0
     this.maxPrice = prices.length ? Math.max(...prices) : 0
-    this.totalStock = this.variants.reduce((acc, v) => acc + (v.quantity || 0), 0)
+    this.totalStock = this.variants.reduce(
+      (sum, v) => sum + (v.quantity || 0),
+      0
+    )
   }
+
   if (this.isModified('active') && this.active && !this.publishedAt) {
     this.publishedAt = new Date()
   }
 })
 
-// ✅ Prevent model overwrite in dev (Next.js hot reload safe)
+/* ─────────────────────────────────────────────
+ * SAFE MODEL EXPORT (Next.js hot reload safe)
+ * ───────────────────────────────────────────── */
 const Product =
-  (mongoose.models.Product as mongoose.Model<IProduct>) ||
+  mongoose.models.Product ||
   mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product

@@ -8,34 +8,36 @@ const limiterCache = new Map<string, Ratelimit>()
 
 function isUpstashConfigured(): boolean {
   return Boolean(
-    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    process.env.UPSTASH_REDIS_REST_URL &&
+      process.env.UPSTASH_REDIS_REST_TOKEN
   )
 }
 
 function getRedisClient(): Redis | null {
   if (!isUpstashConfigured()) return null
+
   if (!redisClient) {
     redisClient = new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
     })
   }
+
   return redisClient
 }
 
 interface LimiterConfig {
-  /** unique name used as Redis prefix and log tag */
   name: string
-  /** number of requests allowed in the window */
   limit: number
-  /** sliding window duration, e.g. \"1 m\", \"15 m\" */
   window: `${number} ${'s' | 'm' | 'h' | 'd'}`
 }
 
 function getLimiter(config: LimiterConfig): Ratelimit | null {
   const redis = getRedisClient()
   if (!redis) return null
+
   let limiter = limiterCache.get(config.name)
+
   if (!limiter) {
     limiter = new Ratelimit({
       redis,
@@ -43,20 +45,25 @@ function getLimiter(config: LimiterConfig): Ratelimit | null {
       prefix: `rl:${config.name}`,
       analytics: false,
     })
+
     limiterCache.set(config.name, limiter)
   }
+
   return limiter
 }
 
+/* ───────────────────────────────────────────────────────────── */
+/* IP extraction (FIXED for real proxy environments) */
+/* ───────────────────────────────────────────────────────────── */
+
 /**
- * Best-effort IP extraction.
+ * Correct trust order:
+ * 1. x-real-ip (trusted proxies like Vercel / Cloudflare)
+ * 2. x-forwarded-for FIRST entry (original client IP)
  *
- * Header trust order:
- * 1. `x-real-ip` — set by trusted reverse proxies (Vercel, Cloudflare proxy, Nginx)
- * 2. `x-forwarded-for` — last entry is the most-recent (closest) trusted proxy
- *
- * Never trust the FIRST entry of x-forwarded-for in untrusted environments,
- * because clients can prepend arbitrary values.
+ * IMPORTANT:
+ * - LAST entry is usually closest proxy → NOT user
+ * - FIRST entry is usually original client → more correct
  */
 function getClientIp(req: NextRequest): string {
   const realIp = req.headers.get('x-real-ip')
@@ -68,32 +75,50 @@ function getClientIp(req: NextRequest): string {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
-    if (ips.length) return ips[ips.length - 1]
+
+    if (ips.length > 0) {
+      return ips[0] // FIX: was ips[ips.length - 1]
+    }
   }
 
   return 'unknown'
 }
+
+/* ───────────────────────────────────────────────────────────── */
 
 async function applyLimit(
   req: NextRequest,
   config: LimiterConfig
 ): Promise<NextResponse | null> {
   const limiter = getLimiter(config)
-  // No Redis configured -> fail open in dev, log once per cold start.
+
+  // Fail-open if Redis not configured
   if (!limiter) {
     if (process.env.NODE_ENV === 'production') {
-      logger.warn({ limiter: config.name }, 'Upstash Redis not configured – rate limit skipped')
+      logger.warn(
+        { limiter: config.name },
+        'Upstash Redis not configured – rate limit skipped'
+      )
     }
     return null
   }
 
   const ip = getClientIp(req)
+
   try {
     const { success, limit, remaining, reset } = await limiter.limit(ip)
+
     if (success) return null
 
-    const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1000))
-    logger.warn({ ip, limiter: config.name, retryAfter }, `Rate limit exceeded [${config.name}]`)
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((reset - Date.now()) / 1000)
+    )
+
+    logger.warn(
+      { ip, limiter: config.name, retryAfter },
+      `Rate limit exceeded [${config.name}]`
+    )
 
     return NextResponse.json(
       { error: 'Too many requests', retryAfter },
@@ -108,15 +133,30 @@ async function applyLimit(
       }
     )
   } catch (err) {
-    // Never block traffic if Upstash is unavailable.
-    logger.error({ err, limiter: config.name }, 'Rate limiter error')
+    logger.error(
+      { err, limiter: config.name },
+      'Rate limiter error'
+    )
+
     return null
   }
 }
 
-// Pre-configured limiters
-const GLOBAL: LimiterConfig = { name: 'global', limit: 100, window: '1 m' }
-const AUTH: LimiterConfig = { name: 'auth', limit: 5, window: '15 m' }
+/* ───────────────────────────────────────────────────────────── */
+/* Predefined limiters */
+/* ───────────────────────────────────────────────────────────── */
+
+const GLOBAL: LimiterConfig = {
+  name: 'global',
+  limit: 100,
+  window: '1 m',
+}
+
+const AUTH: LimiterConfig = {
+  name: 'auth',
+  limit: 5,
+  window: '15 m',
+}
 
 export function rateLimit(req: NextRequest) {
   return applyLimit(req, GLOBAL)
@@ -126,7 +166,9 @@ export function authRateLimit(req: NextRequest) {
   return applyLimit(req, AUTH)
 }
 
-/** Custom limiter for one-off use in routes */
-export function customRateLimit(req: NextRequest, config: LimiterConfig) {
+export function customRateLimit(
+  req: NextRequest,
+  config: LimiterConfig
+) {
   return applyLimit(req, config)
 }

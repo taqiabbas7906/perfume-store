@@ -1,10 +1,31 @@
 const isDev = process.env.NODE_ENV === 'development'
 
+/* ─────────────────────────────────────────────
+ * CSP (hardened but still Firebase-compatible)
+ * ───────────────────────────────────────────── */
+
+const scriptSrc = isDev
+  ? [
+      "'self'",
+      "'unsafe-inline'",
+      "'unsafe-eval'",
+      'https://apis.google.com',
+      'https://www.gstatic.com',
+      'https://accounts.google.com',
+      'https://accounts.gstatic.com',
+    ]
+  : [
+      "'self'",
+      "'unsafe-inline'", // ⚠️ still required for Next.js hydration unless nonce system is used
+      'https://apis.google.com',
+      'https://www.gstatic.com',
+      'https://accounts.google.com',
+      'https://accounts.gstatic.com',
+    ]
+
 const cspDirectives = [
   "default-src 'self'",
-  isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://accounts.google.com https://accounts.gstatic.com"
-    : "script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com https://accounts.google.com https://accounts.gstatic.com",
+  `script-src ${scriptSrc.join(' ')}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com",
@@ -16,6 +37,8 @@ const cspDirectives = [
   "form-action 'self' https://accounts.google.com",
   "worker-src 'self' blob:",
 ].join('; ')
+
+/* ───────────────────────────────────────────── */
 
 const nextConfig = {
   reactStrictMode: true,
@@ -29,7 +52,12 @@ const nextConfig = {
   ],
 
   experimental: {
-    optimizePackageImports: ['firebase', 'zod', '@upstash/ratelimit', '@upstash/redis'],
+    optimizePackageImports: [
+      'firebase',
+      'zod',
+      '@upstash/ratelimit',
+      '@upstash/redis',
+    ],
   },
 
   images: {
@@ -50,15 +78,29 @@ const nextConfig = {
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-          { key: 'Content-Security-Policy', value: cspDirectives },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: cspDirectives,
+          },
         ],
       },
+
       {
         source: '/api/products/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' },
+          {
+            key: 'Cache-Control',
+            value:
+              'public, s-maxage=60, stale-while-revalidate=300',
+          },
         ],
       },
     ]

@@ -1,7 +1,7 @@
 import type { Types } from 'mongoose'
 
 /* ─────────────────────────────────────────────────────────────
- * User
+ * USER
  * ───────────────────────────────────────────────────────────── */
 export interface IUser {
   _id: Types.ObjectId
@@ -22,38 +22,62 @@ export interface IUser {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Product (polymorphic / dynamic)
- *
- * A product has a `productType` (perfume | lipstick | other) which selects
- * the validation rules for the typed `attributes` payload. Each variant
- * (SKU) belongs to a product and carries its own price/stock + variant-level
- * options like size or shade.
+ * PRODUCT TYPES
  * ───────────────────────────────────────────────────────────── */
-export type ProductType = 'perfume' | 'lipstick' | 'other'
+export type ProductType =
+  | 'perfume'
+  | 'lipstick'
+  | 'makeup'
+  | 'jewelry'
+  | 'skincare'
+  | 'other'
 
+/* ─────────────────────────────────────────────────────────────
+ * PRODUCT IMAGES
+ * ───────────────────────────────────────────────────────────── */
 export interface IProductImage {
   url: string
   alt?: string
   isPrimary?: boolean
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * VARIANT OPTIONS (KEY FIX FOR SKU SYSTEM)
+ * Each SKU = unique combination of these
+ * ───────────────────────────────────────────────────────────── */
+export interface IVariantOptions {
+  ml?: number              // perfume size
+  color?: string           // lipstick color
+  shade?: string
+  finish?: string
+  size?: string            // jewelry size
+  material?: string
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * PRODUCT VARIANT (EACH = UNIQUE SKU)
+ * ───────────────────────────────────────────────────────────── */
 export interface IProductVariant {
   sku: string
-  /** Human-readable label e.g. \"50ml\", \"Ruby Red - Matte\" */
   label: string
   originalPrice: number
   discountedPrice?: number
   quantity: number
+
   /**
-   * Variant-specific options that vary across SKUs.
-   * For a perfume: { volumeMl: 50 }
-   * For a lipstick: { color: \"#B91C1C\", colorName: \"Ruby Red\", finish: \"matte\" }
+   * IMPORTANT:
+   * Defines uniqueness of SKU (ml, color, shade, etc.)
    */
-  options?: Record<string, unknown>
+  options?: IVariantOptions
+
   images?: string[]
 }
 
-/** Perfume-specific product attributes (validated via Zod when productType=\"perfume\") */
+/* ─────────────────────────────────────────────────────────────
+ * PER-FLAVOR PRODUCT ATTRIBUTES
+ * ───────────────────────────────────────────────────────────── */
+
+/* PERFUME */
 export interface IPerfumeAttributes {
   notes?: {
     top?: string[]
@@ -68,7 +92,7 @@ export interface IPerfumeAttributes {
   perfumer?: string[]
 }
 
-/** Lipstick-specific attributes */
+/* LIPSTICK */
 export interface ILipstickAttributes {
   finish?: 'matte' | 'gloss' | 'satin' | 'metallic' | 'sheer'
   shade?: string
@@ -77,39 +101,80 @@ export interface ILipstickAttributes {
   spfProtection?: number
 }
 
+/* MAKEUP */
+export interface IMakeupAttributes {
+  finish?: 'matte' | 'gloss' | 'satin' | 'cream'
+  skinType?: string[]
+  waterproof?: boolean
+}
+
+/* JEWELRY */
+export interface IJewelryAttributes {
+  material?: string
+  gemstone?: string
+  size?: string
+  weightGrams?: number
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * FINAL ATTRIBUTE UNION (IMPORTANT)
+ * ───────────────────────────────────────────────────────────── */
+export type IProductAttributes =
+  | IPerfumeAttributes
+  | ILipstickAttributes
+  | IMakeupAttributes
+  | IJewelryAttributes
+  | Record<string, unknown>
+
+/* ─────────────────────────────────────────────────────────────
+ * PRODUCT
+ * ───────────────────────────────────────────────────────────── */
 export interface IProduct {
   _id: Types.ObjectId
+
   name: string
   slug: string
   description: string
+
   productType: ProductType
+
   brand: string
-  /** High-level taxonomy: 'fragrance', 'makeup', etc. Sub-classification handled by `tags`. */
   category: string
   tags: string[]
+
   images: IProductImage[]
-  variants: IProductVariant[]
+
   /**
-   * Free-form, type-specific attributes. Validated against the matching
-   * Zod schema for `productType` at write time. Unknown product types
-   * fall back to a permissive map.
+   * IMPORTANT:
+   * Each variant = unique SKU (ml/color/shade/etc.)
    */
-  attributes: Record<string, unknown> | IPerfumeAttributes | ILipstickAttributes
-  /** Aggregate values cached for sorting/filtering — kept in sync by the API. */
+  variants: IProductVariant[]
+
+  /**
+   * Typed by productType at runtime validation
+   */
+  attributes: IProductAttributes
+
+  /* ────────────────
+   * Aggregates
+   * ──────────────── */
   minPrice: number
   maxPrice: number
   totalStock: number
+
   ratingAverage: number
   ratingCount: number
+
   featured: boolean
   active: boolean
   publishedAt?: Date
+
   createdAt: Date
   updatedAt: Date
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Cart / Order / Voucher / Review / Newsletter
+ * CART
  * ───────────────────────────────────────────────────────────── */
 export interface ICartItem {
   product: Types.ObjectId | IProduct
@@ -126,6 +191,9 @@ export interface ICart {
   expiresAt: Date
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * ORDER
+ * ───────────────────────────────────────────────────────────── */
 export interface IOrderItem {
   product: Types.ObjectId | IProduct
   variantSku: string
@@ -178,6 +246,9 @@ export interface IOrder {
   updatedAt: Date
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * VOUCHER
+ * ───────────────────────────────────────────────────────────── */
 export interface IVoucher {
   _id: Types.ObjectId
   code: string
@@ -190,6 +261,9 @@ export interface IVoucher {
   active: boolean
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * REVIEW
+ * ───────────────────────────────────────────────────────────── */
 export interface IReview {
   _id: Types.ObjectId
   user: Types.ObjectId | IUser
@@ -201,6 +275,9 @@ export interface IReview {
   createdAt: Date
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * NEWSLETTER
+ * ───────────────────────────────────────────────────────────── */
 export interface INewsletter {
   _id: Types.ObjectId
   email: string

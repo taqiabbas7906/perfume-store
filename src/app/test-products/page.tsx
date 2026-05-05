@@ -4,6 +4,8 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { authFetch } from '@/lib/api'
 
+type ProductType = 'perfume' | 'lipstick' | 'other'
+
 interface Variant {
   sku: string
   label: string
@@ -13,38 +15,41 @@ interface Variant {
   options?: Record<string, unknown>
 }
 
-type ProductType = 'perfume' | 'lipstick' | 'other'
-
 export default function TestProductsPage() {
-  const [result, setResult] = useState('')
+  const [result, setResult] = useState<string>('')
 
   const [productType, setProductType] = useState<ProductType>('perfume')
+
   const [name, setName] = useState('Oud Royal')
   const [slug, setSlug] = useState('oud-royal')
   const [description, setDescription] = useState(
-    'Luxurious oud fragrance with rich woody notes'
+    'Luxurious fragrance with deep oriental notes'
   )
-  const [category, setCategory] = useState('fragrance')
+
   const [brand, setBrand] = useState('Arabian Oud')
-  const [featured, setFeatured] = useState(true)
+  const [category, setCategory] = useState('fragrance')
   const [tags, setTags] = useState('luxury,oud,arabian')
 
-  // Perfume attributes
+  const [featured, setFeatured] = useState(true)
+
+  /* ───────── Perfume ───────── */
   const [topNotes, setTopNotes] = useState('Bergamot,Saffron')
   const [middleNotes, setMiddleNotes] = useState('Rose,Oud')
   const [baseNotes, setBaseNotes] = useState('Amber,Musk')
-  const [concentration, setConcentration] = useState<
-    'EDT' | 'EDP' | 'Parfum' | 'EDC' | 'Extrait'
-  >('EDP')
-  const [gender, setGender] = useState<'men' | 'women' | 'unisex'>('men')
+  const [concentration, setConcentration] =
+    useState<'EDT' | 'EDP' | 'Parfum' | 'EDC' | 'Extrait'>('EDP')
+  const [gender, setGender] =
+    useState<'men' | 'women' | 'unisex'>('men')
 
-  // Lipstick attributes
+  /* ───────── Lipstick ───────── */
   const [shade, setShade] = useState('Ruby Red')
-  const [finish, setFinish] = useState<'matte' | 'gloss' | 'satin' | 'metallic' | 'sheer'>('matte')
+  const [finish, setFinish] =
+    useState<'matte' | 'gloss' | 'satin' | 'metallic' | 'sheer'>('matte')
 
+  /* ───────── Variants ───────── */
   const [variants, setVariants] = useState<Variant[]>([
     {
-      sku: 'OUD-50ML',
+      sku: 'OUD-50',
       label: '50ml',
       originalPrice: 150,
       discountedPrice: 120,
@@ -52,7 +57,7 @@ export default function TestProductsPage() {
       options: { volumeMl: 50 },
     },
     {
-      sku: 'OUD-100ML',
+      sku: 'OUD-100',
       label: '100ml',
       originalPrice: 250,
       discountedPrice: 200,
@@ -64,7 +69,9 @@ export default function TestProductsPage() {
   const [getSlug, setGetSlug] = useState('')
   const [deleteSlug, setDeleteSlug] = useState('')
 
-  const updateVariant = (i: number, field: keyof Variant, value: unknown) => {
+  /* ───────── Helpers ───────── */
+
+  const updateVariant = (i: number, field: keyof Variant, value: any) => {
     setVariants((prev) => {
       const next = [...prev]
       next[i] = { ...next[i], [field]: value }
@@ -72,21 +79,22 @@ export default function TestProductsPage() {
     })
   }
 
-  const addVariant = () =>
+  const addVariant = () => {
     setVariants((prev) => [
       ...prev,
       {
         sku: '',
         label: '',
         originalPrice: 0,
-        discountedPrice: undefined,
         quantity: 0,
         options: {},
       },
     ])
+  }
 
-  const removeVariant = (i: number) =>
+  const removeVariant = (i: number) => {
     setVariants((prev) => prev.filter((_, idx) => idx !== i))
+  }
 
   const buildAttributes = () => {
     if (productType === 'perfume') {
@@ -102,7 +110,10 @@ export default function TestProductsPage() {
     }
 
     if (productType === 'lipstick') {
-      return { shade, finish }
+      return {
+        shade,
+        finish,
+      }
     }
 
     return {}
@@ -115,6 +126,8 @@ export default function TestProductsPage() {
       return `HTTP ${res.status}`
     }
   }
+
+  /* ───────── API Actions ───────── */
 
   const create = async () => {
     try {
@@ -135,9 +148,7 @@ export default function TestProductsPage() {
 
       const res = await authFetch('/api/products', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -153,148 +164,155 @@ export default function TestProductsPage() {
   }
 
   const list = async () => {
-    try {
-      const res = await fetch('/api/products?limit=20&sort=newest')
-      setResult(await safeJson(res))
-    } catch (err) {
-      setResult(JSON.stringify({ error: (err as Error).message }, null, 2))
-    }
+    const res = await fetch('/api/products?limit=20&sort=newest')
+    setResult(await safeJson(res))
   }
 
   const getOne = async () => {
-    if (!getSlug) return setResult('Please enter a slug')
+    if (!getSlug) return setResult('Enter slug')
 
-    try {
-      const res = await fetch(`/api/products/${encodeURIComponent(getSlug)}`)
-      setResult(await safeJson(res))
-    } catch (err) {
-      setResult(JSON.stringify({ error: (err as Error).message }, null, 2))
-    }
+    const res = await fetch(`/api/products/${encodeURIComponent(getSlug)}`)
+    setResult(await safeJson(res))
   }
 
   const remove = async () => {
-    if (!deleteSlug) return setResult('Please enter a slug to delete')
+    if (!deleteSlug) return setResult('Enter slug')
 
-    try {
-      const res = await authFetch(
-        `/api/products/${encodeURIComponent(deleteSlug)}`,
-        { method: 'DELETE' }
-      )
-      setResult(await safeJson(res))
-    } catch (err) {
-      setResult(JSON.stringify({ error: (err as Error).message }, null, 2))
-    }
+    const res = await authFetch(
+      `/api/products/${encodeURIComponent(deleteSlug)}`,
+      { method: 'DELETE' }
+    )
+
+    setResult(await safeJson(res))
   }
+
+  /* ───────── UI ───────── */
 
   const inputStyle: CSSProperties = {
     width: '100%',
-    padding: '8px',
-    marginBottom: '10px',
+    padding: 8,
+    marginBottom: 10,
     border: '1px solid #ddd',
-    borderRadius: '4px',
-    color: '#111',
-    background: '#fff',
+    borderRadius: 4,
   }
 
-  const buttonStyle: CSSProperties = {
-    padding: '10px 20px',
-    margin: '5px',
+  const btn: CSSProperties = {
+    padding: '10px 16px',
+    margin: 5,
+    borderRadius: 6,
     border: 'none',
-    borderRadius: '5px',
     cursor: 'pointer',
-    fontWeight: 'bold',
+    fontWeight: 600,
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto', color: '#111' }}>
-      <h1>Test Products API</h1>
+    <div style={{ padding: 20, maxWidth: 1200, margin: '0 auto' }}>
+      <h1>Product Test Panel</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-        <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '8px', background: '#fff' }}>
-          <h2>Create Product</h2>
+      {/* TYPE */}
+      <label>Type</label>
+      <select
+        value={productType}
+        onChange={(e) => setProductType(e.target.value as ProductType)}
+        style={inputStyle}
+      >
+        <option value="perfume">Perfume</option>
+        <option value="lipstick">Lipstick</option>
+        <option value="other">Other</option>
+      </select>
 
-          <label>Product Type:</label>
-          <select
-            value={productType}
-            onChange={(e) => setProductType(e.target.value as ProductType)}
-            style={inputStyle}
-          >
-            <option value="perfume">Perfume</option>
-            <option value="lipstick">Lipstick</option>
-            <option value="other">Other</option>
+      {/* BASIC INFO */}
+      <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} placeholder="Name" />
+      <input value={slug} onChange={(e) => setSlug(e.target.value)} style={inputStyle} placeholder="Slug" />
+      <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={inputStyle} />
+
+      <input value={brand} onChange={(e) => setBrand(e.target.value)} style={inputStyle} placeholder="Brand" />
+      <input value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} placeholder="Category" />
+      <input value={tags} onChange={(e) => setTags(e.target.value)} style={inputStyle} placeholder="tags comma separated" />
+
+      {/* ATTRIBUTES */}
+      {productType === 'perfume' && (
+        <>
+          <h3>Perfume Attributes</h3>
+          <input value={topNotes} onChange={(e) => setTopNotes(e.target.value)} style={inputStyle} placeholder="Top Notes" />
+          <input value={middleNotes} onChange={(e) => setMiddleNotes(e.target.value)} style={inputStyle} placeholder="Middle Notes" />
+          <input value={baseNotes} onChange={(e) => setBaseNotes(e.target.value)} style={inputStyle} placeholder="Base Notes" />
+        </>
+      )}
+
+      {productType === 'lipstick' && (
+        <>
+          <h3>Lipstick Attributes</h3>
+          <input value={shade} onChange={(e) => setShade(e.target.value)} style={inputStyle} />
+          <select value={finish} onChange={(e) => setFinish(e.target.value as any)} style={inputStyle}>
+            <option value="matte">Matte</option>
+            <option value="gloss">Gloss</option>
+            <option value="satin">Satin</option>
+            <option value="metallic">Metallic</option>
+            <option value="sheer">Sheer</option>
           </select>
+        </>
+      )}
 
-          <label>Name:</label>
-          <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+      {/* VARIANTS */}
+      <h3>Variants (SKU-based)</h3>
 
-          <label>Slug:</label>
-          <input value={slug} onChange={(e) => setSlug(e.target.value)} style={inputStyle} />
-
-          <label>Description:</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={{ ...inputStyle, height: '60px' }}
+      {variants.map((v, i) => (
+        <div key={i} style={{ border: '1px solid #ddd', padding: 10, marginBottom: 10 }}>
+          <input
+            value={v.sku}
+            onChange={(e) => updateVariant(i, 'sku', e.target.value)}
+            placeholder="SKU"
+            style={inputStyle}
+          />
+          <input
+            value={v.label}
+            onChange={(e) => updateVariant(i, 'label', e.target.value)}
+            placeholder="Label"
+            style={inputStyle}
+          />
+          <input
+            type="number"
+            value={v.originalPrice}
+            onChange={(e) => updateVariant(i, 'originalPrice', Number(e.target.value))}
+            style={inputStyle}
+          />
+          <input
+            type="number"
+            value={v.quantity}
+            onChange={(e) => updateVariant(i, 'quantity', Number(e.target.value))}
+            style={inputStyle}
           />
 
-          <label>Category:</label>
-          <input value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} />
-
-          <label>Brand:</label>
-          <input value={brand} onChange={(e) => setBrand(e.target.value)} style={inputStyle} />
-
-          <label>Tags:</label>
-          <input value={tags} onChange={(e) => setTags(e.target.value)} style={inputStyle} />
-
-          <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-            <input
-              type="checkbox"
-              checked={featured}
-              onChange={(e) => setFeatured(e.target.checked)}
-              style={{ marginRight: '8px' }}
-            />
-            Featured
-          </label>
-
-          <button
-            onClick={create}
-            style={{ ...buttonStyle, background: '#0070f3', color: '#fff', width: '100%' }}
-          >
-            Create Product
+          <button onClick={() => removeVariant(i)} style={{ ...btn, background: '#dc3545', color: '#fff' }}>
+            Remove
           </button>
         </div>
+      ))}
 
-        <div>
-          <button onClick={list} style={{ ...buttonStyle, background: '#28a745', color: '#fff', width: '100%' }}>
-            List Products
-          </button>
+      <button onClick={addVariant} style={{ ...btn, background: '#666', color: '#fff' }}>
+        Add Variant
+      </button>
 
-          <input
-            value={getSlug}
-            onChange={(e) => setGetSlug(e.target.value)}
-            style={inputStyle}
-            placeholder="slug"
-          />
-
-          <button onClick={getOne} style={{ ...buttonStyle, background: '#17a2b8', color: '#fff', width: '100%' }}>
-            Get Product
-          </button>
-
-          <input
-            value={deleteSlug}
-            onChange={(e) => setDeleteSlug(e.target.value)}
-            style={inputStyle}
-            placeholder="slug"
-          />
-
-          <button onClick={remove} style={{ ...buttonStyle, background: '#dc3545', color: '#fff', width: '100%' }}>
-            Delete Product
-          </button>
-        </div>
+      {/* ACTIONS */}
+      <div style={{ marginTop: 20 }}>
+        <button onClick={create} style={{ ...btn, background: '#0070f3', color: '#fff' }}>
+          Create
+        </button>
+        <button onClick={list} style={{ ...btn, background: '#28a745', color: '#fff' }}>
+          List
+        </button>
+        <button onClick={getOne} style={{ ...btn, background: '#17a2b8', color: '#fff' }}>
+          Get
+        </button>
+        <button onClick={remove} style={{ ...btn, background: '#dc3545', color: '#fff' }}>
+          Delete
+        </button>
       </div>
 
-      <pre style={{ marginTop: '20px', background: '#0b1020', color: '#e6edf3', padding: '15px' }}>
-        {result || 'Results will appear here'}
+      {/* RESULT */}
+      <pre style={{ marginTop: 20, background: '#0b1020', color: '#fff', padding: 15 }}>
+        {result || 'No result yet'}
       </pre>
     </div>
   )

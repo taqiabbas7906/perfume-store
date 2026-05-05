@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/db'
 import User from '@/models/User'
-import { verifyIdToken } from '@/lib/firebase-admin'
+import { verifyIdToken } from '@/lib/firebaseAdmin'
 
 export async function getUserFromToken(token: string) {
   try {

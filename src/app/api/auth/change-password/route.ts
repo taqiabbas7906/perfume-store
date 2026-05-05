@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdmin } from '@/lib/firebase-admin'
+import { getAdmin } from '@/lib/firebaseAdmin'
 import { getAuthUser } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { changePasswordRateLimit } from '@/lib/authRateLimit'
