@@ -12,14 +12,8 @@ import { validateData } from '@/lib/validate'
 import { cartUpdateItemSchema } from '@/lib/commerceValidators'
 import { apiError, logRouteError } from '@/lib/apiError'
 
-/**
- * params in Next.js App Router are NOT a Promise
- */
-type Ctx = { params: { sku: string } }
+type Ctx = { params: Promise<{ sku: string }> }
 
-/* ─────────────────────────────────────────────
- * OWNER RESOLUTION
- * ───────────────────────────────────────────── */
 async function resolveOwner(req: NextRequest) {
   const user = await getAuthUser(req)
   if (user) return { userId: user._id }
@@ -30,15 +24,12 @@ async function resolveOwner(req: NextRequest) {
   return null
 }
 
-/* ─────────────────────────────────────────────
- * PATCH → update quantity
- * ───────────────────────────────────────────── */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   const limited = await cartRateLimit(req)
   if (limited) return limited
 
   try {
-    const { sku } = ctx.params
+    const { sku } = await ctx.params
 
     const body = await req.json().catch(() => null)
     if (!body) {
@@ -64,22 +55,22 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     })
 
     if (!result.ok) {
-  const code = result.code
+      const code = result.code
 
-  const status =
-    code === 'OUT_OF_STOCK'
-      ? 409
-      : code === 'PRODUCT_NOT_FOUND'
-        ? 404
-        : 400
+      const status =
+        code === 'OUT_OF_STOCK'
+          ? 409
+          : code === 'PRODUCT_NOT_FOUND'
+            ? 404
+            : 400
 
-  return apiError(status, {
-    error: result.message,
-    code: isCartErrorCode(code) ? code : 'PRODUCT_NOT_FOUND',
-    details:
-      'available' in result ? { available: result.available } : undefined,
-  })
-}
+      return apiError(status, {
+        error: result.message,
+        code: isCartErrorCode(code) ? code : 'PRODUCT_NOT_FOUND',
+        details:
+          'available' in result ? { available: result.available } : undefined,
+      })
+    }
     const summary = await summarizeCart(result.cart)
 
     return NextResponse.json({
@@ -92,15 +83,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 }
 
-/* ─────────────────────────────────────────────
- * DELETE → remove item
- * ───────────────────────────────────────────── */
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const limited = await cartRateLimit(req)
   if (limited) return limited
 
   try {
-    const { sku } = ctx.params
+    const { sku } = await ctx.params
 
     await connectDB()
 

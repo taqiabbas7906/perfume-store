@@ -65,7 +65,7 @@ export async function getOrCreateCart(owner: CartOwner): Promise<ICart> {
         expiresAt: new Date(Date.now() + 30 * 86400000),
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   ).lean<ICart>()
 
   if (!cart) throw new Error('failed to create cart')
@@ -144,42 +144,9 @@ export async function addItem(args: {
 
   const filter = ownerFilter(args.owner)
 
-  const inc = await Cart.updateOne(
-    {
-      ...filter,
-      items: {
-        $elemMatch: {
-          productId: product._id,
-          variantSku: variant.sku,
-        },
-      },
-    },
-    {
-      $inc: { 'items.$.quantity': args.quantity },
-      $set: { 'items.$.price': unitPrice },
-    }
-  )
-
-  if (inc.modifiedCount === 1) {
-    const cart = await Cart.findOne(filter).lean<ICart>()
-    if (!cart) {
-      return {
-        ok: false,
-        code: 'CART_NOT_FOUND',
-        message: 'Cart not found',
-      }
-    }
-    return { ok: true, cart }
-  }
-
-  const cart = await Cart.findOne(filter).lean<ICart>()
-
+  let cart = await Cart.findOne(filter).lean<ICart>()
   if (!cart) {
-    return {
-      ok: false,
-      code: 'CART_NOT_FOUND',
-      message: 'Cart not found',
-    }
+    cart = await getOrCreateCart(args.owner)
   }
 
   const existing = cart.items.find(
@@ -190,7 +157,6 @@ export async function addItem(args: {
 
   if (existing) {
     const newQty = existing.quantity + args.quantity
-
     if (newQty > variant.quantity) {
       return {
         ok: false,
@@ -199,6 +165,28 @@ export async function addItem(args: {
         available: variant.quantity,
       }
     }
+
+    const updatedCart = await Cart.findOneAndUpdate(
+      {
+        ...filter,
+        'items.variantSku': variant.sku,
+      },
+      {
+        $inc: { 'items.$.quantity': args.quantity },
+        $set: { 'items.$.price': unitPrice },
+      },
+      { returnDocument: 'after' }
+    ).lean<ICart>()
+
+    if (!updatedCart) {
+      return {
+        ok: false,
+        code: 'CART_NOT_FOUND',
+        message: 'Cart not found',
+      }
+    }
+
+    return { ok: true, cart: updatedCart }
   } else {
     if (cart.items.length >= MAX_LINES) {
       return {
@@ -207,41 +195,36 @@ export async function addItem(args: {
         message: 'Cart full',
       }
     }
-  }
 
-  await Cart.updateOne(
-    {
-      ...filter,
-      'items.variantSku': { $ne: variant.sku },
-    },
-    {
-      $push: {
-        items: {
-          productId: product._id,
-          variantSku: variant.sku,
-          quantity: args.quantity,
-          price: unitPrice,
-          name: product.name,
-          variantLabel: variant.label,
-          image: product.images?.[0]?.url ?? '',
-          addedAt: new Date(),
+    const updatedCart = await Cart.findOneAndUpdate(
+      filter,
+      {
+        $push: {
+          items: {
+            productId: product._id,
+            variantSku: variant.sku,
+            quantity: args.quantity,
+            price: unitPrice,
+            name: product.name,
+            variantLabel: variant.label,
+            image: product.images?.[0]?.url ?? '',
+            addedAt: new Date(),
+          },
         },
       },
-    },
-    { upsert: true }
-  )
+      { returnDocument: 'after' }
+    ).lean<ICart>()
 
-  const finalCart = await Cart.findOne(filter).lean<ICart>()
-
-  if (!finalCart) {
-    return {
-      ok: false,
-      code: 'CART_NOT_FOUND',
-      message: 'Cart not found after insert',
+    if (!updatedCart) {
+      return {
+        ok: false,
+        code: 'CART_NOT_FOUND',
+        message: 'Cart not found',
+      }
     }
-  }
 
-  return { ok: true, cart: finalCart }
+    return { ok: true, cart: updatedCart }
+  }
 }
 
 /* ───────────────────────────────────────────── */
@@ -262,7 +245,7 @@ export async function updateItem(args: {
   const updated = await Cart.findOneAndUpdate(
     { ...filter, 'items.variantSku': args.variantSku },
     { $set: { 'items.$.quantity': args.quantity } },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean<ICart>()
 
   if (!updated) {
@@ -286,13 +269,13 @@ export async function removeItem(
 ): Promise<CartResult> {
   const filter = ownerFilter(owner)
 
-  await Cart.updateOne(filter, {
-    $pull: { items: { variantSku: sku } },
-  })
+  const updated = await Cart.findOneAndUpdate(
+    filter,
+    { $pull: { items: { variantSku: sku } } },
+    { returnDocument: 'after' }
+  ).lean<ICart>()
 
-  const cart = await Cart.findOne(filter).lean<ICart>()
-
-  if (!cart) {
+  if (!updated) {
     return {
       ok: false,
       code: 'CART_NOT_FOUND',
@@ -300,7 +283,7 @@ export async function removeItem(
     }
   }
 
-  return { ok: true, cart }
+  return { ok: true, cart: updated }
 }
 
 /* ───────────────────────────────────────────── */
@@ -313,7 +296,7 @@ export async function clearCart(owner: CartOwner) {
 
 export async function summarizeCart(cart: ICart | null) {
   if (!cart) {
-    return { cart: null, subtotal: 0, itemCount: 0 }
+    return { items: [], subtotal: 0, total: 0, itemCount: 0 }
   }
 
   const subtotal = cart.items.reduce(
@@ -323,5 +306,5 @@ export async function summarizeCart(cart: ICart | null) {
 
   const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0)
 
-  return { cart, subtotal, itemCount }
+  return { items: cart.items, subtotal, total: subtotal, itemCount }
 }

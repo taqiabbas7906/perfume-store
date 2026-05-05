@@ -46,7 +46,7 @@ export async function syncUserToDB(token: string) {
           lastLogin: now,
         },
       },
-      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', runValidators: true, setDefaultsOnInsert: true }
     )
 
     return user
