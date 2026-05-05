@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     await connectDB()
 
-    const filter: Record<string, any> = { active: true }
+    const filter: Record<string, unknown> & { minPrice?: Record<string, number> } = { active: true }
 
     if (q.productType) filter.productType = q.productType
     if (q.category) filter.category = q.category.toLowerCase()
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     /* ─────────────────────────────────────────────
      * SORTING
      * ───────────────────────────────────────────── */
-    const sort: Record<string, any> = (() => {
+    const sort = (() => {
       switch (q.sort) {
         case 'price_asc':
           return { minPrice: 1, _id: 1 }
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     const [total, products] = await Promise.all([
       Product.countDocuments(filter),
       Product.find(filter, projection)
-        .sort(sort)
+        .sort(sort as any)
         .skip(skip)
         .limit(q.limit)
         .select(PUBLIC_FIELDS)

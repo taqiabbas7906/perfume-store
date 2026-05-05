@@ -20,7 +20,8 @@ interface BuyNowItem {
 }
 
 export interface CreateOrderInput {
-  userId: string
+  userId?: string
+  guestEmail?: string
   idempotencyKey: string
   shippingAddress: IShippingAddress
   voucherCode?: string
@@ -53,9 +54,10 @@ interface NormalizedLine {
 /* SAFE OBJECTID */
 /* ───────────────────────────────────────────── */
 
-const toObjectId = (id: any): Types.ObjectId | null => {
+const toObjectId = (id: unknown): Types.ObjectId | null => {
   if (!id) return null
   if (id instanceof Types.ObjectId) return id
+  if (typeof id !== 'string') return null
   if (!Types.ObjectId.isValid(id)) return null
   return new Types.ObjectId(id)
 }
@@ -79,11 +81,14 @@ async function normalizeLines(
           quantity: buyNow.quantity,
         },
       ]
-    : (cart?.items ?? []).map((i: any) => ({
-        productId: toObjectId(i.productId),
-        variantSku: i.variantSku,
-        quantity: i.quantity,
-      }))
+    : (cart?.items ?? []).map((i) => {
+        const item = i as { productId: unknown; variantSku: string; quantity: number }
+        return {
+          productId: toObjectId(item.productId),
+          variantSku: item.variantSku,
+          quantity: item.quantity,
+        }
+      })
 
   if (!sourceLines.length) return { code: 'EMPTY_CART' }
 
@@ -134,19 +139,21 @@ export async function createOrder(
   input: CreateOrderInput
 ): Promise<CreateOrderResult> {
 
-  const userId = toObjectId(input.userId)
-  if (!userId) {
+  const userId = input.userId ? toObjectId(input.userId) : null
+
+  if (!userId && !input.guestEmail) {
     return {
       ok: false,
       code: 'INTERNAL',
-      message: 'Invalid userId',
+      message: 'Either userId or guestEmail is required',
     }
   }
 
-  const existing = await Order.findOne({
-    idempotencyKey: input.idempotencyKey,
-    user: userId,
-  }).lean<IOrder>()
+  const existingFilter: any = { idempotencyKey: input.idempotencyKey }
+  if (userId) existingFilter.user = userId
+  if (input.guestEmail) existingFilter.guestEmail = input.guestEmail
+
+  const existing = await Order.findOne(existingFilter).lean<IOrder>()
 
   if (existing) {
     return { ok: true, order: existing, created: false }
@@ -154,7 +161,7 @@ export async function createOrder(
 
   const cart = input.buyNow
     ? null
-    : await getOrCreateCart({ userId: input.userId })
+    : (userId ? await getOrCreateCart({ userId: input.userId }) : null)
 
   const norm = await normalizeLines(cart, input.buyNow)
 
@@ -200,8 +207,9 @@ export async function createOrder(
       lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
     )
 
-    const orderPayload = {
+    const orderPayload: any = {
       user: userId,
+      guestEmail: input.guestEmail,
 
       items: lines.map(l => ({
         productId: l.productId,
@@ -236,7 +244,7 @@ export async function createOrder(
       session: session ?? undefined,
     })
 
-    if (!input.buyNow) {
+    if (!input.buyNow && input.userId) {
       await clearCart({ userId: input.userId })
     }
 

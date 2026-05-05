@@ -38,8 +38,8 @@ export async function acquireIdempotency(args: {
     })
 
     return { acquired: doc.toObject() as IIdempotencyKey }
-  } catch (err: any) {
-    if (err?.code !== 11000) throw err
+  } catch (err: unknown) {
+    if ((err as { code?: number })?.code !== 11000) throw err
 
     // 🔐 IMPORTANT: include user in lookup to avoid cross-user replay
     const existing = await IdempotencyKey.findOne({

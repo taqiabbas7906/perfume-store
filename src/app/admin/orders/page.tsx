@@ -6,13 +6,24 @@ import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 
+interface OrderItem {
+  productId: string
+  variantSku: string
+  name: string
+  variantLabel: string
+  price: number
+  quantity: number
+  subtotal: number
+  image: string
+}
+
 interface Order {
   _id: string
   status: string
   paymentStatus: string
   totalAmount: number
   createdAt: string
-  items: any[]
+  items: OrderItem[]
 }
 
 export default function AdminOrdersPage() {

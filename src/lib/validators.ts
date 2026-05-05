@@ -227,6 +227,8 @@ export const orderSchema = z.object({
   items: z.array(cartItemSchema).min(1),
   shippingAddress: shippingAddressSchema,
   voucherCode: z.string().min(3).max(20).optional(),
+  idempotencyKey: z.string().optional(),
+  guestEmail: z.string().email().optional(),
 })
 
 export const voucherSchema = z.object({

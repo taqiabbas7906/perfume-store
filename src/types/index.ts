@@ -54,11 +54,11 @@ export interface IProduct {
     originalPrice: number
     discountedPrice?: number
     quantity: number
-    options?: Record<string, any>
+    options?: Record<string, unknown>
     images?: string[]
   }[]
 
-  attributes: Record<string, any>
+  attributes: Record<string, unknown>
 
   minPrice: number
   maxPrice: number
@@ -153,7 +153,8 @@ export interface IOrderLog {
 
 export interface IOrder {
   _id: Types.ObjectId
-  user: Types.ObjectId | IUser
+  user?: Types.ObjectId | IUser
+  guestEmail?: string
 
   items: IOrderItem[]
   shippingAddress: IShippingAddress

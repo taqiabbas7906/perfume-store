@@ -41,20 +41,23 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB()
     const user = await getAuthUser(req)
-    if (!user) return apiError(401, { error: 'Unauthorized' })
-
     const body = await req.json().catch(() => null)
     if (!body) return apiError(400, { error: 'Invalid JSON body' })
 
     const validation = validateData(orderSchema, body)
     if (!validation.success) return validation.response
 
-    const { shippingAddress, voucherCode } = validation.data
-    const idempotencyKey = crypto.randomUUID()
+    const { shippingAddress, voucherCode, idempotencyKey: clientIdempotencyKey, guestEmail } = validation.data
+    const idempotencyKey = clientIdempotencyKey || crypto.randomUUID()
     const log = await getRequestInfo(req)
 
+    if (!user && !guestEmail) {
+      return apiError(400, { error: 'Either login or provide email' })
+    }
+
     const result = await createOrder({
-      userId: user._id.toString(),
+      userId: user ? user._id.toString() : undefined,
+      guestEmail,
       idempotencyKey,
       shippingAddress,
       voucherCode,

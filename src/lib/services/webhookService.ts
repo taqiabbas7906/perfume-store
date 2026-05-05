@@ -96,9 +96,9 @@ export async function ingestSquareEvent(args: {
       payload: body,
       receivedAt: new Date(),
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     // duplicate event (SAFE)
-    if (err?.code === 11000) {
+    if ((err as { code?: number })?.code === 11000) {
       logger.info({ eventId }, 'duplicate webhook ignored')
       return { ok: true, deduplicated: true }
     }
@@ -121,10 +121,10 @@ export async function ingestSquareEvent(args: {
     )
 
     return { ok: true, deduplicated: false }
-  } catch (err: any) {
+  } catch (err: unknown) {
     await WebhookEvent.updateOne(
       { provider: 'square', eventId },
-      { $set: { error: err?.message || 'reconcile failed' } }
+      { $set: { error: (err as { message?: string })?.message || 'reconcile failed' } }
     )
 
     logger.error({ err }, 'webhook reconcile failed')

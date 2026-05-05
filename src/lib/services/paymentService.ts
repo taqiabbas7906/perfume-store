@@ -45,13 +45,14 @@ export type PayResult =
 function extractSquareError(err: unknown): string {
   if (!err || typeof err !== 'object') return 'unknown error'
 
-  const e = err as any
+  const e = err as Record<string, unknown>
 
   if (Array.isArray(e.errors) && e.errors.length > 0) {
-    return e.errors[0]?.detail || e.errors[0]?.message || 'square error'
+    const firstErr = e.errors[0] as Record<string, unknown>
+    return String(firstErr.detail || firstErr.message || 'square error')
   }
 
-  return e.message || 'unknown error'
+  return String(e.message || 'unknown error')
 }
 
 /* ───────────────────────────────────────────── */

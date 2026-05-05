@@ -7,7 +7,7 @@ export interface IPayment extends Document {
   currency: string
   status: string
   idempotencyKey: string
-  rawResponse?: any
+  rawResponse?: unknown
   createdAt: Date
   updatedAt: Date
 }

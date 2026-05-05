@@ -65,8 +65,15 @@ const OrderSchema = new Schema<IOrder>(
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false,
       index: true,
+    },
+    guestEmail: {
+      type: String,
+      required: false,
+      lowercase: true,
+      trim: true,
+      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
 
     items: {

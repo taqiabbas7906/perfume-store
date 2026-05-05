@@ -28,7 +28,7 @@ const VariantSchema = new Schema(
       type: Number,
       min: 0,
       validate: {
-        validator(this: any, v: number) {
+        validator(this: { originalPrice: number }, v: number) {
           return v == null || v < this.originalPrice
         },
       },

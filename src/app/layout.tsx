@@ -38,6 +38,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="text/javascript"
+          src="https://sandbox.web.squarecdn.com/v1/square.js"
+        ></script>
+      </head>
       <body>
         <AuthProvider>
           <Navbar />
