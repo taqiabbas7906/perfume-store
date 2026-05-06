@@ -8,6 +8,8 @@ import Order from '@/models/Order'
 import IdempotencyKey from '@/models/IdempotencyKey'
 import WebhookEvent from '@/models/WebhookEvent'
 import User from '@/models/User'
+import Voucher from '@/models/Voucher'
+import VoucherUsage from '@/models/VoucherUsage'
 
 /**
  * Dev / test seed endpoint.
@@ -29,6 +31,8 @@ export async function POST(req: NextRequest) {
       IdempotencyKey.deleteMany({}),
       WebhookEvent.deleteMany({}),
       Product.deleteMany({}),
+      Voucher.deleteMany({}),
+      VoucherUsage.deleteMany({}),
     ])
 
     const products = await Product.insertMany([
@@ -106,6 +110,48 @@ export async function POST(req: NextRequest) {
       },
     ])
 
+    const vouchers = await Voucher.insertMany([
+      {
+        code: 'WELCOME10',
+        type: 'percentage',
+        value: 10,
+        minOrderAmount: 0,
+        firstOrderOnly: true,
+        active: true,
+        stackable: false,
+        usedCount: 0,
+      },
+      {
+        code: 'FIXED20',
+        type: 'fixed',
+        value: 20,
+        minOrderAmount: 100,
+        active: true,
+        stackable: false,
+        usedCount: 0,
+      },
+      {
+        code: 'PERFUME15',
+        type: 'percentage',
+        value: 15,
+        minOrderAmount: 50,
+        maxDiscountAmount: 50,
+        categoryIds: ['eau de parfum'],
+        active: true,
+        stackable: true,
+        usedCount: 0,
+      },
+      {
+        code: 'FREESHIP',
+        type: 'free_shipping',
+        value: 0,
+        minOrderAmount: 75,
+        active: true,
+        stackable: false,
+        usedCount: 0,
+      },
+    ])
+
     return NextResponse.json({
       success: true,
       products: products.map((p) => ({
@@ -113,6 +159,12 @@ export async function POST(req: NextRequest) {
         slug: p.slug,
         name: p.name,
         variants: p.variants,
+      })),
+      vouchers: vouchers.map((v) => ({
+        _id: v._id,
+        code: v.code,
+        type: v.type,
+        value: v.value,
       })),
     })
   } catch (err) {

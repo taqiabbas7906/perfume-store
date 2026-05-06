@@ -16,16 +16,24 @@ interface CartItem {
   addedAt?: string
 }
 
+interface CartVoucher {
+  code: string
+  voucherId: string
+  discount: number
+}
+
 interface CartSummary {
   items: CartItem[]
   subtotal: number
   total: number
   itemCount: number
+  discount: number
+  vouchers: CartVoucher[]
 }
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [cart, setCart] = useState<CartSummary | null>(null)
   const [shippingAddress, setShippingAddress] = useState({
     name: '',
@@ -46,10 +54,16 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [voucherCode, setVoucherCode] = useState('')
+  const [applyingVoucher, setApplyingVoucher] = useState(false)
 
-  const fetchCart = async () => {
+  const fetchCart = async (params?: { voucherCode?: string; removeVoucher?: string }) => {
     try {
-      const res = await authFetch('/api/cart')
+      const searchParams = new URLSearchParams()
+      if (params?.voucherCode) searchParams.set('voucherCode', params.voucherCode)
+      if (params?.removeVoucher) searchParams.set('removeVoucher', params.removeVoucher)
+      const url = searchParams.toString() ? `/api/cart?${searchParams.toString()}` : '/api/cart'
+      const res = await authFetch(url)
       const data = await res.json()
       if (data.success) {
         setCart(data)
@@ -63,12 +77,57 @@ export default function CheckoutPage() {
     }
   }
 
+  const removeVoucher = async (code: string) => {
+    await fetchCart({ removeVoucher: code })
+  }
+
+  const applyVoucher = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!voucherCode.trim()) return
+    setApplyingVoucher(true)
+    setError('')
+    
+    try {
+      const validateRes = await authFetch('/api/vouchers/validate', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: voucherCode.trim(),
+          cartTotal: cart?.subtotal || 0,
+          productIds: cart?.items.map(i => i.productId) || [],
+        }),
+      })
+      const validateData = await validateRes.json()
+      
+      if (!validateRes.ok) {
+        setError(validateData.error || 'Invalid voucher')
+        setApplyingVoucher(false)
+        return
+      }
+      
+      if (!validateData.success) {
+        setError(validateData.error || 'Invalid voucher')
+        setApplyingVoucher(false)
+        return
+      }
+      
+      await fetchCart({ voucherCode: voucherCode.trim() })
+      setVoucherCode('')
+    } catch (err) {
+      setError('Failed to apply voucher')
+    } finally {
+      setApplyingVoucher(false)
+    }
+  }
+
   useEffect(() => {
+    if (authLoading) {
+      return
+    }
     if (user && user.email) {
       setGuestEmail(user.email)
     }
     fetchCart()
-  }, [user])
+  }, [user, authLoading])
 
   const generateIdempotencyKey = () => {
     return crypto.randomUUID()
@@ -85,6 +144,7 @@ export default function CheckoutPage() {
         items: cart?.items.map(i => ({ productId: i.productId, variantSku: i.variantSku, quantity: i.quantity })) || [],
         shippingAddress,
         idempotencyKey,
+        voucherCodes: cart?.vouchers.map(v => v.code) || undefined,
       }
       if (guestEmail && !user) {
         orderBody.guestEmail = guestEmail
@@ -126,7 +186,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="container mx-auto px-4 py-8 text-center">Loading...</div>
   }
 
@@ -314,12 +374,63 @@ export default function CheckoutPage() {
         </div>
         <div className="border rounded-lg p-6 h-fit">
           <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+          
+          <form onSubmit={applyVoucher} className="mb-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Voucher code"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-lg"
+              />
+              <button
+                type="submit"
+                disabled={applyingVoucher || !voucherCode.trim()}
+                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </div>
+          </form>
+          
+          {cart?.vouchers?.map((voucher) => (
+            <div key={voucher.code} className="flex justify-between items-center mb-2 text-green-600">
+              <span>{voucher.code}</span>
+              <div className="flex items-center gap-2">
+                <span>-${voucher.discount.toFixed(2)}</span>
+                <button
+                  onClick={() => removeVoucher(voucher.code)}
+                  className="text-red-500 hover:underline text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+          
           {cart.items.map((item) => (
             <div key={item.variantSku} className="flex justify-between mb-2">
               <span>{item.name} x {item.quantity}</span>
               <span>${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
+          <div className="flex justify-between mb-2">
+            <span>Subtotal</span>
+            <span>${cart.subtotal.toFixed(2)}</span>
+          </div>
+          {cart?.discount > 0 && (
+            <div className="flex justify-between mb-2 text-green-600">
+              <span>Total Discount</span>
+              <span>-${cart.discount.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
             <span>Total</span>
             <span>${cart.total.toFixed(2)}</span>

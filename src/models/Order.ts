@@ -110,12 +110,10 @@ const OrderSchema = new Schema<IOrder>(
     totalAmount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: 'USD' },
 
-    voucherUsed: {
-  type: Schema.Types.ObjectId,
-  ref: 'Voucher',
-  required: false,
-  default: null,
-},
+    vouchersUsed: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Voucher' }],
+      default: [],
+    },
 
     /* ───────── IDEMPOTENCY ───────── */
     idempotencyKey: { type: String, required: true },
@@ -126,8 +124,8 @@ const OrderSchema = new Schema<IOrder>(
     },
 
     /* ───────── PAYMENT IDS ───────── */
-    paymentIntentId: { type: String, default: '', index: true },
-    squarePaymentId: { type: String, sparse: true, index: true },
+    paymentIntentId: { type: String, default: '' },
+    squarePaymentId: { type: String, sparse: true },
     squareOrderId: { type: String, sparse: true },
 
     paymentStatus: {
@@ -175,6 +173,7 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ idempotencyKey: 1 }, { unique: true })
 OrderSchema.index({ paymentIdempotencyKey: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ squarePaymentId: 1 }, { unique: true, sparse: true })
+OrderSchema.index({ paymentIntentId: 1 })
 OrderSchema.index({ user: 1, createdAt: -1 })
 
 /* ─────────────────────────────────────────────

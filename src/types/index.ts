@@ -89,11 +89,18 @@ export interface ICartItem {
   addedAt?: Date
 }
 
+export interface ICartVoucher {
+  code: string
+  voucherId: Types.ObjectId
+  discount: number
+}
+
 export interface ICart {
   _id: Types.ObjectId
   user?: Types.ObjectId
   sessionId?: string
   items: ICartItem[]
+  vouchers?: ICartVoucher[]
   expiresAt?: Date
   createdAt: Date
   updatedAt: Date
@@ -178,7 +185,7 @@ export interface IOrder {
   paymentStatus: PaymentStatus
   paymentError?: string
   paidAt?: Date
-  voucherUsed?: Types.ObjectId | null
+  vouchersUsed?: (Types.ObjectId | IVoucher)[]
   inventoryReleased: boolean
 
   orderLog: IOrderLog
@@ -190,16 +197,40 @@ export interface IOrder {
 /* ─────────────────────────────────────────────────────────────
  * VOUCHER
  * ───────────────────────────────────────────────────────────── */
+export type VoucherType = 'percentage' | 'fixed' | 'free_shipping'
+export type VoucherScope = 'all' | 'products' | 'categories' | 'first_order' | 'customers'
+
 export interface IVoucher {
   _id: Types.ObjectId
   code: string
-  type: 'percentage' | 'fixed'
+  type: VoucherType
   value: number
   minOrderAmount: number
-  usageLimit: number
+  maxDiscountAmount?: number
+  usageLimit?: number
   usedCount: number
-  expiresAt: Date
+  perUserLimit?: number
+  expiresAt?: Date
+  startsAt?: Date
   active: boolean
+  stackable: boolean
+  productIds?: Types.ObjectId[]
+  categoryIds?: string[]
+  customerIds?: Types.ObjectId[]
+  firstOrderOnly: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IVoucherUsage {
+  _id: Types.ObjectId
+  voucherId: Types.ObjectId | IVoucher
+  userId?: Types.ObjectId | IUser
+  orderId?: Types.ObjectId | IOrder
+  guestEmail?: string
+  discountAmount: number
+  usedAt: Date
+  createdAt: Date
 }
 
 /* ─────────────────────────────────────────────────────────────

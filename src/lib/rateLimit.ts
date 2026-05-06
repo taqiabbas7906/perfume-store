@@ -93,16 +93,25 @@ function getClientIp(req: NextRequest): string {
 
 async function applyLimit(
   req: NextRequest,
-  config: LimiterConfig
+  config: LimiterConfig,
+  options?: { failClosed?: boolean }
 ): Promise<NextResponse | null> {
   const limiter = getLimiter(config)
+  const failClosed = options?.failClosed ?? false
 
-  // Fail-open strategy (never break API if Redis is down)
   if (!limiter) {
     if (process.env.NODE_ENV === 'production') {
       logger.warn(
-        { limiter: config.name },
-        'Rate limit skipped (Redis not configured)'
+        { limiter: config.name, failClosed },
+        failClosed
+          ? 'Rate limit failed-closed (Redis not configured)'
+          : 'Rate limit skipped (Redis not configured)'
+      )
+    }
+    if (failClosed) {
+      return NextResponse.json(
+        { error: 'Service unavailable' },
+        { status: 503 }
       )
     }
     return null
@@ -141,7 +150,13 @@ async function applyLimit(
       }
     )
   } catch (err) {
-    logger.error({ err, limiter: config.name }, 'Rate limiter error')
+    logger.error({ err, limiter: config.name, failClosed }, 'Rate limiter error')
+    if (failClosed) {
+      return NextResponse.json(
+        { error: 'Service unavailable' },
+        { status: 503 }
+      )
+    }
     return null
   }
 }
@@ -194,28 +209,28 @@ const WEBHOOKS: LimiterConfig = {
 /* Public API helpers */
 /* ───────────────────────────────────────────── */
 
-export function rateLimit(req: NextRequest) {
-  return applyLimit(req, GLOBAL)
+export function rateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, GLOBAL, options)
 }
 
-export function authRateLimit(req: NextRequest) {
-  return applyLimit(req, AUTH)
+export function authRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, AUTH, options)
 }
 
-export function cartRateLimit(req: NextRequest) {
-  return applyLimit(req, CART)
+export function cartRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, CART, options)
 }
 
-export function ordersRateLimit(req: NextRequest) {
-  return applyLimit(req, ORDERS)
+export function ordersRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, ORDERS, options)
 }
 
-export function paymentsRateLimit(req: NextRequest) {
-  return applyLimit(req, PAYMENTS)
+export function paymentsRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, PAYMENTS, options)
 }
 
-export function webhooksRateLimit(req: NextRequest) {
-  return applyLimit(req, WEBHOOKS)
+export function webhooksRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+  return applyLimit(req, WEBHOOKS, options)
 }
 
 /* ───────────────────────────────────────────── */
@@ -224,7 +239,8 @@ export function webhooksRateLimit(req: NextRequest) {
 
 export function customRateLimit(
   req: NextRequest,
-  config: LimiterConfig
+  config: LimiterConfig,
+  options?: { failClosed?: boolean }
 ) {
-  return applyLimit(req, config)
+  return applyLimit(req, config, options)
 }

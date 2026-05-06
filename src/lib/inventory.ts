@@ -1,5 +1,6 @@
 import { ClientSession, Types } from 'mongoose'
 import Product from '@/models/Product'
+import { logger } from './logger'
 
 /* ───────────────────────────────────────────── */
 
@@ -155,9 +156,18 @@ export async function decrementStockBatch(
 async function rollback(items: DecrementInput[], session?: ClientSession) {
   for (const item of items) {
     try {
-      await restoreStock(item, session)
-    } catch {
-      // intentionally ignored — avoid masking original failure
+      const success = await restoreStock(item, session)
+      if (!success) {
+        logger.fatal(
+          { item },
+          'Failed to restore stock during rollback'
+        )
+      }
+    } catch (err) {
+      logger.fatal(
+        { err, item },
+        'Error restoring stock during rollback'
+      )
     }
   }
 }

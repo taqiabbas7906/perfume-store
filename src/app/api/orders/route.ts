@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     const validation = validateData(orderSchema, body)
     if (!validation.success) return validation.response
 
-    const { shippingAddress, voucherCode, idempotencyKey: clientIdempotencyKey, guestEmail } = validation.data
+    const { shippingAddress, voucherCodes, idempotencyKey: clientIdempotencyKey, guestEmail } = validation.data
     const idempotencyKey = clientIdempotencyKey || crypto.randomUUID()
     const log = await getRequestInfo(req)
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       guestEmail,
       idempotencyKey,
       shippingAddress,
-      voucherCode,
+      voucherCodes,
       log,
     })
 

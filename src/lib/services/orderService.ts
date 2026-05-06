@@ -1,7 +1,12 @@
-import mongoose, { Types } from 'mongoose'
+import mongoose, { Types, ClientSession } from 'mongoose'
 import Order from '@/models/Order'
 import Product from '@/models/Product'
-import { getOrCreateCart, clearCart } from '@/lib/services/cartService'
+import Cart from '@/models/Cart'
+import { getOrCreateCart, clearCart, summarizeCart } from '@/lib/services/cartService'
+import {
+  validateVoucher,
+  incrementVoucherUsage,
+} from '@/lib/services/voucherService'
 import {
   decrementStockBatch,
   restoreStock,
@@ -24,7 +29,6 @@ export interface CreateOrderInput {
   guestEmail?: string
   idempotencyKey: string
   shippingAddress: IShippingAddress
-  voucherCode?: string
   buyNow?: BuyNowItem
   log: IOrderLog
 }
@@ -67,12 +71,10 @@ const toObjectId = (id: unknown): Types.ObjectId | null => {
 async function normalizeLines(
   cart: ICart | null,
   buyNow?: BuyNowItem
-):
-  Promise<
-    | { lines: NormalizedLine[] }
-    | { code: 'EMPTY_CART' | 'PRODUCT_UNAVAILABLE'; sku?: string }
-  >
-{
+): Promise<
+  | { lines: NormalizedLine[] }
+  | { code: 'EMPTY_CART' | 'PRODUCT_UNAVAILABLE'; sku?: string }
+> {
   const sourceLines = buyNow
     ? [
         {
@@ -98,15 +100,15 @@ async function normalizeLines(
   )
 
   const productIds = [
-    ...new Set(validLines.map(l => l.productId.toString())),
-  ].map(id => new Types.ObjectId(id))
+    ...new Set(validLines.map((l) => l.productId.toString())),
+  ].map((id) => new Types.ObjectId(id))
 
   const products = await Product.find({
     _id: { $in: productIds },
     active: true,
   }).lean<IProduct[]>()
 
-  const byId = new Map(products.map(p => [p._id.toString(), p]))
+  const byId = new Map(products.map((p) => [p._id.toString(), p]))
 
   const lines: NormalizedLine[] = []
 
@@ -114,7 +116,7 @@ async function normalizeLines(
     const p = byId.get(l.productId.toString())
     if (!p) return { code: 'PRODUCT_UNAVAILABLE', sku: l.variantSku }
 
-    const variant = p.variants.find(v => v.sku === l.variantSku)
+    const variant = p.variants.find((v) => v.sku === l.variantSku)
     if (!variant) return { code: 'PRODUCT_UNAVAILABLE', sku: l.variantSku }
 
     lines.push({
@@ -138,7 +140,6 @@ async function normalizeLines(
 export async function createOrder(
   input: CreateOrderInput
 ): Promise<CreateOrderResult> {
-
   const userId = input.userId ? toObjectId(input.userId) : null
 
   if (!userId && !input.guestEmail) {
@@ -161,7 +162,9 @@ export async function createOrder(
 
   const cart = input.buyNow
     ? null
-    : (userId ? await getOrCreateCart({ userId: input.userId }) : null)
+    : userId
+    ? await getOrCreateCart({ userId: input.userId })
+    : null
 
   const norm = await normalizeLines(cart, input.buyNow)
 
@@ -179,11 +182,52 @@ export async function createOrder(
 
   const lines = norm.lines
 
-  const decInputs: DecrementInput[] = lines.map(l => ({
+  const decInputs: DecrementInput[] = lines.map((l) => ({
     productId: l.productId,
     variantSku: l.variantSku,
     quantity: l.quantity,
   }))
+
+  const subtotal = round2(
+    lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
+  )
+
+  let discount = 0
+  const voucherUsedIds: Types.ObjectId[] = []
+  const voucherDiscounts: Array<{
+    voucherId: Types.ObjectId
+    discountAmount: number
+  }> = []
+
+  if (cart && cart.vouchers && cart.vouchers.length > 0) {
+    const productIdsInCart = lines.map((l) => l.productId)
+    const products = await Product.find({
+      _id: { $in: productIdsInCart },
+    }).lean<IProduct[]>()
+    const categoryIdsInCart = products.map((p) => p.category)
+
+    for (const cartVoucher of cart.vouchers) {
+      const validation = await validateVoucher({
+        voucherCode: cartVoucher.code,
+        cartTotal: subtotal,
+        productIdsInCart,
+        categoryIdsInCart,
+        userId: input.userId,
+        guestEmail: input.guestEmail,
+      })
+
+      if (validation.ok) {
+        discount += validation.discountAmount
+        voucherUsedIds.push(validation.voucher._id)
+        voucherDiscounts.push({
+          voucherId: validation.voucher._id,
+          discountAmount: validation.discountAmount,
+        })
+      }
+    }
+  }
+
+  discount = Math.min(discount, subtotal)
 
   const session = await safeStartSession()
 
@@ -203,15 +247,11 @@ export async function createOrder(
       }
     }
 
-    const subtotal = round2(
-      lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)
-    )
-
     const orderPayload: any = {
       user: userId,
       guestEmail: input.guestEmail,
 
-      items: lines.map(l => ({
+      items: lines.map((l) => ({
         productId: l.productId,
         variantSku: l.variantSku,
         name: l.name,
@@ -228,11 +268,12 @@ export async function createOrder(
       paymentStatus: 'pending',
 
       subtotal,
-      discount: 0,
+      discount,
       shipping: 0,
       tax: 0,
-      totalAmount: subtotal,
+      totalAmount: subtotal - discount,
       currency: 'USD',
+      vouchersUsed: voucherUsedIds,
 
       idempotencyKey: input.idempotencyKey,
       paymentIntentId: '',
@@ -246,14 +287,32 @@ export async function createOrder(
 
     if (!input.buyNow && input.userId) {
       await clearCart({ userId: input.userId }, session ?? undefined)
+    } else if (!input.buyNow && cart) {
+      if (cart.sessionId) {
+        await Cart.updateOne(
+          { sessionId: cart.sessionId },
+          { $set: { vouchers: [] } },
+          session ? { session } : {}
+        )
+      }
     }
 
     if (session) await session.commitTransaction()
 
+    for (const { voucherId, discountAmount } of voucherDiscounts) {
+      await incrementVoucherUsage({
+        voucherId,
+        userId: input.userId,
+        orderId: order._id.toString(),
+        guestEmail: input.guestEmail,
+        discountAmount,
+        session: undefined,
+      })
+    }
+
     logger.info({ orderId: order._id }, 'order created')
 
     return { ok: true, order: order as IOrder, created: true }
-
   } catch (err) {
     if (session) await session.abortTransaction().catch(() => {})
 

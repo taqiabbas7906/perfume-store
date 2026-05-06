@@ -3,6 +3,8 @@ import Cart from '@/models/Cart'
 import Product from '@/models/Product'
 import type { ICart, IProduct } from '@/types'
 import type { CartErrorCode } from '@/types/commerce'
+import { validateVoucher } from '@/lib/services/voucherService'
+import { logger } from '@/lib/logger'
 
 /* ───────────────────────────────────────────── */
 
@@ -294,9 +296,95 @@ export async function clearCart(owner: CartOwner, session?: ClientSession) {
 
 /* ───────────────────────────────────────────── */
 
-export async function summarizeCart(cart: ICart | null) {
+export async function addVoucherToCart(args: {
+  owner: CartOwner
+  voucherCode: string
+  userId?: string
+  guestEmail?: string
+}): Promise<{ ok: true; cart: ICart } | { ok: false; code: string; message: string }> {
+  const filter = ownerFilter(args.owner)
+
+  let cart = await Cart.findOne(filter).lean<ICart>()
   if (!cart) {
-    return { items: [], subtotal: 0, total: 0, itemCount: 0 }
+    cart = await getOrCreateCart(args.owner)
+  }
+
+  const subtotal = cart.items.reduce((s, i) => s + i.quantity * i.price, 0)
+
+  const productIdsInCart = cart.items.map((i) => i.productId as Types.ObjectId)
+
+  const products = await Product.find({
+    _id: { $in: productIdsInCart },
+  }).lean<IProduct[]>()
+
+  const categoryIdsInCart = products.map((p) => p.category)
+
+  const validation = await validateVoucher({
+    voucherCode: args.voucherCode,
+    cartTotal: subtotal,
+    productIdsInCart,
+    categoryIdsInCart,
+    userId: args.userId,
+    guestEmail: args.guestEmail,
+  })
+
+  if (!validation.ok) {
+    return { ok: false, code: validation.code, message: validation.message }
+  }
+
+  const existingVoucher = cart.vouchers?.find(
+    (v) => v.voucherId.toString() === validation.voucher._id.toString()
+  )
+
+  if (existingVoucher) {
+    return { ok: true, cart }
+  }
+
+  if (!validation.voucher.stackable && cart.vouchers && cart.vouchers.length > 0) {
+    return { ok: false, code: 'NOT_STACKABLE', message: 'Voucher cannot be stacked with other vouchers' }
+  }
+
+  const updatedCart = await Cart.findOneAndUpdate(
+    filter,
+    {
+      $push: {
+        vouchers: {
+          code: validation.voucher.code,
+          voucherId: validation.voucher._id,
+          discount: validation.discountAmount,
+        },
+      },
+    },
+    { returnDocument: 'after' }
+  ).lean<ICart>()
+
+  if (!updatedCart) throw new Error('Cart not found')
+
+  logger.info(
+    { voucherCode: validation.voucher.code, discount: validation.discountAmount },
+    'Voucher added to cart'
+  )
+
+  return { ok: true, cart: updatedCart }
+}
+
+export async function removeVoucherFromCart(
+  owner: CartOwner,
+  voucherCode: string
+): Promise<ICart> {
+  const filter = ownerFilter(owner)
+  const updatedCart = await Cart.findOneAndUpdate(
+    filter,
+    { $pull: { vouchers: { code: voucherCode.trim().toUpperCase() } } },
+    { returnDocument: 'after' }
+  ).lean<ICart>()
+  if (!updatedCart) throw new Error('Cart not found')
+  return updatedCart
+}
+
+export function summarizeCart(cart: ICart | null) {
+  if (!cart) {
+    return { items: [], subtotal: 0, total: 0, itemCount: 0, discount: 0, vouchers: [] }
   }
 
   const subtotal = cart.items.reduce(
@@ -306,5 +394,15 @@ export async function summarizeCart(cart: ICart | null) {
 
   const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0)
 
-  return { items: cart.items, subtotal, total: subtotal, itemCount }
+  const discount = cart.vouchers?.reduce((sum, v) => sum + v.discount, 0) || 0
+  const validDiscount = Math.min(discount, subtotal)
+
+  return {
+    items: cart.items,
+    subtotal,
+    total: subtotal - validDiscount,
+    itemCount,
+    discount: validDiscount,
+    vouchers: cart.vouchers || [],
+  }
 }

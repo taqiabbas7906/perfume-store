@@ -51,6 +51,19 @@ const CartItemSchema = new Schema(
 /* CART SCHEMA */
 /* ───────────────────────────────────────────── */
 
+const CartVoucherSchema = new Schema(
+  {
+    code: { type: String, required: true, trim: true },
+    voucherId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Voucher',
+      required: true,
+    },
+    discount: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+)
+
 const CartSchema = new Schema<ICart>(
   {
     user: {
@@ -64,6 +77,11 @@ const CartSchema = new Schema<ICart>(
 
     items: {
       type: [CartItemSchema],
+      default: [],
+    },
+
+    vouchers: {
+      type: [CartVoucherSchema],
       default: [],
     },
 

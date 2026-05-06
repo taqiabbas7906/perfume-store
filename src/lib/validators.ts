@@ -226,19 +226,27 @@ export const shippingAddressSchema = z.object({
 export const orderSchema = z.object({
   items: z.array(cartItemSchema).min(1),
   shippingAddress: shippingAddressSchema,
-  voucherCode: z.string().min(3).max(20).optional(),
+  voucherCodes: z.array(z.string().min(3).max(20)).optional(),
   idempotencyKey: z.string().optional(),
   guestEmail: z.string().email().optional(),
 })
 
 export const voucherSchema = z.object({
-  code: z.string().min(3).max(20).toUpperCase().trim(),
-  type: z.enum(['percentage', 'fixed']),
-  value: z.number().min(1).max(100),
+  code: z.string().min(3).max(30).toUpperCase().trim().optional(),
+  type: z.enum(['percentage', 'fixed', 'free_shipping']),
+  value: z.number().min(0),
   minOrderAmount: z.number().min(0).default(0),
-  usageLimit: z.number().int().min(1),
-  expiresAt: z.string().datetime('Invalid date format'),
+  maxDiscountAmount: z.number().min(0).optional(),
+  usageLimit: z.number().int().min(1).optional(),
+  perUserLimit: z.number().int().min(1).optional(),
+  expiresAt: z.string().datetime('Invalid date format').optional(),
+  startsAt: z.string().datetime('Invalid date format').optional(),
   active: z.boolean().default(true),
+  stackable: z.boolean().default(false),
+  productIds: z.array(z.string()).optional(),
+  categoryIds: z.array(z.string()).optional(),
+  customerIds: z.array(z.string()).optional(),
+  firstOrderOnly: z.boolean().default(false),
 })
 
 export const reviewSchema = z.object({
