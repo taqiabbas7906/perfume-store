@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
+import { getAuthAdmin } from '@/lib/getAuthUser'
+import { apiError } from '@/lib/apiError'
 import Product from '@/models/Product'
 import Cart from '@/models/Cart'
 import Order from '@/models/Order'
@@ -13,16 +15,13 @@ import User from '@/models/User'
  *   POST /api/dev/seed
  *
  * Wipes commerce-related collections and seeds two products with
- * variants. Available ONLY when NODE_ENV !== production. This avoids
- * the need for a separate runner script while we're iterating.
+ * variants. Requires admin authentication.
  */
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 })
-  }
-
   try {
     await connectDB()
+    const admin = await getAuthAdmin(req)
+    if (!admin) return apiError(403, { error: 'Forbidden' })
 
     await Promise.all([
       Cart.deleteMany({}),
@@ -124,18 +123,28 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  await connectDB()
-  const products = await Product.find({}, { name: 1, slug: 1, variants: 1 })
-    .lean()
-  const orders = await Order.countDocuments()
-  const carts = await Cart.countDocuments()
-  const users = await User.countDocuments()
-  const idem = await IdempotencyKey.countDocuments()
-  const wh = await WebhookEvent.countDocuments()
-  return NextResponse.json({
-    ok: true,
-    products,
-    counters: { orders, carts, users, idempotencyKeys: idem, webhooks: wh },
-  })
+export async function GET(req: NextRequest) {
+  try {
+    await connectDB()
+    const admin = await getAuthAdmin(req)
+    if (!admin) return apiError(403, { error: 'Forbidden' })
+
+    const products = await Product.find({}, { name: 1, slug: 1, variants: 1 })
+      .lean()
+    const orders = await Order.countDocuments()
+    const carts = await Cart.countDocuments()
+    const users = await User.countDocuments()
+    const idem = await IdempotencyKey.countDocuments()
+    const wh = await WebhookEvent.countDocuments()
+    return NextResponse.json({
+      ok: true,
+      products,
+      counters: { orders, carts, users, idempotencyKeys: idem, webhooks: wh },
+    })
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'failed to get seed status', message: (err as Error).message },
+      { status: 500 }
+    )
+  }
 }

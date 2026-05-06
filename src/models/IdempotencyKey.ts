@@ -16,25 +16,21 @@ const IdempotencySchema = new Schema<IIdempotencyKey>(
     key: {
       type: String,
       required: true,
-      index: true,
     },
 
     scope: {
       type: String,
       enum: ['order', 'payment'],
       required: true,
-      index: true,
     },
 
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      index: true,
     },
 
     resourceId: {
       type: Schema.Types.ObjectId,
-      index: true,
     },
 
     requestHash: {
@@ -46,7 +42,6 @@ const IdempotencySchema = new Schema<IIdempotencyKey>(
       type: String,
       enum: ['in_progress', 'completed', 'failed'],
       default: 'in_progress',
-      index: true,
     },
 
     status: {
@@ -60,7 +55,6 @@ const IdempotencySchema = new Schema<IIdempotencyKey>(
     expiresAt: {
       type: Date,
       default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),
-      index: true,
     },
   },
   {
@@ -87,6 +81,11 @@ IdempotencySchema.index({ scope: 1, state: 1 })
  * Optional optimization for user-level lookups
  */
 IdempotencySchema.index({ user: 1, createdAt: -1 })
+
+/**
+ * TTL index for automatic cleanup of old idempotency keys
+ */
+IdempotencySchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 /* ───────────────────────────────────────────── */
 

@@ -133,7 +133,7 @@ export async function chargeOrder(input: PayInput): Promise<PayResult> {
     // ✅ FIXED: Square v44 requires bigint
     const amountMoney = {
       amount: toMinorUnits(order.totalAmount), // bigint
-      currency: 'USD' as const,
+      currency: (order.currency || 'USD') as 'USD',
     }
 
     const response = await client.payments.create({

@@ -245,7 +245,7 @@ export async function createOrder(
     })
 
     if (!input.buyNow && input.userId) {
-      await clearCart({ userId: input.userId })
+      await clearCart({ userId: input.userId }, session ?? undefined)
     }
 
     if (session) await session.commitTransaction()

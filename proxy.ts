@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyIdToken } from '@/lib/firebaseAdmin'
 import { logger } from '@/lib/logger'
+import { connectDB } from '@/lib/db'
+import User from '@/models/User'
 
 const SENSITIVE_HEADERS = [
   'x-user-id',
@@ -35,6 +37,13 @@ export async function proxy(request: NextRequest) {
 
         if (decoded.email) {
           headers.set('x-user-email', decoded.email.toLowerCase())
+        }
+
+        // Fetch user from DB to get role
+        await connectDB()
+        const user = await User.findOne({ firebaseUid: decoded.uid }).select('role').lean()
+        if (user?.role) {
+          headers.set('x-user-role', user.role)
         }
       } catch (err) {
         // Do not block request, but DO NOT mark fake auth state

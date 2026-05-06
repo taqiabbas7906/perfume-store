@@ -1,4 +1,4 @@
-import { Types } from 'mongoose'
+import { Types, ClientSession } from 'mongoose'
 import Cart from '@/models/Cart'
 import Product from '@/models/Product'
 import type { ICart, IProduct } from '@/types'
@@ -288,8 +288,8 @@ export async function removeItem(
 
 /* ───────────────────────────────────────────── */
 
-export async function clearCart(owner: CartOwner) {
-  await Cart.updateOne(ownerFilter(owner), { $set: { items: [] } })
+export async function clearCart(owner: CartOwner, session?: ClientSession) {
+  await Cart.updateOne(ownerFilter(owner), { $set: { items: [] } }, session ? { session } : {})
 }
 
 /* ───────────────────────────────────────────── */

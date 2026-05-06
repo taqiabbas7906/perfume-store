@@ -100,9 +100,19 @@ export async function PATCH(req: NextRequest) {
       return apiError(400, { error: 'Invalid status' })
     }
 
+    let updatePayload: any = { status };
+    if (status === 'paid') {
+      updatePayload.paymentStatus = 'completed';
+      updatePayload.paidAt = new Date();
+    } else if (status === 'cancelled' || status === 'failed') {
+      updatePayload.paymentStatus = status;
+    } else if (status === 'refunded') {
+      updatePayload.paymentStatus = 'refunded';
+    }
+
     const order = await Order.findByIdAndUpdate(
       orderId,
-      { status },
+      { $set: updatePayload },
       { new: true }
     )
 
