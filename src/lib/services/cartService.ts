@@ -82,6 +82,49 @@ export async function getCart(owner: CartOwner): Promise<ICart | null> {
 
 /* ───────────────────────────────────────────── */
 
+export async function getCartWithCurrentPrices(owner: CartOwner): Promise<ICart | null> {
+  const cart = await Cart.findOne(ownerFilter(owner)).lean<ICart>()
+  if (!cart || cart.items.length === 0) return cart
+
+  // Get all product IDs from cart items
+  const productIds = [...new Set(cart.items.map(item => item.productId.toString()))]
+  
+  // Fetch current product data with variants
+  const products = await Product.find({
+    _id: { $in: productIds },
+    active: true
+  }).lean<IProduct[]>()
+
+  // Create a map for quick product lookup
+  const productMap = new Map(products.map(p => [p._id.toString(), p]))
+
+  // Update cart items with current prices
+  const updatedItems = cart.items.map(item => {
+    const product = productMap.get(item.productId.toString())
+    if (!product) return item // If product not found, keep original item
+
+    const variant = product.variants.find(v => v.sku === item.variantSku)
+    if (!variant) return item // If variant not found, keep original item
+
+    const currentPrice = variant.discountedPrice ?? variant.originalPrice
+    
+    return {
+      ...item,
+      price: currentPrice, // Update with current price
+      name: product.name, // Update with current name
+      variantLabel: variant.label, // Update with current variant label
+      image: product.images?.[0]?.url ?? item.image // Update with current image
+    }
+  })
+
+  return {
+    ...cart,
+    items: updatedItems
+  }
+}
+
+/* ───────────────────────────────────────────── */
+
 interface ResolvedVariant {
   product: IProduct
   variant: IProduct['variants'][number]
@@ -383,6 +426,34 @@ export async function removeVoucherFromCart(
 }
 
 export function summarizeCart(cart: ICart | null) {
+  if (!cart) {
+    return { items: [], subtotal: 0, total: 0, itemCount: 0, discount: 0, vouchers: [] }
+  }
+
+  const subtotal = cart.items.reduce(
+    (s, i) => s + i.quantity * i.price,
+    0
+  )
+
+  const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0)
+
+  const discount = cart.vouchers?.reduce((sum, v) => sum + v.discount, 0) || 0
+  const validDiscount = Math.min(discount, subtotal)
+
+  return {
+    items: cart.items,
+    subtotal,
+    total: subtotal - validDiscount,
+    itemCount,
+    discount: validDiscount,
+    vouchers: cart.vouchers || [],
+  }
+}
+
+/* ───────────────────────────────────────────── */
+
+export async function summarizeCartWithCurrentPrices(owner: CartOwner) {
+  const cart = await getCartWithCurrentPrices(owner)
   if (!cart) {
     return { items: [], subtotal: 0, total: 0, itemCount: 0, discount: 0, vouchers: [] }
   }

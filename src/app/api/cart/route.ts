@@ -5,6 +5,7 @@ import { getAuthUser, getGuestSessionId } from '@/lib/getAuthUser'
 import {
   getOrCreateCart,
   summarizeCart,
+  summarizeCartWithCurrentPrices,
   clearCart,
   addVoucherToCart,
   removeVoucherFromCart,
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
       cart = applyResult.cart
     }
 
-    const summary = summarizeCart(cart)
+    const summary = await summarizeCartWithCurrentPrices(owner)
     return NextResponse.json({
       success: true,
       ...summary,
@@ -90,7 +91,7 @@ export async function DELETE(req: NextRequest) {
       : { sessionId: ownerResult.sessionId }
     await clearCart(owner)
     const cart = await getOrCreateCart(owner)
-    const summary = summarizeCart(cart)
+    const summary = await summarizeCartWithCurrentPrices(owner)
     return NextResponse.json({ success: true, ...summary })
   } catch (err) {
     logRouteError('DELETE /api/cart', err)

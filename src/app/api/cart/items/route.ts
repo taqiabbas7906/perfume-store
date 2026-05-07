@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { cartRateLimit } from '@/lib/rateLimit'
 import { getAuthUser, getGuestSessionId } from '@/lib/getAuthUser'
-import { addItem, summarizeCart } from '@/lib/services/cartService'
+import { addItem, summarizeCartWithCurrentPrices } from '@/lib/services/cartService'
 import { validateData } from '@/lib/validate'
 import { cartAddItemSchema } from '@/lib/commerceValidators'
 import { apiError, logRouteError } from '@/lib/apiError'
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const summary = await summarizeCart(result.cart)
+    const summary = await summarizeCartWithCurrentPrices(owner)
     return NextResponse.json({ success: true, ...summary })
   } catch (err) {
     logRouteError('POST /api/cart/items', err)

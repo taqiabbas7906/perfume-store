@@ -6,7 +6,7 @@ import { isCartErrorCode } from '@/lib/typeGuards/cart'
 import {
   updateItem,
   removeItem,
-  summarizeCart,
+  summarizeCartWithCurrentPrices,
 } from '@/lib/services/cartService'
 import { validateData } from '@/lib/validate'
 import { cartUpdateItemSchema } from '@/lib/commerceValidators'
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
           'available' in result ? { available: result.available } : undefined,
       })
     }
-    const summary = await summarizeCart(result.cart)
+    const summary = await summarizeCartWithCurrentPrices(owner)
 
     return NextResponse.json({
       success: true,
@@ -108,7 +108,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
       })
     }
 
-    const summary = await summarizeCart(result.cart)
+    const summary = await summarizeCartWithCurrentPrices(owner)
 
     return NextResponse.json({
       success: true,

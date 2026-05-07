@@ -53,33 +53,77 @@ export default function ProductsPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Our Products</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <Link
-            key={product._id}
-            href={`/products/${product.slug}`}
-            className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-          >
-            <div className="aspect-square bg-gray-100 flex items-center justify-center">
-              {product.images[0] ? (
-                <img
-                  src={product.images[0].url}
-                  alt={product.images[0].alt || product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-400">No image</span>
-              )}
-            </div>
-            <div className="p-4">
-              <p className="text-sm text-gray-500">{product.brand}</p>
-              <h2 className="text-lg font-semibold mb-1">{product.name}</h2>
-              <p className="text-lg font-bold">
-                ${product.minPrice.toFixed(2)}
-                {product.maxPrice > product.minPrice && ` - $${product.maxPrice.toFixed(2)}`}
-              </p>
-            </div>
-          </Link>
-        ))}
+        {products.map((product) => {
+          // Check if any variant has a discount
+          const hasDiscount = product.variants.some(v => 
+            v.discountedPrice && v.discountedPrice < v.originalPrice
+          )
+          
+          // Calculate highest discount percentage across all variants
+          const discountPercentages = product.variants
+            .filter(v => v.discountedPrice && v.discountedPrice < v.originalPrice)
+            .map(v => Math.round(((v.originalPrice - v.discountedPrice!) / v.originalPrice) * 100))
+          
+          const maxDiscount = discountPercentages.length > 0 ? Math.max(...discountPercentages) : 0
+          
+          // Calculate min/max prices considering discounts
+          const discountedPrices = product.variants.map(v => v.discountedPrice ?? v.originalPrice)
+          const minDiscountedPrice = Math.min(...discountedPrices)
+          const maxDiscountedPrice = Math.max(...discountedPrices)
+          
+          // Calculate original price range
+          const originalPrices = product.variants.map(v => v.originalPrice)
+          const minOriginalPrice = Math.min(...originalPrices)
+          const maxOriginalPrice = Math.max(...originalPrices)
+          
+          return (
+            <Link
+              key={product._id}
+              href={`/products/${product.slug}`}
+              className="border rounded-lg overflow-hidden hover:shadow-lg transition-shadow hover:scale-105 transition-transform duration-200"
+            >
+              <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
+                {product.images[0] ? (
+                  <img
+                    src={product.images[0].url}
+                    alt={product.images[0].alt || product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-gray-400">No image</span>
+                )}
+                
+                {/* Discount Badge */}
+                {hasDiscount && (
+                  <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+                    {maxDiscount}% OFF
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                <p className="text-sm text-gray-500">{product.brand}</p>
+                <h2 className="text-lg font-semibold mb-1">{product.name}</h2>
+                
+                {/* Price Display */}
+                <div className="space-y-1">
+                  {/* Discounted Price */}
+                  <p className="text-lg font-bold text-green-600">
+                    ${minDiscountedPrice.toFixed(2)}
+                    {maxDiscountedPrice > minDiscountedPrice && ` - $${maxDiscountedPrice.toFixed(2)}`}
+                  </p>
+                  
+                  {/* Original Price with Strikethrough */}
+                  {hasDiscount && (
+                    <p className="text-sm text-gray-500 line-through">
+                      ${minOriginalPrice.toFixed(2)}
+                      {maxOriginalPrice > minOriginalPrice && ` - $${maxOriginalPrice.toFixed(2)}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Link>
+          )
+        })}
       </div>
     </div>
   )
