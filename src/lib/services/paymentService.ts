@@ -1,4 +1,5 @@
 import Order from '@/models/Order'
+import User from '@/models/User'
 import type { IOrder } from '@/types'
 import {
   getSquareClient,
@@ -8,6 +9,7 @@ import {
   mapSquareStatus,
 } from '@/lib/square'
 import { releaseOrderInventory } from '@/lib/services/orderService'
+import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from '@/lib/services/emailService'
 import { logger } from '@/lib/logger'
 
 /* ───────────────────────────────────────────── */
@@ -168,6 +170,24 @@ export async function chargeOrder(input: PayInput): Promise<PayResult> {
           },
         }
       )
+
+      // Send payment confirmation email when payment is completed
+      if (status === 'completed') {
+        const updatedOrder = await Order.findById(order._id)
+        if (updatedOrder) {
+          const recipientEmail = input.guestEmail || (input.userId ? await User.findById(input.userId).then(u => u?.email) : null)
+          if (recipientEmail) {
+            sendOrderStatusUpdateEmail({
+              order: updatedOrder,
+              recipientEmail,
+              oldStatus: 'pending',
+              newStatus: 'paid',
+            }).catch(err => {
+              logger.error({ err, orderId: order._id }, 'Failed to send payment confirmation email')
+            })
+          }
+        }
+      }
 
       return {
         ok: true,
