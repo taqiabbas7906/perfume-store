@@ -62,6 +62,13 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold mb-2">Orders</h2>
           <p className="text-gray-600">View and manage customer orders</p>
         </Link>
+        <Link
+          href="/admin/vouchers"
+          className="border rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">Vouchers</h2>
+          <p className="text-gray-600">Create and manage discount vouchers</p>
+        </Link>
       </div>
     </div>
   )

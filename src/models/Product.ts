@@ -85,6 +85,7 @@ const ProductSchema = new Schema<IProduct>(
 
     featured: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
+    freeDelivery: { type: Boolean, default: false },
 
     publishedAt: { type: Date },
   },

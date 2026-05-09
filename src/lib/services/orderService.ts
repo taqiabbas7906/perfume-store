@@ -231,6 +231,21 @@ export async function createOrder(
 
   discount = Math.min(discount, subtotal)
 
+  // Detect free shipping voucher
+  const hasFreeShippingVoucher = cart?.vouchers?.some(v => v.code === 'FREESHIP') ?? false
+
+  // Check if all products have freeDelivery flag
+  let allProductsHaveFreeDelivery = false
+  if (!hasFreeShippingVoucher) {
+    const productIdsForFreeCheck = lines.map((l) => l.productId)
+    const productsForFreeCheck = await Product.find({
+      _id: { $in: productIdsForFreeCheck },
+    }).lean<IProduct[]>()
+    allProductsHaveFreeDelivery =
+      productsForFreeCheck.length > 0 &&
+      productsForFreeCheck.every((p) => p.freeDelivery === true)
+  }
+
   const session = await safeStartSession()
 
   try {
@@ -249,7 +264,9 @@ export async function createOrder(
       }
     }
 
-  const shippingCost = round2(input.shippingAmount ?? 0)
+  const shippingCost = (hasFreeShippingVoucher || allProductsHaveFreeDelivery)
+    ? 0
+    : round2(input.shippingAmount ?? 0)
   const taxCost = round2(input.taxAmount ?? 0)
 
     const orderPayload: any = {

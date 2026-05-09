@@ -63,7 +63,7 @@ function F({ label, req, children }: { label: string; req?: boolean; children: R
 function Summary({
   cart, selectedShipping, tax, region, rateSource,
   voucherCode, setVoucherCode, applyVoucher, removeVoucher, applyingVoucher,
-  ratesLoading, freeThreshold,
+  ratesLoading, freeThreshold, hasFreeShippingVoucher,
 }: {
   cart: CartSummary
   selectedShipping: ShippingOption | null
@@ -77,8 +77,9 @@ function Summary({
   applyingVoucher: boolean
   ratesLoading: boolean
   freeThreshold: number | null
+  hasFreeShippingVoucher: boolean
 }) {
-  const shippingCost = selectedShipping?.price ?? 0
+  const shippingCost = hasFreeShippingVoucher ? 0 : (selectedShipping?.price ?? 0)
   const taxAmount = tax?.amount ?? 0
   const grandTotal = cart.total + shippingCost + taxAmount
 
@@ -138,6 +139,9 @@ function Summary({
               : <span className="text-gray-300">—</span>
           }
         </div>
+        {hasFreeShippingVoucher && (
+          <div className="text-xs text-emerald-600 font-medium">✓ Free shipping voucher applied</div>
+        )}
 
         {/* Tax row */}
         <div className="flex justify-between text-gray-500">
@@ -157,7 +161,7 @@ function Summary({
       </div>
 
       {/* Free shipping nudge */}
-      {!ratesLoading && freeThreshold !== null && cart.subtotal < freeThreshold && (
+      {!ratesLoading && !hasFreeShippingVoucher && freeThreshold !== null && cart.subtotal < freeThreshold && (
         <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs text-amber-700">
           Add <strong>{fmt(freeThreshold - cart.subtotal)}</strong> more for free shipping!
         </div>
@@ -318,7 +322,7 @@ export default function CheckoutPage() {
           idempotencyKey: key,
           voucherCodes: cart!.vouchers.map(v => v.code),
           guestEmail: !user ? guestEmail : undefined,
-          shippingAmount: sel?.price ?? 0,
+          shippingAmount: hasFreeShippingVoucher ? 0 : (sel?.price ?? 0),
           taxAmount,
         }),
       })
@@ -351,7 +355,8 @@ export default function CheckoutPage() {
   if (!cart || cart.items.length === 0) { router.push('/cart'); return null }
 
   const selectedShipping = rates?.shipping[selectedIdx] ?? null
-  const shippingCost = selectedShipping?.price ?? 0
+  const hasFreeShippingVoucher = cart.vouchers?.some(v => v.code === 'FREESHIP') ?? false
+  const shippingCost = hasFreeShippingVoucher ? 0 : (selectedShipping?.price ?? 0)
   const grandTotal = cart.total + shippingCost + taxAmount
 
   if (success) {
@@ -579,6 +584,7 @@ export default function CheckoutPage() {
               applyingVoucher={applyingVoucher}
               ratesLoading={ratesLoading}
               freeThreshold={rates?.freeShippingThreshold ?? null}
+              hasFreeShippingVoucher={hasFreeShippingVoucher}
             />
           </div>
         </div>

@@ -69,6 +69,7 @@ export interface IProduct {
 
   featured: boolean
   active: boolean
+  freeDelivery: boolean
   publishedAt?: Date
 
   createdAt: Date

@@ -334,7 +334,7 @@ export async function removeItem(
 /* ───────────────────────────────────────────── */
 
 export async function clearCart(owner: CartOwner, session?: ClientSession) {
-  await Cart.updateOne(ownerFilter(owner), { $set: { items: [] } }, session ? { session } : {})
+  await Cart.updateOne(ownerFilter(owner), { $set: { items: [], vouchers: [] } }, session ? { session } : {})
 }
 
 /* ───────────────────────────────────────────── */
