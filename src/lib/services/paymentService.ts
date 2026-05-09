@@ -13,7 +13,8 @@ import { logger } from '@/lib/logger'
 /* ───────────────────────────────────────────── */
 
 interface PayInput {
-  userId: string
+  userId?: string
+  guestEmail?: string
   orderId: string
   sourceId: string
   idempotencyKey: string
@@ -60,10 +61,11 @@ function extractSquareError(err: unknown): string {
 export async function chargeOrder(input: PayInput): Promise<PayResult> {
   try {
     /* ───────── 1. FETCH ORDER ───────── */
-    const order = await Order.findOne({
-      _id: input.orderId,
-      user: input.userId,
-    })
+    const orderFilter: Record<string, unknown> = { _id: input.orderId }
+    if (input.userId) orderFilter.user = input.userId
+    else if (input.guestEmail) orderFilter.guestEmail = input.guestEmail
+
+    const order = await Order.findOne(orderFilter)
 
     if (!order) {
       return {

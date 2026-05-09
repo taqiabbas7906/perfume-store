@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { authFetch } from '@/lib/api'
+import { smartFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 
 interface CartItem {
@@ -47,7 +47,7 @@ export default function CartPage() {
       if (params?.voucherCode) searchParams.set('voucherCode', params.voucherCode)
       if (params?.removeVoucher) searchParams.set('removeVoucher', params.removeVoucher)
       const url = searchParams.toString() ? `/api/cart?${searchParams.toString()}` : '/api/cart'
-      const res = await authFetch(url)
+      const res = await smartFetch(url)
       const data = await res.json()
       if (data.success) {
         setCart(data)
@@ -72,7 +72,7 @@ export default function CartPage() {
     setError('')
     
     try {
-      const validateRes = await authFetch('/api/vouchers/validate', {
+      const validateRes = await smartFetch('/api/vouchers/validate', {
         method: 'POST',
         body: JSON.stringify({
           code: voucherCode.trim(),
@@ -104,13 +104,7 @@ export default function CartPage() {
   }
 
   useEffect(() => {
-    if (authLoading) {
-      return
-    }
-    if (!user) {
-      router.push('/login')
-      return
-    }
+    if (authLoading) return
     fetchCart()
   }, [user, authLoading, router])
 
@@ -126,7 +120,7 @@ export default function CartPage() {
     setUpdating(sku)
 
     try {
-      const res = await authFetch(`/api/cart/items/${sku}`, {
+      const res = await smartFetch(`/api/cart/items/${sku}`, {
         method: 'PATCH',
         body: JSON.stringify({ quantity: newQuantity }),
       })
@@ -153,7 +147,7 @@ export default function CartPage() {
     setUpdating(sku)
 
     try {
-      const res = await authFetch(`/api/cart/items/${sku}`, {
+      const res = await smartFetch(`/api/cart/items/${sku}`, {
         method: 'DELETE',
       })
       const data = await res.json()

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { authFetch } from '@/lib/api'
+import { smartFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { ALL_COUNTRIES, US_STATES } from '@/lib/worldRates'
 
@@ -190,13 +190,14 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [cart, setCart]         = useState<CartSummary | null>(null)
-  const [step, setStep]         = useState(1)
+  const [cart, setCart]               = useState<CartSummary | null>(null)
+  const [cartEmpty, setCartEmpty]     = useState(false)   // separate flag to avoid flash
+  const [step, setStep]               = useState(1)
   const [pageLoading, setPageLoading] = useState(true)
   const [processing, setProcessing]   = useState(false)
-  const [error, setError]       = useState('')
-  const [success, setSuccess]   = useState(false)
-  const [orderId, setOrderId]   = useState<string | null>(null)
+  const [error, setError]             = useState('')
+  const [success, setSuccess]         = useState(false)
+  const [orderId, setOrderId]         = useState<string | null>(null)
 
   // Delivery
   const [guestEmail, setGuestEmail] = useState('')
@@ -210,7 +211,7 @@ export default function CheckoutPage() {
   const [rateSource, setRateSource]     = useState<string | null>(null)
 
   // Voucher
-  const [voucherCode, setVoucherCode]     = useState('')
+  const [voucherCode, setVoucherCode]         = useState('')
   const [applyingVoucher, setApplyingVoucher] = useState(false)
 
   // Payment
@@ -220,15 +221,26 @@ export default function CheckoutPage() {
   const fetchCart = useCallback(async (params?: { voucherCode?: string; removeVoucher?: string }) => {
     try {
       const sp = new URLSearchParams()
-      if (params?.voucherCode)  sp.set('voucherCode',  params.voucherCode)
+      if (params?.voucherCode)   sp.set('voucherCode',   params.voucherCode)
       if (params?.removeVoucher) sp.set('removeVoucher', params.removeVoucher)
       const url = sp.toString() ? `/api/cart?${sp}` : '/api/cart'
-      const res = await authFetch(url)
+      const res = await smartFetch(url)
       const data = await res.json()
-      if (data.success) setCart(data)
-      else setError(data.error || 'Failed to load cart')
-    } catch { setError('Failed to load cart') }
-    finally { setPageLoading(false) }
+      if (data.success) {
+        if (!data.items || data.items.length === 0) {
+          setCartEmpty(true)
+        } else {
+          setCart(data)
+          setCartEmpty(false)
+        }
+      } else {
+        setError(data.error || 'Failed to load cart')
+      }
+    } catch {
+      setError('Failed to load cart')
+    } finally {
+      setPageLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -236,6 +248,11 @@ export default function CheckoutPage() {
     if (user?.email) setGuestEmail(user.email)
     fetchCart()
   }, [user, authLoading, fetchCart])
+
+  // Redirect to cart if empty — in effect, not during render
+  useEffect(() => {
+    if (cartEmpty) router.replace('/cart')
+  }, [cartEmpty, router])
 
   /* ── Rates fetch ── */
   const fetchRates = useCallback(async (country: string, state: string, subtotal: number) => {
@@ -268,11 +285,9 @@ export default function CheckoutPage() {
   }, [addr.country, addr.state, cart?.subtotal, fetchRates])
 
   // Recalculate tax when subtotal changes (voucher applied)
-  const taxRate = rates?.tax.rate ?? 0
+  const taxRate   = rates?.tax.rate ?? 0
   const taxAmount = cart ? Math.round(cart.subtotal * taxRate * 100) / 100 : 0
-  const taxInfo: TaxInfo | null = rates
-    ? { ...rates.tax, amount: taxAmount }
-    : null
+  const taxInfo: TaxInfo | null = rates ? { ...rates.tax, amount: taxAmount } : null
 
   /* ── Voucher ── */
   const applyVoucher = async (e: React.FormEvent) => {
@@ -280,7 +295,7 @@ export default function CheckoutPage() {
     if (!voucherCode.trim()) return
     setApplyingVoucher(true); setError('')
     try {
-      const r = await authFetch('/api/vouchers/validate', {
+      const r = await smartFetch('/api/vouchers/validate', {
         method: 'POST',
         body: JSON.stringify({ code: voucherCode.trim(), cartTotal: cart?.subtotal ?? 0, productIds: cart?.items.map(i => i.productId) ?? [] }),
       })
@@ -297,15 +312,15 @@ export default function CheckoutPage() {
   /* ── Steps ── */
   const goDelivery = (e: React.FormEvent) => {
     e.preventDefault(); setError('')
-    if (!user && !guestEmail) { setError('Email required'); return }
-    if (!addr.name || !addr.line1 || !addr.city || !addr.zip) { setError('Fill all address fields'); return }
-    if (addr.country === 'US' && !addr.state) { setError('Select your state'); return }
+    if (!user && !guestEmail.trim()) { setError('Email is required to continue'); return }
+    if (!addr.name || !addr.line1 || !addr.city || !addr.zip) { setError('Please fill all address fields'); return }
+    if (addr.country === 'US' && !addr.state) { setError('Please select your state'); return }
     setStep(2)
   }
 
   const goPayment = (e: React.FormEvent) => {
     e.preventDefault(); setError('')
-    if (!rates) { setError('Wait for rates to load'); return }
+    if (!rates) { setError('Please wait for shipping rates to load'); return }
     setStep(3)
   }
 
@@ -314,7 +329,7 @@ export default function CheckoutPage() {
     const sel = rates?.shipping[selectedIdx] ?? null
     try {
       const key = crypto.randomUUID()
-      const orderRes = await authFetch('/api/orders', {
+      const orderRes = await smartFetch('/api/orders', {
         method: 'POST',
         body: JSON.stringify({
           items: cart!.items.map(i => ({ productId: i.productId, variantSku: i.variantSku, quantity: i.quantity })),
@@ -329,7 +344,7 @@ export default function CheckoutPage() {
       const od = await orderRes.json()
       if (!od.success) { setError(od.error || 'Order failed'); return }
 
-      const payRes = await authFetch('/api/payments', {
+      const payRes = await smartFetch('/api/payments', {
         method: 'POST',
         body: JSON.stringify({ orderId: od.order._id, sourceId: 'cnon:card-nonce-ok', idempotencyKey: crypto.randomUUID() }),
       })
@@ -340,7 +355,7 @@ export default function CheckoutPage() {
     finally { setProcessing(false) }
   }
 
-  /* ── Guards ── */
+  /* ── Loading state ── */
   if (authLoading || pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-400">
@@ -352,12 +367,13 @@ export default function CheckoutPage() {
     )
   }
 
-  if (!cart || cart.items.length === 0) { router.push('/cart'); return null }
+  // While redirect is in-flight, show nothing (avoids flash of raw JSX)
+  if (cartEmpty || !cart) return null
 
-  const selectedShipping = rates?.shipping[selectedIdx] ?? null
+  const selectedShipping      = rates?.shipping[selectedIdx] ?? null
   const hasFreeShippingVoucher = cart.vouchers?.some(v => v.code === 'FREESHIP') ?? false
-  const shippingCost = hasFreeShippingVoucher ? 0 : (selectedShipping?.price ?? 0)
-  const grandTotal = cart.total + shippingCost + taxAmount
+  const shippingCost          = hasFreeShippingVoucher ? 0 : (selectedShipping?.price ?? 0)
+  const grandTotal            = cart.total + shippingCost + taxAmount
 
   if (success) {
     return (
@@ -366,6 +382,7 @@ export default function CheckoutPage() {
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 text-2xl">✓</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h1>
           <p className="text-gray-500 mb-1">Thank you for your purchase.</p>
+          {!user && <p className="text-xs text-gray-400 mb-1">A confirmation will be sent to <strong>{guestEmail}</strong></p>}
           <p className="text-xs text-gray-400 font-mono mb-8">#{orderId}</p>
           <button onClick={() => router.push('/products')} className="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium">Continue Shopping</button>
         </div>
@@ -390,12 +407,28 @@ export default function CheckoutPage() {
                 {/* Contact */}
                 <section className="border border-gray-200 rounded-xl p-5 space-y-4">
                   <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contact</h2>
-                  {!user ? (
-                    <F label="Email" req>
-                      <input type="email" required value={guestEmail} onChange={e => setGuestEmail(e.target.value)} className={cls.input} placeholder="you@example.com" />
-                    </F>
-                  ) : (
+                  {user ? (
                     <p className="text-sm text-gray-500">Logged in as <span className="font-medium text-gray-900">{user.email}</span></p>
+                  ) : (
+                    <>
+                      <F label="Email" req>
+                        <input
+                          type="email" required
+                          value={guestEmail}
+                          onChange={e => setGuestEmail(e.target.value)}
+                          className={cls.input}
+                          placeholder="you@example.com"
+                        />
+                      </F>
+                      <p className="text-xs text-gray-400">
+                        Checking out as guest.{' '}
+                        <a
+                          href="/login"
+                          onClick={() => sessionStorage.setItem('checkoutRedirect', '/checkout')}
+                          className="text-gray-700 underline hover:text-gray-900"
+                        >Sign in</a> to track your orders.
+                      </p>
+                    </>
                   )}
                 </section>
 
@@ -450,6 +483,7 @@ export default function CheckoutPage() {
                     <p className="font-medium text-gray-900">{addr.name}</p>
                     <p className="text-gray-500">{addr.line1}, {addr.city}</p>
                     <p className="text-gray-500">{addr.state ? `${addr.state}, ` : ''}{addr.country} {addr.zip}</p>
+                    {!user && <p className="text-gray-400 mt-0.5">{guestEmail}</p>}
                   </div>
                   <button type="button" onClick={() => setStep(1)} className="text-xs text-gray-400 hover:text-gray-700 underline">Edit</button>
                 </div>

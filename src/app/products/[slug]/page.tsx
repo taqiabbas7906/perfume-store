@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { authFetch } from '@/lib/api'
+import { smartFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 
 interface Product {
@@ -55,19 +55,14 @@ export default function ProductDetailPage() {
   }, [slug])
 
   const handleAddToCart = async () => {
-    if (!product || !selectedVariant || !user) {
-      if (!user) {
-        router.push('/login')
-      }
-      return
-    }
+    if (!product || !selectedVariant) return
 
     setAddingToCart(true)
     setError('')
     setSuccess('')
 
     try {
-      const res = await authFetch('/api/cart/items', {
+      const res = await smartFetch('/api/cart/items', {
         method: 'POST',
         body: JSON.stringify({
           productId: product._id,

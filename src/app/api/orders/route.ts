@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     const { shippingAddress, voucherCodes, idempotencyKey: clientIdempotencyKey, guestEmail, shippingAmount, taxAmount } = validation.data
     const idempotencyKey = clientIdempotencyKey || crypto.randomUUID()
     const log = await getRequestInfo(req)
+    const sessionId = req.headers.get('x-cart-session') ?? undefined
 
     if (!user && !guestEmail) {
       return apiError(400, { error: 'Either login or provide email' })
@@ -58,6 +59,7 @@ export async function POST(req: NextRequest) {
     const result = await createOrder({
       userId: user ? user._id.toString() : undefined,
       guestEmail,
+      sessionId,
       idempotencyKey,
       shippingAddress,
       voucherCodes,

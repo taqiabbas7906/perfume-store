@@ -27,9 +27,11 @@ interface BuyNowItem {
 export interface CreateOrderInput {
   userId?: string
   guestEmail?: string
+  sessionId?: string
   idempotencyKey: string
   shippingAddress: IShippingAddress
   buyNow?: BuyNowItem
+  voucherCodes?: string[]
   log: IOrderLog
   shippingAmount?: number
   taxAmount?: number
@@ -166,6 +168,8 @@ export async function createOrder(
     ? null
     : userId
     ? await getOrCreateCart({ userId: input.userId })
+    : input.sessionId
+    ? await getOrCreateCart({ sessionId: input.sessionId })
     : null
 
   const norm = await normalizeLines(cart, input.buyNow)
@@ -309,14 +313,10 @@ export async function createOrder(
 
     if (!input.buyNow && input.userId) {
       await clearCart({ userId: input.userId }, session ?? undefined)
-    } else if (!input.buyNow && cart) {
-      if (cart.sessionId) {
-        await Cart.updateOne(
-          { sessionId: cart.sessionId },
-          { $set: { vouchers: [] } },
-          session ? { session } : {}
-        )
-      }
+    } else if (!input.buyNow && input.sessionId) {
+      await clearCart({ sessionId: input.sessionId }, session ?? undefined)
+    } else if (!input.buyNow && cart?.sessionId) {
+      await clearCart({ sessionId: cart.sessionId }, session ?? undefined)
     }
 
     if (session) await session.commitTransaction()

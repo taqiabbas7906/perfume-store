@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { paymentsRateLimit } from '@/lib/rateLimit'
-import { getAuthUser } from '@/lib/getAuthUser'
+import { getAuthUser, getGuestSessionId } from '@/lib/getAuthUser'
 import { validateData } from '@/lib/validate'
 import { paymentCreateSchema } from '@/lib/commerceValidators'
 import { chargeOrder } from '@/lib/services/paymentService'
@@ -14,6 +14,7 @@ import {
 } from '@/lib/idempotency'
 import { apiError, logRouteError } from '@/lib/apiError'
 import mongoose from 'mongoose'
+import Order from '@/models/Order'
 
 export async function POST(req: NextRequest) {
   const limited = await paymentsRateLimit(req)
@@ -23,7 +24,12 @@ export async function POST(req: NextRequest) {
     await connectDB()
 
     const user = await getAuthUser(req)
-    if (!user) return apiError(401, { error: 'Unauthorized' })
+    const sessionId = getGuestSessionId(req)
+
+    // Must be logged in OR a guest with a session
+    if (!user && !sessionId) {
+      return apiError(401, { error: 'Unauthorized' })
+    }
 
     const body = await req.json().catch(() => null)
     if (!body) return apiError(400, { error: 'Invalid JSON body' })
@@ -31,15 +37,27 @@ export async function POST(req: NextRequest) {
     const v = validateData(paymentCreateSchema, body)
     if (!v.success) return v.response
 
-    // validate ObjectId early (prevents Mongo crashes)
     if (!mongoose.Types.ObjectId.isValid(v.data.orderId)) {
       return apiError(400, { error: 'Invalid orderId' })
+    }
+
+    // For guests: verify this order belongs to them via guestEmail in body or order lookup
+    let actorId: string
+    if (user) {
+      actorId = String(user._id)
+    } else {
+      // Look up the order to get its guestEmail as the actor identifier
+      const order = await Order.findById(v.data.orderId).lean<{ guestEmail?: string }>()
+      if (!order?.guestEmail) {
+        return apiError(404, { error: 'Order not found' })
+      }
+      actorId = order.guestEmail
     }
 
     const { key: idemKey } = getIdempotencyKey(req, v.data.idempotencyKey)
 
     const requestHash = hashRequest({
-      userId: String(user._id),
+      userId: actorId,
       orderId: v.data.orderId,
       sourceId: v.data.sourceId,
     })
@@ -47,7 +65,7 @@ export async function POST(req: NextRequest) {
     const acq = await acquireIdempotency({
       key: idemKey,
       scope: 'payment',
-      userId: String(user._id),
+      userId: actorId,
       requestHash,
     })
 
@@ -80,7 +98,8 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await chargeOrder({
-      userId: String(user._id),
+      userId: user ? String(user._id) : undefined,
+      guestEmail: !user ? actorId : undefined,
       orderId: v.data.orderId,
       sourceId: v.data.sourceId,
       idempotencyKey: idemKey,
@@ -95,7 +114,7 @@ export async function POST(req: NextRequest) {
             ? 409
             : result.code === 'PROVIDER_UNCONFIGURED'
               ? 503
-              : 400 // ✅ FIXED (was 402 blindly)
+              : 400
 
       const responseBody = {
         success: false,
@@ -104,11 +123,7 @@ export async function POST(req: NextRequest) {
         providerError: result.providerError,
       }
 
-      await failIdempotency({
-        key: idemKey,
-        status,
-        response: responseBody,
-      })
+      await failIdempotency({ key: idemKey, status, response: responseBody })
 
       return NextResponse.json(responseBody, { status })
     }
