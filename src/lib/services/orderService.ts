@@ -31,6 +31,8 @@ export interface CreateOrderInput {
   shippingAddress: IShippingAddress
   buyNow?: BuyNowItem
   log: IOrderLog
+  shippingAmount?: number
+  taxAmount?: number
 }
 
 export type CreateOrderResult =
@@ -247,6 +249,9 @@ export async function createOrder(
       }
     }
 
+  const shippingCost = round2(input.shippingAmount ?? 0)
+  const taxCost = round2(input.taxAmount ?? 0)
+
     const orderPayload: any = {
       user: userId,
       guestEmail: input.guestEmail,
@@ -269,9 +274,9 @@ export async function createOrder(
 
       subtotal,
       discount,
-      shipping: 0,
-      tax: 0,
-      totalAmount: subtotal - discount,
+      shipping: shippingCost,
+      tax: taxCost,
+      totalAmount: round2(subtotal - discount + shippingCost + taxCost),
       currency: 'USD',
       vouchersUsed: voucherUsedIds,
 
