@@ -9,18 +9,16 @@ import { validateData } from '@/lib/validate'
 import { orderSchema } from '@/lib/validators'
 import { createOrder } from '@/lib/services/orderService'
 import { getRequestInfo } from '@/lib/getRequestInfo'
-import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from '@/lib/services/emailService'
-import User from '@/models/User'
- 
+
 export async function GET(req: NextRequest) {
   const limited = await ordersRateLimit(req)
   if (limited) return limited
- 
+
   try {
     await connectDB()
     const admin = await getAuthAdmin(req)
     const user = await getAuthUser(req)
- 
+
     if (admin) {
       const orders = await Order.find({}).sort({ createdAt: -1 }).lean()
       return NextResponse.json({ success: true, orders })
@@ -35,29 +33,29 @@ export async function GET(req: NextRequest) {
     return apiError(500, { error: 'Internal server error' })
   }
 }
- 
+
 export async function POST(req: NextRequest) {
   const limited = await ordersRateLimit(req)
   if (limited) return limited
- 
+
   try {
     await connectDB()
     const user = await getAuthUser(req)
     const body = await req.json().catch(() => null)
     if (!body) return apiError(400, { error: 'Invalid JSON body' })
- 
+
     const validation = validateData(orderSchema, body)
     if (!validation.success) return validation.response
- 
+
     const { shippingAddress, voucherCodes, idempotencyKey: clientIdempotencyKey, guestEmail, shippingAmount, taxAmount } = validation.data
     const idempotencyKey = clientIdempotencyKey || crypto.randomUUID()
     const log = await getRequestInfo(req)
     const sessionId = req.headers.get('x-cart-session') ?? undefined
- 
+
     if (!user && !guestEmail) {
       return apiError(400, { error: 'Either login or provide email' })
     }
- 
+
     const result = await createOrder({
       userId: user ? user._id.toString() : undefined,
       guestEmail,
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
       shippingAmount: shippingAmount ?? 0,
       taxAmount: taxAmount ?? 0,
     })
- 
+
     if (!result.ok) {
       return apiError(400, { 
         error: result.message, 
@@ -77,53 +75,35 @@ export async function POST(req: NextRequest) {
         details: result.sku ? { sku: result.sku } : undefined 
       })
     }
- 
-    // Send order confirmation email
-    const recipientEmail = guestEmail || (user ? await User.findById(user._id).then(u => u?.email) : null)
-    if (recipientEmail) {
-      sendOrderConfirmationEmail({
-        order: result.order,
-        recipientEmail,
-      }).catch(err => {
-        // Log error but don't fail the order
-        console.error('Failed to send order confirmation email:', err)
-      })
-    }
- 
+
     return NextResponse.json({ success: true, order: result.order, created: result.created })
   } catch (err) {
     logRouteError('POST /api/orders', err)
     return apiError(500, { error: 'Internal server error' })
   }
 }
- 
+
 export async function PATCH(req: NextRequest) {
   const limited = await ordersRateLimit(req)
   if (limited) return limited
- 
+
   try {
     await connectDB()
     const admin = await getAuthAdmin(req)
     if (!admin) return apiError(403, { error: 'Forbidden' })
- 
+
     const body = await req.json().catch(() => null)
     if (!body || !body.orderId || !body.status) {
       return apiError(400, { error: 'Invalid request: orderId and status required' })
     }
- 
+
     const { orderId, status } = body
- 
+
     const validStatuses = ['pending', 'paid', 'failed', 'shipped', 'delivered', 'cancelled', 'refunded']
     if (!validStatuses.includes(status)) {
       return apiError(400, { error: 'Invalid status' })
     }
- 
-    // Get the current order to compare status
-    const currentOrder = await Order.findById(orderId)
-    if (!currentOrder) return apiError(404, { error: 'Order not found' })
-    
-    const oldStatus = currentOrder.status
- 
+
     let updatePayload: any = { status };
     if (status === 'paid') {
       updatePayload.paymentStatus = 'completed';
@@ -133,29 +113,15 @@ export async function PATCH(req: NextRequest) {
     } else if (status === 'refunded') {
       updatePayload.paymentStatus = 'refunded';
     }
- 
+
     const order = await Order.findByIdAndUpdate(
       orderId,
       { $set: updatePayload },
       { new: true }
     )
- 
+
     if (!order) return apiError(404, { error: 'Order not found' })
- 
-    // Send status update email
-    const recipientEmail = order.guestEmail || (order.user ? await User.findById(order.user).then(u => u?.email) : null)
-    if (recipientEmail && oldStatus !== status) {
-      sendOrderStatusUpdateEmail({
-        order,
-        recipientEmail,
-        oldStatus,
-        newStatus: status,
-      }).catch(err => {
-        // Log error but don't fail the status update
-        console.error('Failed to send status update email:', err)
-      })
-    }
- 
+
     return NextResponse.json({ success: true, order })
   } catch (err) {
     logRouteError('PATCH /api/orders', err)

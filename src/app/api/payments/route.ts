@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     const acq = await acquireIdempotency({
       key: idemKey,
       scope: 'payment',
-      userId: actorId,
+      userId: user ? String(user._id) : undefined,
       requestHash,
     })
 
