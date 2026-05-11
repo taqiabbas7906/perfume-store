@@ -38,7 +38,10 @@ function Navbar() {
               )}
             </Link>
             {user && (
-              <button onClick={logout} className="hover:text-gray-300">Logout</button>
+              <>
+                <Link href="/account" className="hover:text-gray-300">Account</Link>
+                <button onClick={logout} className="hover:text-gray-300">Logout</button>
+              </>
             )}
             {!user && !loading && (
               <Link href="/login" className="hover:text-gray-300">Login</Link>
