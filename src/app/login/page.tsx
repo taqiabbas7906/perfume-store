@@ -3,7 +3,6 @@
 import { auth } from '@/lib/firebase'
 import {
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
   FacebookAuthProvider,
@@ -17,13 +16,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 
 type AuthMode = 'login' | 'register' | 'forgot'
-
-const POPUP_FALLBACK_CODES = new Set([
-  'auth/popup-blocked',
-  'auth/popup-closed-by-user',
-  'auth/cancelled-popup-request',
-  'auth/operation-not-supported-in-this-environment',
-])
 
 async function syncUserToDB(token: string) {
   const res = await fetch('/api/auth/sync', {
@@ -80,7 +72,22 @@ export default function LoginPage() {
         await syncUserToDB(token)
         await mergeGuestCart(token)
         router.push(getRedirectDest())
-      } catch {}
+      } catch (err: any) {
+        if (cancelled) return
+        const code: string = err?.code ?? ''
+        const REDIRECT_ERRORS: Record<string, string> = {
+          'auth/account-exists-with-different-credential':
+            'An account already exists with this email using a different sign-in method.',
+          'auth/user-disabled': 'This account has been disabled.',
+          'auth/operation-not-allowed': 'This sign-in method is not enabled.',
+          'auth/popup-closed-by-user': '',
+          'auth/cancelled-popup-request': '',
+        }
+        const msg = REDIRECT_ERRORS[code]
+        if (msg !== undefined) { if (msg) setError(msg) }
+        else if (code) setError('Sign-in failed. Please try again.')
+        // No error if code is empty — likely just no redirect pending
+      }
     })()
     return () => { cancelled = true }
   }, [router])
@@ -98,23 +105,69 @@ export default function LoginPage() {
   const handleSocialAuth = async (providerName: 'google' | 'facebook' | 'apple') => {
     setAuthLoading(true)
     setError('')
-    let provider: GoogleAuthProvider | FacebookAuthProvider | OAuthProvider
-    if (providerName === 'google') provider = new GoogleAuthProvider()
-    else if (providerName === 'facebook') provider = new FacebookAuthProvider()
-    else { provider = new OAuthProvider('apple.com'); (provider as OAuthProvider).addScope('email') }
+
+    const friendlyName = providerName.charAt(0).toUpperCase() + providerName.slice(1)
+
+    const SOCIAL_ERRORS: Record<string, string> = {
+      'auth/account-exists-with-different-credential':
+        'An account already exists with this email using a different sign-in method.',
+      'auth/popup-blocked':
+        'Popup was blocked. Please allow popups for this site and try again.',
+      'auth/popup-closed-by-user':
+        `${friendlyName} sign-in was cancelled.`,
+      'auth/cancelled-popup-request':
+        `${friendlyName} sign-in was cancelled.`,
+      'auth/user-disabled':
+        'This account has been disabled. Please contact support.',
+      'auth/operation-not-allowed':
+        `${friendlyName} sign-in is not enabled. Please contact support.`,
+      'auth/network-request-failed':
+        'Network error. Please check your connection and try again.',
+      'auth/internal-error':
+        `${friendlyName} sign-in failed. Please try again.`,
+      'auth/unauthorized-domain':
+        'This domain is not authorised for OAuth. Contact support.',
+    }
+
+    const resolveError = (err: any, fallback: string) => {
+      const code: string = err?.code ?? ''
+      const msg = SOCIAL_ERRORS[code]
+      setError(msg !== undefined ? msg : fallback)
+    }
 
     try {
+      // Apple — popup
+      if (providerName === 'apple') {
+        const provider = new OAuthProvider('apple.com')
+        provider.addScope('email')
+        provider.addScope('name')
+        provider.setCustomParameters({ response_mode: 'form_post' })
+        const result = await signInWithPopup(auth, provider)
+        await afterAuth(await result.user.getIdToken())
+        return
+      }
+
+      // Facebook — popup
+      if (providerName === 'facebook') {
+        const provider = new FacebookAuthProvider()
+        provider.addScope('email')
+        provider.setCustomParameters({ display: 'popup' })
+        const result = await signInWithPopup(auth, provider)
+        await afterAuth(await result.user.getIdToken())
+        return
+      }
+
+      // Google — popup
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
       const result = await signInWithPopup(auth, provider)
       await afterAuth(await result.user.getIdToken())
+
     } catch (err: any) {
-      const code = err?.code as string | undefined
-      if (code && POPUP_FALLBACK_CODES.has(code)) {
-        try { await signInWithRedirect(auth, provider); return } catch {}
-      }
-      setError(code === 'auth/account-exists-with-different-credential'
-        ? 'An account already exists with this email.'
-        : `${providerName.charAt(0).toUpperCase() + providerName.slice(1)} sign in failed.`)
-    } finally { setAuthLoading(false) }
+      resolveError(err, `${friendlyName} sign-in failed. Please try again.`)
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   const handleEmailAuth = async (e: React.FormEvent) => {

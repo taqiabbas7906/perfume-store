@@ -1,7 +1,7 @@
 const isDev = process.env.NODE_ENV === 'development'
 
 /* ─────────────────────────────────────────────
- * CSP (hardened but still Firebase-compatible)
+ * CSP - Firebase + Google + Facebook + Apple compatible
  * ───────────────────────────────────────────── */
 
 const scriptSrc = isDev
@@ -9,32 +9,90 @@ const scriptSrc = isDev
       "'self'",
       "'unsafe-inline'",
       "'unsafe-eval'",
+      // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
       'https://accounts.google.com',
       'https://accounts.gstatic.com',
+      // Facebook
+      'https://connect.facebook.net',
+      'https://www.facebook.com',
+      // Apple
+      'https://appleid.apple.com',
+      'https://appleid.cdn-apple.com',
     ]
   : [
       "'self'",
-      "'unsafe-inline'", // ⚠️ still required for Next.js hydration unless nonce system is used
+      "'unsafe-inline'",
+      // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
       'https://accounts.google.com',
       'https://accounts.gstatic.com',
+      // Facebook
+      'https://connect.facebook.net',
+      'https://www.facebook.com',
+      // Apple
+      'https://appleid.apple.com',
+      'https://appleid.cdn-apple.com',
     ]
 
 const cspDirectives = [
   "default-src 'self'",
   `script-src ${scriptSrc.join(' ')}`,
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com",
-  "img-src 'self' data: blob: https:",
-  "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://apis.google.com",
+
+  // Styles — Google Fonts + Apple
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://appleid.cdn-apple.com",
+
+  // Fonts
+  "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com",
+
+  // API calls made by Firebase SDK, Facebook SDK, Apple JS
+  [
+    "connect-src 'self'",
+    // Google / Firebase
+    'https://*.googleapis.com',
+    'https://*.firebaseio.com',
+    'https://identitytoolkit.googleapis.com',
+    'https://securetoken.googleapis.com',
+    'https://www.googleapis.com',
+    // Facebook
+    'https://*.facebook.com',
+    'https://*.facebook.net',
+    'https://graph.facebook.com',
+    // Apple
+    'https://appleid.apple.com',
+  ].join(' '),
+
+  // Images — Google, Facebook profile pics, Apple
+  "img-src 'self' data: blob: https: https://*.fbcdn.net https://*.facebook.com https://appleid.apple.com",
+
+  // OAuth popup / redirect frames
+  [
+    "frame-src 'self'",
+    'https://accounts.google.com',
+    'https://*.firebaseapp.com',
+    'https://apis.google.com',
+    // Facebook
+    'https://www.facebook.com',
+    'https://web.facebook.com',
+    'https://staticxx.facebook.com',
+    // Apple
+    'https://appleid.apple.com',
+  ].join(' '),
+
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self' https://accounts.google.com",
+
+  // form-action covers redirect-based OAuth POST
+  [
+    "form-action 'self'",
+    'https://accounts.google.com',
+    'https://www.facebook.com',
+    'https://appleid.apple.com',
+  ].join(' '),
+
   "worker-src 'self' blob:",
 ].join('; ')
 
@@ -66,6 +124,11 @@ const nextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com' },
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
       { protocol: 'https', hostname: 'firebasestorage.googleapis.com' },
+      // Facebook profile pictures
+      { protocol: 'https', hostname: '*.fbcdn.net' },
+      { protocol: 'https', hostname: '*.facebook.com' },
+      // Apple
+      { protocol: 'https', hostname: 'appleid.apple.com' },
     ],
   },
 
@@ -98,8 +161,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value:
-              'public, s-maxage=60, stale-while-revalidate=300',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
           },
         ],
       },
