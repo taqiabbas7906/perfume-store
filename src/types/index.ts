@@ -12,11 +12,33 @@ export interface IUser {
   hasPassword: boolean
   role: 'user' | 'admin'
   image?: string
+  phone?: string
   emailVerified?: Date
   active: boolean
+  deletedAt?: Date
   loginAttempts?: number
   lockUntil?: Date
   lastLogin?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * ADDRESS
+ * ───────────────────────────────────────────────────────────── */
+export interface IAddress {
+  _id: Types.ObjectId
+  user: Types.ObjectId
+  label: string          // e.g. "Home", "Work", "Other"
+  recipientName: string
+  phone?: string
+  line1: string
+  line2?: string
+  city: string
+  state?: string
+  zip: string
+  country: string        // ISO-3166-1 alpha-2 or full name
+  isDefault: boolean
   createdAt: Date
   updatedAt: Date
 }

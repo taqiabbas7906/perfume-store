@@ -261,7 +261,41 @@ export const reviewSchema = z.object({
 
 export const newsletterSchema = z.object({ email: emailSchema })
 
-export const updateProfileSchema = z.object({
-  name: z.string().min(2).max(50).trim().optional(),
-  image: z.string().url().optional(),
-})
+export const updateProfileSchema = z
+  .object({
+    name: z.string().min(2).max(100).trim().optional(),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .regex(/^\+?[\d\s\-().]{7,30}$/, 'Invalid phone number format')
+      .optional()
+      .or(z.literal('')), // allow clearing
+  })
+  .strict()
+
+/* ─────────────────────────────────────────────────────────────
+ * Address book
+ * ───────────────────────────────────────────────────────────── */
+export const addressSchema = z
+  .object({
+    label: z.string().trim().max(30).optional().default('Home'),
+    recipientName: z.string().trim().min(2).max(100),
+    phone: z
+      .string()
+      .trim()
+      .max(30)
+      .regex(/^\+?[\d\s\-().]{7,30}$/, 'Invalid phone number')
+      .optional()
+      .or(z.literal('')),
+    line1: z.string().trim().min(3).max(200),
+    line2: z.string().trim().max(200).optional().or(z.literal('')),
+    city: z.string().trim().min(1).max(100),
+    state: z.string().trim().max(100).optional().or(z.literal('')),
+    zip: z.string().trim().min(2).max(20),
+    country: z.string().trim().min(2).max(60),
+    isDefault: z.boolean().optional().default(false),
+  })
+  .strict()
+
+export const addressUpdateSchema = addressSchema.partial().strict()

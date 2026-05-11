@@ -41,8 +41,18 @@ const UserSchema = new Schema<IUser>(
         message: 'image must be a valid URL',
       },
     },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: 30,
+      validate: {
+        validator: (v: string | undefined) => !v || /^\+?[\d\s\-().]{7,30}$/.test(v),
+        message: 'phone must be a valid phone number',
+      },
+    },
     emailVerified: { type: Date },
     active: { type: Boolean, default: true, index: true },
+    deletedAt: { type: Date, select: false },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     lastLogin: { type: Date },
