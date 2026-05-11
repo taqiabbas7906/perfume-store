@@ -35,6 +35,10 @@ export async function GET(req: NextRequest) {
     if (q.tag) filter.tags = q.tag.toLowerCase()
     if (q.featured === 'true') filter.featured = true
     if (q.inStock === 'true') filter.totalStock = { $gt: 0 }
+    if (q.isLimitedEdition === 'true') filter.isLimitedEdition = true
+    if (q.isSample === 'true') filter.isSample = true
+    if (q.collectionId) filter.collectionId = q.collectionId
+    if (q.skinType) filter.skinTypes = q.skinType
 
     /* ─────────────────────────────────────────────
      * FIXED PRICE FILTER (correct + safe)

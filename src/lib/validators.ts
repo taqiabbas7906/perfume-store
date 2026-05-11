@@ -78,6 +78,7 @@ export const variantSchema = z
     quantity: z.number().int().nonnegative(),
     options: z.record(z.string(), z.unknown()).optional(),
     images: z.array(z.string().url()).optional(),
+    expiresAt: z.string().datetime().optional().nullable(),
   })
   .refine(
     (v) => v.discountedPrice == null || v.discountedPrice < v.originalPrice,
@@ -139,6 +140,16 @@ const baseProductFields = {
   variants: z.array(variantSchema).min(1, 'At least one variant required').max(50),
   featured: z.boolean().default(false),
   active: z.boolean().default(true),
+  freeDelivery: z.boolean().default(false),
+  isLimitedEdition: z.boolean().default(false),
+  isSample: z.boolean().default(false),
+  giftWrapping: z.object({
+    available: z.boolean().default(false),
+    price: z.number().nonnegative().default(0),
+  }).default({ available: false, price: 0 }),
+  collectionId: z.string().optional().nullable(),
+  ingredients: z.array(z.string().min(1).max(80)).max(100).default([]),
+  skinTypes: z.array(z.enum(['oily', 'dry', 'combination', 'sensitive', 'normal', 'all'])).default([]),
 }
 
 /**
@@ -154,6 +165,21 @@ export const productCreateSchema = z.discriminatedUnion('productType', [
   z.object({
     productType: z.literal('lipstick'),
     attributes: lipstickAttributesSchema.default({}),
+    ...baseProductFields,
+  }),
+  z.object({
+    productType: z.literal('makeup'),
+    attributes: genericAttributesSchema.default({}),
+    ...baseProductFields,
+  }),
+  z.object({
+    productType: z.literal('skincare'),
+    attributes: genericAttributesSchema.default({}),
+    ...baseProductFields,
+  }),
+  z.object({
+    productType: z.literal('jewelry'),
+    attributes: genericAttributesSchema.default({}),
     ...baseProductFields,
   }),
   z.object({
@@ -182,7 +208,14 @@ export const productUpdateSchema = z
     variants: baseProductFields.variants.optional(),
     featured: z.boolean().optional(),
     active: z.boolean().optional(),
-    productType: z.enum(['perfume', 'lipstick', 'other']).optional(),
+    freeDelivery: z.boolean().optional(),
+    isLimitedEdition: z.boolean().optional(),
+    isSample: z.boolean().optional(),
+    giftWrapping: z.object({ available: z.boolean(), price: z.number().nonnegative() }).optional(),
+    collectionId: z.string().optional().nullable(),
+    ingredients: z.array(z.string()).optional(),
+    skinTypes: z.array(z.enum(['oily', 'dry', 'combination', 'sensitive', 'normal', 'all'])).optional(),
+    productType: z.enum(['perfume', 'lipstick', 'makeup', 'skincare', 'jewelry', 'other']).optional(),
     attributes: z.unknown().optional(),
   })
   .strict()
@@ -191,7 +224,7 @@ export const productUpdateSchema = z
 export const productListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(1000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(12),
-  productType: z.enum(['perfume', 'lipstick', 'other']).optional(),
+  productType: z.enum(['perfume', 'lipstick', 'makeup', 'skincare', 'jewelry', 'other']).optional(),
   category: z.string().max(60).optional(),
   brand: z.string().max(100).optional(),
   tag: z.string().max(40).optional(),
@@ -200,6 +233,10 @@ export const productListQuerySchema = z.object({
   maxPrice: z.coerce.number().nonnegative().max(1_000_000).optional(),
   featured: z.enum(['true', 'false']).optional(),
   inStock: z.enum(['true', 'false']).optional(),
+  isLimitedEdition: z.enum(['true', 'false']).optional(),
+  isSample: z.enum(['true', 'false']).optional(),
+  collectionId: z.string().optional(),
+  skinType: z.string().optional(),
   sort: z
     .enum(['price_asc', 'price_desc', 'newest', 'oldest', 'rating', 'popular', 'relevance'])
     .default('newest'),

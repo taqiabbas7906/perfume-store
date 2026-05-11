@@ -39,6 +39,8 @@ const VariantSchema = new Schema(
     options: { type: Schema.Types.Mixed, default: {} },
 
     images: { type: [String], default: [] },
+
+    expiresAt: { type: Date }, // expiry / best-before for cosmetics
   },
   { _id: false }
 )
@@ -86,6 +88,19 @@ const ProductSchema = new Schema<IProduct>(
     featured: { type: Boolean, default: false },
     active: { type: Boolean, default: true },
     freeDelivery: { type: Boolean, default: false },
+    isLimitedEdition: { type: Boolean, default: false },
+    isSample: { type: Boolean, default: false },
+    giftWrapping: {
+      available: { type: Boolean, default: false },
+      price: { type: Number, default: 0, min: 0 },
+    },
+    collectionId: { type: Schema.Types.ObjectId, ref: 'Collection', index: true },
+    ingredients: { type: [String], default: [] },   // cosmetics ingredient list
+    skinTypes: {                                     // skincare targeting
+      type: [String],
+      enum: ['oily', 'dry', 'combination', 'sensitive', 'normal', 'all'],
+      default: [],
+    },
 
     publishedAt: { type: Date },
   },
