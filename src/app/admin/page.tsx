@@ -76,6 +76,13 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold mb-2">Catalog</h2>
           <p className="text-gray-600">Manage categories, brands, collections & image uploads</p>
         </Link>
+        <Link
+          href="/admin/inventory"
+          className="border rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">Inventory</h2>
+          <p className="text-gray-600">Stock levels, low-stock alerts, manual adjustments & audit log</p>
+        </Link>
       </div>
     </div>
   )

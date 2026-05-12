@@ -41,6 +41,7 @@ const VariantSchema = new Schema(
     images: { type: [String], default: [] },
 
     expiresAt: { type: Date }, // expiry / best-before for cosmetics
+    lowStockThreshold: { type: Number, default: 5, min: 0 }, // alert when quantity <= this
   },
   { _id: false }
 )

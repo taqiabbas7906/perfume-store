@@ -318,9 +318,31 @@ export default function CheckoutPage() {
     setStep(2)
   }
 
-  const goPayment = (e: React.FormEvent) => {
+  const goPayment = async (e: React.FormEvent) => {
     e.preventDefault(); setError('')
     if (!rates) { setError('Please wait for shipping rates to load'); return }
+
+    // Reserve stock for 15 minutes to prevent race conditions
+    try {
+      const res = await smartFetch('/api/checkout/reserve', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: cart!.items.map(i => ({
+            productId:  i.productId,
+            variantSku: i.variantSku,
+            quantity:   i.quantity,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setError(data.error ?? 'One or more items is no longer available in the requested quantity.')
+        return
+      }
+    } catch {
+      // Non-fatal — proceed anyway; final stock check happens at order creation
+    }
+
     setStep(3)
   }
 

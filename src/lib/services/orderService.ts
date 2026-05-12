@@ -10,6 +10,7 @@ import {
 import {
   decrementStockBatch,
   restoreStock,
+  releaseReservation,
   type DecrementInput,
 } from '@/lib/inventory'
 import type { ICart, IOrder, IProduct, IShippingAddress } from '@/types'
@@ -255,7 +256,7 @@ export async function createOrder(
   try {
     if (session) session.startTransaction()
 
-    const dec = await decrementStockBatch(decInputs, session ?? undefined)
+    const dec = await decrementStockBatch(decInputs, session ?? undefined, { reason: 'order_placed' })
 
     if (!dec.ok) {
       if (session) await session.abortTransaction()
@@ -321,6 +322,10 @@ export async function createOrder(
 
     if (session) await session.commitTransaction()
 
+    // Release any cart reservation held during checkout
+    const reservationKey = input.userId ?? input.sessionId ?? input.guestEmail
+    if (reservationKey) void releaseReservation(reservationKey).catch(() => {})
+
     for (const { voucherId, discountAmount } of voucherDiscounts) {
       await incrementVoucherUsage({
         voucherId,
@@ -339,7 +344,7 @@ export async function createOrder(
     if (session) await session.abortTransaction().catch(() => {})
 
     for (const item of decInputs) {
-      await restoreStock(item).catch(() => {})
+      await restoreStock(item, undefined, { reason: 'rollback' }).catch(() => {})
     }
 
     logger.error({ err }, 'createOrder failed')
@@ -370,11 +375,11 @@ export async function releaseOrderInventory(orderId: string): Promise<void> {
   if (updated.modifiedCount !== 1) return
 
   for (const item of order.items) {
-    await restoreStock({
-      productId: item.productId,
-      variantSku: item.variantSku,
-      quantity: item.quantity,
-    }).catch(err => {
+    await restoreStock(
+      { productId: item.productId, variantSku: item.variantSku, quantity: item.quantity },
+      undefined,
+      { reason: 'order_cancelled', orderId: order._id }
+    ).catch(err => {
       logger.warn({ err, orderId }, 'stock restore failed')
     })
   }
