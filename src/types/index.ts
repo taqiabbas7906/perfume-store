@@ -289,6 +289,22 @@ export interface IReview {
 }
 
 /* ─────────────────────────────────────────────────────────────
+ * WISHLIST
+ * ───────────────────────────────────────────────────────────── */
+export interface IWishlistItem {
+  productId: Types.ObjectId | IProduct
+  addedAt: Date
+}
+
+export interface IWishlist {
+  _id: Types.ObjectId
+  user: Types.ObjectId | IUser
+  items: IWishlistItem[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+/* ─────────────────────────────────────────────────────────────
  * NEWSLETTER
  * ───────────────────────────────────────────────────────────── */
 export interface INewsletter {

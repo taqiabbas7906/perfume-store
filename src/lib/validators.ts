@@ -384,3 +384,42 @@ export const addressSchema = z
   .strict()
 
 export const addressUpdateSchema = addressSchema.partial().strict()
+
+/* ─────────────────────────────────────────────────────────────
+ * Review admin
+ * ───────────────────────────────────────────────────────────── */
+export const reviewApproveSchema = z.object({
+  approved: z.boolean(),
+})
+
+/* ─────────────────────────────────────────────────────────────
+ * Wishlist
+ * ───────────────────────────────────────────────────────────── */
+export const wishlistAddSchema = z.object({
+  productId: z.string().min(1),
+})
+
+export const wishlistMoveToCartSchema = z.object({
+  variantSku: z.string().min(1),
+  quantity: z.number().int().min(1).max(100).default(1),
+})
+
+/* ─────────────────────────────────────────────────────────────
+ * Admin — user management
+ * ───────────────────────────────────────────────────────────── */
+export const adminUserListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  q: z.string().trim().max(120).optional(),
+  role: z.enum(['user', 'admin']).optional(),
+  active: z.enum(['true', 'false']).optional(),
+})
+
+export const adminUserPatchSchema = z
+  .object({
+    role: z.enum(['user', 'admin']).optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((d) => d.role !== undefined || d.active !== undefined, {
+    message: 'At least one field is required',
+  })

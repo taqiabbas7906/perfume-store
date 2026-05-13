@@ -83,6 +83,13 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold mb-2">Inventory</h2>
           <p className="text-gray-600">Stock levels, low-stock alerts, manual adjustments & audit log</p>
         </Link>
+        <Link
+          href="/admin/users"
+          className="border rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">Users</h2>
+          <p className="text-gray-600">View accounts, manage roles, ban or unban users</p>
+        </Link>
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { smartFetch } from '@/lib/api'
+import { smartFetch, authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { ALL_COUNTRIES, US_STATES } from '@/lib/worldRates'
 
@@ -13,6 +13,7 @@ interface CartSummary { items:CartItem[]; subtotal:number; total:number; itemCou
 interface ShippingOption { id:string; label:string; price:number; estimatedDays:string; carrier:string }
 interface TaxInfo { rate:number; label:string; amount:number; note?:string }
 interface RatesResult { countryName:string; region:string; tax:TaxInfo; shipping:ShippingOption[]; freeShippingThreshold:number|null; rateSource:string }
+interface SavedAddress { _id:string; label:string; recipientName:string; phone?:string; line1:string; city:string; state?:string; zip:string; country:string; isDefault:boolean }
 
 const fmt = (n: number) => `$${n.toFixed(2)}`
 
@@ -202,6 +203,7 @@ export default function CheckoutPage() {
   // Delivery
   const [guestEmail, setGuestEmail] = useState('')
   const [addr, setAddr] = useState({ name:'', phone:'', line1:'', city:'', country:'US', state:'', zip:'' })
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
 
   // Rates
   const [rates, setRates]               = useState<RatesResult | null>(null)
@@ -247,6 +249,18 @@ export default function CheckoutPage() {
     if (authLoading) return
     if (user?.email) setGuestEmail(user.email)
     fetchCart()
+    if (user) {
+      authFetch('/api/auth/addresses')
+        .then(r => r.json())
+        .then(d => {
+          if (d.addresses?.length) {
+            setSavedAddresses(d.addresses)
+            const def: SavedAddress = d.addresses.find((a: SavedAddress) => a.isDefault) ?? d.addresses[0]
+            setAddr({ name: def.recipientName, phone: def.phone ?? '', line1: def.line1, city: def.city, country: def.country, state: def.state ?? '', zip: def.zip })
+          }
+        })
+        .catch(() => {})
+    }
   }, [user, authLoading, fetchCart])
 
   // Redirect to cart if empty — in effect, not during render
@@ -465,6 +479,28 @@ export default function CheckoutPage() {
                     </>
                   )}
                 </section>
+
+                {/* Saved address picker — logged-in users only */}
+                {savedAddresses.length > 0 && (
+                  <section className="border border-gray-200 rounded-xl p-5 space-y-3">
+                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Saved Addresses</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {savedAddresses.map(a => (
+                        <button
+                          key={a._id}
+                          type="button"
+                          onClick={() => setAddr({ name: a.recipientName, phone: a.phone ?? '', line1: a.line1, city: a.city, country: a.country, state: a.state ?? '', zip: a.zip })}
+                          className={`text-left p-3 border-2 rounded-xl text-sm transition-all ${addr.line1 === a.line1 && addr.zip === a.zip ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400'}`}
+                        >
+                          <span className="inline-block text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium mr-1.5">{a.label || 'Address'}</span>
+                          <span className="font-medium text-gray-900">{a.recipientName}</span>
+                          <div className="text-gray-400 mt-0.5 truncate text-xs">{a.line1}, {a.city}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400">Or type a different address in the form below ↓</p>
+                  </section>
+                )}
 
                 {/* Address */}
                 <section className="border border-gray-200 rounded-xl p-5 space-y-4">
