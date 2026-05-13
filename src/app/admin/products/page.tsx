@@ -69,7 +69,12 @@ export default function AdminProductsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Products</h1>
-        <Link href="/admin" className="text-blue-600 hover:underline">← Back to Dashboard</Link>
+        <div className="flex gap-3 items-center">
+          <Link href="/admin/products/new" className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:bg-gray-900">
+            + New product
+          </Link>
+          <Link href="/admin" className="text-blue-600 hover:underline text-sm">← Dashboard</Link>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
