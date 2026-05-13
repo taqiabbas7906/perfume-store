@@ -95,7 +95,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const user = await User.findByIdAndUpdate(
       id,
       { $set: update },
-      { new: true }
+      { returnDocument: 'after' }
     )
       .select('-password -__v')
       .lean<IUser>()

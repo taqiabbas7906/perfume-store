@@ -6,6 +6,7 @@ import { validateData } from '@/lib/validate'
 import { productUpdateSchema } from '@/lib/validators'
 import { logger } from '@/lib/logger'
 import { rateLimit } from '@/lib/rateLimit'
+import { syncProductToAlgolia, deleteProductFromAlgolia } from '@/lib/algolia'
 
 type RouteContext = {
   params: Promise<{ slug: string }>
@@ -131,6 +132,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     Object.assign(existing, data)
     await existing.save()
 
+    void syncProductToAlgolia(existing.toObject()).catch(() => {})
+
     return NextResponse.json({
       success: true,
       product: existing.toObject({ versionKey: false }),
@@ -179,6 +182,8 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
         { status: 404 }
       )
     }
+
+    void deleteProductFromAlgolia(String(product._id)).catch(() => {})
 
     return NextResponse.json({
       success: true,

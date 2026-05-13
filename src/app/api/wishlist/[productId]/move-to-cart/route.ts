@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const updatedWishlist = await Wishlist.findOneAndUpdate(
       { user: user._id },
       { $pull: { items: { productId: new mongoose.Types.ObjectId(productId) } } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean<IWishlist>()
 
     return NextResponse.json({

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const exists = await Brand.exists({ $or: [{ slug: parsed.data.slug }, { name: parsed.data.name }] })
     if (exists) return apiError(409, { error: 'Brand name or slug already exists' })
 
-    const brand = await Brand.create(parsed.data)
+    const brand = await Brand.create(parsed.data as any)
     return NextResponse.json({ success: true, brand }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/brands', err)

@@ -104,6 +104,19 @@ const ProductSchema = new Schema<IProduct>(
     },
 
     publishedAt: { type: Date },
+
+    seo: {
+      metaTitle: { type: String, trim: true },
+      metaDescription: { type: String, trim: true },
+      canonicalUrl: { type: String, trim: true },
+    },
+
+    flashSale: {
+      active: { type: Boolean, default: false },
+      discountPercent: { type: Number, default: 0, min: 0, max: 99 },
+      startsAt: { type: Date },
+      endsAt: { type: Date },
+    },
   },
   { timestamps: true, minimize: false }
 )

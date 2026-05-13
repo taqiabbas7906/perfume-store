@@ -12,6 +12,21 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ products: 0, orders: 0 })
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+
+  async function handleAlgoliaSync() {
+    setSyncing(true); setSyncMsg('')
+    try {
+      const res  = await authFetch('/api/admin/algolia/sync', { method: 'POST' })
+      const data = await res.json()
+      setSyncMsg(data.success ? `Indexed ${data.indexed} products` : (data.error ?? 'Sync failed'))
+    } catch {
+      setSyncMsg('Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   useEffect(() => {
     async function checkAdmin() {
@@ -90,6 +105,36 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold mb-2">Users</h2>
           <p className="text-gray-600">View accounts, manage roles, ban or unban users</p>
         </Link>
+        <Link
+          href="/admin/analytics"
+          className="border rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">Analytics</h2>
+          <p className="text-gray-600">Revenue, orders, top products, geo and customer insights</p>
+        </Link>
+        <Link
+          href="/admin/reviews"
+          className="border rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-2">Reviews</h2>
+          <p className="text-gray-600">Moderate product reviews — approve or reject pending submissions</p>
+        </Link>
+        <div className="border rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-2">Search Index</h2>
+          <p className="text-gray-600 mb-4">Bulk-sync all active products to the Algolia search index</p>
+          <button
+            onClick={handleAlgoliaSync}
+            disabled={syncing}
+            className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+          >
+            {syncing ? 'Syncing…' : 'Sync Algolia Index'}
+          </button>
+          {syncMsg && (
+            <p className={`mt-2 text-sm ${syncMsg.includes('failed') ? 'text-red-600' : 'text-green-600'}`}>
+              {syncMsg}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { logout } from '@/lib/logout'
 import { smartFetch } from '@/lib/api'
 import { useState, useEffect } from 'react'
+import SearchBar from '@/components/SearchBar'
 import './globals.css'
 
 function Navbar() {
@@ -25,9 +26,10 @@ function Navbar() {
   return (
     <nav className="bg-gray-800 text-white">
       <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold">Perfume Store</Link>
-          <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-xl font-bold shrink-0">Perfume Store</Link>
+          <SearchBar />
+          <div className="flex items-center gap-6 shrink-0">
             <Link href="/products" className="hover:text-gray-300">Products</Link>
             <Link href="/cart" className="hover:text-gray-300 relative">
               Cart

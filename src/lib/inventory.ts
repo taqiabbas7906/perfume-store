@@ -129,8 +129,8 @@ async function writeLog(
       quantityBefore,
       quantityAfter,
       reason: ctx.reason,
-      orderId: ctx.orderId ? toObjectId(ctx.orderId) : undefined,
-      adminId: ctx.adminId ? toObjectId(ctx.adminId) : undefined,
+      orderId: ctx.orderId ? (toObjectId(ctx.orderId) ?? undefined) : undefined,
+      adminId: ctx.adminId ? (toObjectId(ctx.adminId) ?? undefined) : undefined,
       note: ctx.note,
     })
   } catch (err) {

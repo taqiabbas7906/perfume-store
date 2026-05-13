@@ -80,7 +80,7 @@ export async function PUT(req: NextRequest) {
     const updated = await User.findByIdAndUpdate(
       user._id,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).select(PUBLIC_FIELDS.join(' ')).lean()
 
     if (!updated) return apiError(404, 'User not found')

@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       products: parsed.data.products.map(id => new mongoose.Types.ObjectId(id)),
     }
 
-    const collection = await Collection.create(data)
+    const collection = await Collection.create(data as any)
     return NextResponse.json({ success: true, collection }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/collections', err)

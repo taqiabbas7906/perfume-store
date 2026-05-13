@@ -17,7 +17,6 @@ const WishlistSchema = new Schema<IWishlist>(
   { timestamps: true }
 )
 
-WishlistSchema.index({ user: 1 })
 WishlistSchema.index({ 'items.productId': 1 })
 
 const Wishlist: Model<IWishlist> =

@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (!parsed.success) return apiError(400, { error: 'Validation failed', details: parsed.error.flatten() })
 
     const brand = await Brand.findByIdAndUpdate(
-      id, { $set: parsed.data }, { new: true, runValidators: true }
+      id, { $set: parsed.data }, { returnDocument: 'after', runValidators: true }
     )
     if (!brand) return apiError(404, { error: 'Brand not found' })
     return NextResponse.json({ success: true, brand })

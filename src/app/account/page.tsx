@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { authFetch } from '@/lib/api'
@@ -21,21 +22,7 @@ interface UserProfile {
   createdAt: string
 }
 
-interface Address {
-  _id: string
-  label: string
-  recipientName: string
-  phone?: string
-  line1: string
-  line2?: string
-  city: string
-  state?: string
-  zip: string
-  country: string
-  isDefault: boolean
-}
-
-type Tab = 'profile' | 'addresses' | 'security' | 'danger'
+type Tab = 'profile' | 'security' | 'danger'
 
 /* ─────────────────────────────────────────────────────────────
  * Shared design tokens (matches login page aesthetic)
@@ -700,22 +687,6 @@ const STYLES = `
   .fade-in { animation: fadeIn 0.3s ease both; }
 `
 
-/* ─────────────────────────────────────────────────────────────
- * Blank address form state
- * ───────────────────────────────────────────────────────────── */
-const blankAddress = () => ({
-  label: 'Home',
-  recipientName: '',
-  phone: '',
-  line1: '',
-  line2: '',
-  city: '',
-  state: '',
-  zip: '',
-  country: '',
-  isDefault: false,
-})
-
 /* ═══════════════════════════════════════════════════════════════
  * Main Page Component
  * ═══════════════════════════════════════════════════════════════ */
@@ -780,12 +751,12 @@ export default function AccountPage() {
             <button className={`acc-nav-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => setTab('profile')}>
               <span className="acc-nav-icon">👤</span> Profile
             </button>
-            <button className={`acc-nav-btn ${tab === 'addresses' ? 'active' : ''}`} onClick={() => setTab('addresses')}>
-              <span className="acc-nav-icon">📍</span> Addresses
-            </button>
             <button className={`acc-nav-btn ${tab === 'security' ? 'active' : ''}`} onClick={() => setTab('security')}>
               <span className="acc-nav-icon">🔒</span> Security
             </button>
+            <Link href="/account/orders" className="acc-nav-btn" style={{ textDecoration: 'none' }}>
+              <span className="acc-nav-icon">📦</span> Orders
+            </Link>
 
             <div className="acc-nav-divider" />
 
@@ -807,7 +778,6 @@ export default function AccountPage() {
                 onProfileUpdate={setProfile}
               />
             )}
-            {tab === 'addresses' && <AddressesPanel />}
             {tab === 'security'  && <SecurityPanel profile={profile} />}
             {tab === 'danger'    && <DangerPanel />}
           </main>
@@ -829,14 +799,12 @@ function ProfilePanel({
   onProfileUpdate: (p: UserProfile) => void
 }) {
   const [name, setName]             = useState('')
-  const [phone, setPhone]           = useState('')
   const [saving, setSaving]         = useState(false)
   const [alert, setAlert]           = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   useEffect(() => {
     if (profile) {
       setName(profile.name ?? '')
-      setPhone(profile.phone ?? '')
     }
   }, [profile])
 
@@ -852,7 +820,7 @@ function ProfilePanel({
     try {
       const res = await authFetch('/api/auth/me', {
         method: 'PUT',
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+        body: JSON.stringify({ name: name.trim() }),
       })
       const data = await res.json()
       if (data.success) {
@@ -915,17 +883,6 @@ function ProfilePanel({
           <input type="email" value={profile?.email ?? ''} disabled />
         </div>
 
-        <div className="acc-field">
-          <label>Phone number <span style={{ color: 'rgba(245,234,216,0.25)', fontSize: 10 }}>(optional)</span></label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="+1 555 000 0000"
-            maxLength={30}
-          />
-        </div>
-
         <div className="acc-panel-divider" />
 
         <div style={{ display: 'flex', gap: 12 }}>
@@ -935,7 +892,7 @@ function ProfilePanel({
           <button
             type="button"
             className="acc-btn-ghost"
-            onClick={() => { setName(profile?.name ?? ''); setPhone(profile?.phone ?? '') }}
+            onClick={() => { setName(profile?.name ?? '') }}
             disabled={saving}
           >
             Reset
@@ -959,316 +916,6 @@ function ProfilePanel({
           </span>
         </div>
       </form>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════════════
- * Addresses Panel
- * ═══════════════════════════════════════════════════════════════ */
-function AddressesPanel() {
-  const [addresses, setAddresses]   = useState<Address[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [alert, setAlert]           = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [modal, setModal]           = useState<{ mode: 'add' | 'edit'; address?: Address } | null>(null)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-
-  const showAlert = useCallback((type: 'success' | 'error', msg: string) => {
-    setAlert({ type, msg })
-    setTimeout(() => setAlert(null), 5000)
-  }, [])
-
-  const loadAddresses = useCallback(() => {
-    setLoading(true)
-    authFetch('/api/auth/addresses')
-      .then(r => r.json())
-      .then(d => { if (d.success) setAddresses(d.addresses) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => { loadAddresses() }, [loadAddresses])
-
-  const handleSetDefault = async (id: string) => {
-    setActionLoading(id + '-default')
-    try {
-      const res = await authFetch(`/api/auth/addresses/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ isDefault: true }),
-      })
-      const data = await res.json()
-      if (data.success) { loadAddresses(); showAlert('success', 'Default address updated.') }
-      else showAlert('error', data.error || 'Failed to update.')
-    } catch { showAlert('error', 'Network error.') }
-    finally { setActionLoading(null) }
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this address?')) return
-    setActionLoading(id + '-del')
-    try {
-      const res = await authFetch(`/api/auth/addresses/${id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (data.success) { loadAddresses(); showAlert('success', 'Address deleted.') }
-      else showAlert('error', data.error || 'Failed to delete.')
-    } catch { showAlert('error', 'Network error.') }
-    finally { setActionLoading(null) }
-  }
-
-  return (
-    <div className="acc-panel fade-in">
-      <h2 className="acc-panel-title">Address book</h2>
-      <p className="acc-panel-subtitle">Saved addresses for faster checkout — up to 10 addresses</p>
-
-      {alert && (
-        <div className={`acc-alert ${alert.type}`}>
-          <span>{alert.type === 'success' ? '✓' : '✕'}</span>
-          {alert.msg}
-        </div>
-      )}
-
-      {loading
-        ? <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><div className="acc-spinner" /></div>
-        : (
-          <>
-            {addresses.length === 0 && (
-              <div className="acc-alert info" style={{ marginBottom: 24 }}>
-                <span>ℹ</span> No saved addresses yet. Add one below.
-              </div>
-            )}
-
-            <div className="acc-addr-grid">
-              {addresses.map(addr => (
-                <div key={addr._id} className={`acc-addr-card ${addr.isDefault ? 'default' : ''}`}>
-                  {addr.isDefault && <div className="acc-addr-default-badge">Default</div>}
-                  <div className="acc-addr-label">{addr.label}</div>
-                  <div className="acc-addr-name">{addr.recipientName}</div>
-                  <div className="acc-addr-lines">
-                    {addr.line1}{addr.line2 ? `, ${addr.line2}` : ''}<br />
-                    {addr.city}{addr.state ? `, ${addr.state}` : ''} {addr.zip}<br />
-                    {addr.country}
-                    {addr.phone && <><br />{addr.phone}</>}
-                  </div>
-                  <div className="acc-addr-actions">
-                    <button
-                      className="acc-addr-action-btn"
-                      onClick={() => setModal({ mode: 'edit', address: addr })}
-                      disabled={!!actionLoading}
-                    >
-                      Edit
-                    </button>
-                    {!addr.isDefault && (
-                      <button
-                        className="acc-addr-action-btn"
-                        onClick={() => handleSetDefault(addr._id)}
-                        disabled={!!actionLoading}
-                      >
-                        {actionLoading === addr._id + '-default' ? '…' : 'Set default'}
-                      </button>
-                    )}
-                    <button
-                      className="acc-addr-action-btn del"
-                      onClick={() => handleDelete(addr._id)}
-                      disabled={!!actionLoading}
-                    >
-                      {actionLoading === addr._id + '-del' ? '…' : 'Delete'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {addresses.length < 10 && (
-              <button className="acc-btn-ghost" onClick={() => setModal({ mode: 'add' })}>
-                + Add new address
-              </button>
-            )}
-            {addresses.length >= 10 && (
-              <div className="acc-alert warn">
-                <span>⚠</span> Address book full (10/10). Delete an address to add a new one.
-              </div>
-            )}
-          </>
-        )
-      }
-
-      {modal && (
-        <AddressModal
-          mode={modal.mode}
-          address={modal.address}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); loadAddresses() }}
-          onAlert={showAlert}
-        />
-      )}
-    </div>
-  )
-}
-
-/* ─────────────────────────────────────────────────────────────
- * Address Modal
- * ───────────────────────────────────────────────────────────── */
-function AddressModal({
-  mode, address, onClose, onSaved, onAlert,
-}: {
-  mode: 'add' | 'edit'
-  address?: Address
-  onClose: () => void
-  onSaved: () => void
-  onAlert: (type: 'success' | 'error', msg: string) => void
-}) {
-  const [form, setForm] = useState(() => address ? {
-    label:          address.label ?? 'Home',
-    recipientName:  address.recipientName ?? '',
-    phone:          address.phone ?? '',
-    line1:          address.line1 ?? '',
-    line2:          address.line2 ?? '',
-    city:           address.city ?? '',
-    state:          address.state ?? '',
-    zip:            address.zip ?? '',
-    country:        address.country ?? '',
-    isDefault:      address.isDefault ?? false,
-  } : blankAddress())
-
-  const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  const set = (key: string, value: string | boolean) =>
-    setForm(f => ({ ...f, [key]: value }))
-
-  const validate = (): boolean => {
-    const errs: Record<string, string> = {}
-    if (!form.recipientName.trim()) errs.recipientName = 'Name is required'
-    if (!form.line1.trim()) errs.line1 = 'Address line 1 is required'
-    if (!form.city.trim()) errs.city = 'City is required'
-    if (!form.zip.trim()) errs.zip = 'Postal code is required'
-    if (!form.country.trim()) errs.country = 'Country is required'
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
-    setSaving(true)
-    try {
-      const body = {
-        label:         form.label || 'Home',
-        recipientName: form.recipientName.trim(),
-        phone:         form.phone.trim() || undefined,
-        line1:         form.line1.trim(),
-        line2:         form.line2.trim() || undefined,
-        city:          form.city.trim(),
-        state:         form.state.trim() || undefined,
-        zip:           form.zip.trim(),
-        country:       form.country.trim(),
-        isDefault:     form.isDefault,
-      }
-      const url = mode === 'edit' ? `/api/auth/addresses/${address!._id}` : '/api/auth/addresses'
-      const res = await authFetch(url, {
-        method: mode === 'edit' ? 'PUT' : 'POST',
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (data.success) {
-        onAlert('success', mode === 'edit' ? 'Address updated.' : 'Address added.')
-        onSaved()
-      } else {
-        const msg = data.error || (data.errors ? Object.values(data.errors)[0] : null) || 'Save failed.'
-        onAlert('error', String(msg))
-      }
-    } catch {
-      onAlert('error', 'Network error. Please try again.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const fieldErr = (key: string) => errors[key]
-    ? <span style={{ fontSize: 11, color: '#fca5a5', marginTop: 4, display: 'block' }}>{errors[key]}</span>
-    : null
-
-  return (
-    <div className="acc-modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="acc-modal">
-        <button className="acc-modal-close" onClick={onClose}>×</button>
-        <h3 className="acc-modal-title">{mode === 'edit' ? 'Edit address' : 'New address'}</h3>
-
-        <form onSubmit={handleSubmit}>
-          <div className="acc-field-row">
-            <div className="acc-field">
-              <label>Label</label>
-              <select value={form.label} onChange={e => set('label', e.target.value)}>
-                <option>Home</option>
-                <option>Work</option>
-                <option>Other</option>
-              </select>
-            </div>
-            <div className="acc-field">
-              <label>Recipient name *</label>
-              <input value={form.recipientName} onChange={e => set('recipientName', e.target.value)} placeholder="Jane Smith" />
-              {fieldErr('recipientName')}
-            </div>
-          </div>
-
-          <div className="acc-field">
-            <label>Phone <span style={{ color: 'rgba(245,234,216,0.25)', fontSize: 10 }}>(optional)</span></label>
-            <input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 555 000 0000" />
-          </div>
-
-          <div className="acc-field">
-            <label>Address line 1 *</label>
-            <input value={form.line1} onChange={e => set('line1', e.target.value)} placeholder="123 Main Street" />
-            {fieldErr('line1')}
-          </div>
-
-          <div className="acc-field">
-            <label>Address line 2 <span style={{ color: 'rgba(245,234,216,0.25)', fontSize: 10 }}>(optional)</span></label>
-            <input value={form.line2} onChange={e => set('line2', e.target.value)} placeholder="Apt 4B, Suite 100…" />
-          </div>
-
-          <div className="acc-field-row">
-            <div className="acc-field">
-              <label>City *</label>
-              <input value={form.city} onChange={e => set('city', e.target.value)} placeholder="New York" />
-              {fieldErr('city')}
-            </div>
-            <div className="acc-field">
-              <label>State / Province</label>
-              <input value={form.state} onChange={e => set('state', e.target.value)} placeholder="NY" />
-            </div>
-          </div>
-
-          <div className="acc-field-row">
-            <div className="acc-field">
-              <label>Postal code *</label>
-              <input value={form.zip} onChange={e => set('zip', e.target.value)} placeholder="10001" />
-              {fieldErr('zip')}
-            </div>
-            <div className="acc-field">
-              <label>Country *</label>
-              <input value={form.country} onChange={e => set('country', e.target.value)} placeholder="United States" />
-              {fieldErr('country')}
-            </div>
-          </div>
-
-          <label className="acc-checkbox-row">
-            <input
-              type="checkbox"
-              checked={form.isDefault}
-              onChange={e => set('isDefault', e.target.checked)}
-            />
-            <span className="acc-checkbox-label">Set as default shipping address</span>
-          </label>
-
-          <div className="acc-modal-footer">
-            <button type="button" className="acc-btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
-            <button type="submit" className="acc-btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Add address'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   )
 }

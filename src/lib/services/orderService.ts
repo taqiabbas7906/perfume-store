@@ -2,6 +2,7 @@ import mongoose, { Types, ClientSession } from 'mongoose'
 import Order from '@/models/Order'
 import Product from '@/models/Product'
 import Cart from '@/models/Cart'
+import User from '@/models/User'
 import { getOrCreateCart, clearCart, summarizeCart } from '@/lib/services/cartService'
 import {
   validateVoucher,
@@ -16,6 +17,7 @@ import {
 import type { ICart, IOrder, IOrderStatusEntry, IProduct, IShippingAddress, OrderStatus } from '@/types'
 import type { IOrderLog } from '@/types'
 import { logger } from '@/lib/logger'
+import { sendEmail, buildOrderConfirmationEmail, buildStatusUpdateEmail } from '@/lib/email'
 
 /* ───────────────────────────────────────────── */
 
@@ -349,6 +351,13 @@ export async function createOrder(
 
     logger.info({ orderId: order._id }, 'order created')
 
+    // Fire confirmation email (non-blocking)
+    void resolveOrderEmail(order as IOrder).then((recipient) => {
+      if (!recipient) return
+      const tpl = buildOrderConfirmationEmail(order as IOrder, recipient.name)
+      return sendEmail(recipient.email, tpl.subject, tpl.html)
+    }).catch((err) => logger.warn({ err }, 'order confirmation email failed'))
+
     return { ok: true, order: order as IOrder, created: true }
   } catch (err) {
     if (session) await session.abortTransaction().catch(() => {})
@@ -403,6 +412,17 @@ async function safeStartSession() {
   } catch {
     return null
   }
+}
+
+async function resolveOrderEmail(order: IOrder): Promise<{ email: string; name: string } | null> {
+  if (order.guestEmail) {
+    return { email: order.guestEmail, name: order.shippingAddress.name }
+  }
+  if (order.user) {
+    const u = await User.findById(order.user).select('name email').lean<{ name: string; email: string }>()
+    if (u?.email) return { email: u.email, name: u.name ?? order.shippingAddress.name }
+  }
+  return null
 }
 
 function round2(n: number) {
@@ -479,10 +499,21 @@ export async function transitionOrderStatus(
   const updated = await Order.findByIdAndUpdate(
     order._id,
     { $set: set, $push: { statusHistory: entry } },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean<IOrder>()
 
   if (!updated) return { ok: false, code: 'INTERNAL', message: 'Update failed' }
+
+  // Fire status update email (non-blocking)
+  const EMAIL_STATUSES = ['paid', 'shipped', 'delivered', 'cancelled', 'refunded']
+  if (EMAIL_STATUSES.includes(input.nextStatus)) {
+    void resolveOrderEmail(updated).then((recipient) => {
+      if (!recipient) return
+      const tpl = buildStatusUpdateEmail(updated, recipient.name, input.nextStatus)
+      if (!tpl) return
+      return sendEmail(recipient.email, tpl.subject, tpl.html)
+    }).catch((err) => logger.warn({ err }, 'status update email failed'))
+  }
 
   return { ok: true, order: updated, previousStatus: previous }
 }
@@ -580,7 +611,7 @@ export async function addOrderTracking(input: {
   const updated = await Order.findByIdAndUpdate(
     order._id,
     { $set: set, $push: push },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean<IOrder>()
 
   if (!updated) return { ok: false, code: 'INTERNAL', message: 'Update failed' }

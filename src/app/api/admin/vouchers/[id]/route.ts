@@ -55,7 +55,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
     const voucher = await Voucher.findByIdAndUpdate(
       id,
       { $set: { active: false } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean()
 
     if (!voucher) {

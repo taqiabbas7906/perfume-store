@@ -91,7 +91,26 @@ export interface IProduct {
   featured: boolean
   active: boolean
   freeDelivery: boolean
+  isLimitedEdition: boolean
+  isSample: boolean
+  giftWrapping: { available: boolean; price: number }
+  collectionId?: Types.ObjectId
+  ingredients: string[]
+  skinTypes: string[]
   publishedAt?: Date
+
+  seo?: {
+    metaTitle?: string
+    metaDescription?: string
+    canonicalUrl?: string
+  }
+
+  flashSale?: {
+    active: boolean
+    discountPercent: number
+    startsAt?: Date
+    endsAt?: Date
+  }
 
   createdAt: Date
   updatedAt: Date

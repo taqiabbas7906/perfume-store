@@ -365,7 +365,7 @@ export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher
   const voucher = await Voucher.findByIdAndUpdate(
     voucherId,
     { $set: updateData },
-    { new: true }
+    { returnDocument: 'after' }
   ).lean<IVoucher>()
 
   if (voucher) {

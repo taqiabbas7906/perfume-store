@@ -6,6 +6,7 @@ import { validateData } from '@/lib/validate'
 import { productCreateSchema, productListQuerySchema } from '@/lib/validators'
 import { rateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
+import { syncProductToAlgolia } from '@/lib/algolia'
 
 const PUBLIC_FIELDS = '-__v -variants.options._raw'
 
@@ -214,6 +215,8 @@ export async function POST(req: NextRequest) {
      * CREATE PRODUCT
      * ───────────────────────────────────────────── */
     const product = await Product.create(data)
+
+    void syncProductToAlgolia(product.toObject()).catch(() => {})
 
     logger.info(
       {

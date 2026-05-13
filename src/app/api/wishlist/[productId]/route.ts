@@ -31,7 +31,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     const updated = await Wishlist.findOneAndUpdate(
       { user: user._id },
       { $pull: { items: { productId: new mongoose.Types.ObjectId(productId) } } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean<IWishlist>()
 
     if (!updated) return apiError(404, { error: 'Wishlist not found' })

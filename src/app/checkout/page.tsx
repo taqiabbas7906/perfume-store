@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { smartFetch, authFetch } from '@/lib/api'
+import { smartFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { ALL_COUNTRIES, US_STATES } from '@/lib/worldRates'
 
@@ -13,7 +13,45 @@ interface CartSummary { items:CartItem[]; subtotal:number; total:number; itemCou
 interface ShippingOption { id:string; label:string; price:number; estimatedDays:string; carrier:string }
 interface TaxInfo { rate:number; label:string; amount:number; note?:string }
 interface RatesResult { countryName:string; region:string; tax:TaxInfo; shipping:ShippingOption[]; freeShippingThreshold:number|null; rateSource:string }
-interface SavedAddress { _id:string; label:string; recipientName:string; phone?:string; line1:string; city:string; state?:string; zip:string; country:string; isDefault:boolean }
+
+/* ─── Dial codes ─── */
+const DIAL_CODES = [
+  { code: '+92',  flag: '🇵🇰', name: 'Pakistan' },
+  { code: '+1',   flag: '🇺🇸', name: 'United States' },
+  { code: '+1',   flag: '🇨🇦', name: 'Canada' },
+  { code: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
+  { code: '+91',  flag: '🇮🇳', name: 'India' },
+  { code: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+  { code: '+974', flag: '🇶🇦', name: 'Qatar' },
+  { code: '+965', flag: '🇰🇼', name: 'Kuwait' },
+  { code: '+49',  flag: '🇩🇪', name: 'Germany' },
+  { code: '+33',  flag: '🇫🇷', name: 'France' },
+  { code: '+39',  flag: '🇮🇹', name: 'Italy' },
+  { code: '+34',  flag: '🇪🇸', name: 'Spain' },
+  { code: '+31',  flag: '🇳🇱', name: 'Netherlands' },
+  { code: '+7',   flag: '🇷🇺', name: 'Russia' },
+  { code: '+86',  flag: '🇨🇳', name: 'China' },
+  { code: '+81',  flag: '🇯🇵', name: 'Japan' },
+  { code: '+82',  flag: '🇰🇷', name: 'South Korea' },
+  { code: '+65',  flag: '🇸🇬', name: 'Singapore' },
+  { code: '+60',  flag: '🇲🇾', name: 'Malaysia' },
+  { code: '+62',  flag: '🇮🇩', name: 'Indonesia' },
+  { code: '+63',  flag: '🇵🇭', name: 'Philippines' },
+  { code: '+880', flag: '🇧🇩', name: 'Bangladesh' },
+  { code: '+94',  flag: '🇱🇰', name: 'Sri Lanka' },
+  { code: '+977', flag: '🇳🇵', name: 'Nepal' },
+  { code: '+20',  flag: '🇪🇬', name: 'Egypt' },
+  { code: '+234', flag: '🇳🇬', name: 'Nigeria' },
+  { code: '+27',  flag: '🇿🇦', name: 'South Africa' },
+  { code: '+254', flag: '🇰🇪', name: 'Kenya' },
+  { code: '+55',  flag: '🇧🇷', name: 'Brazil' },
+  { code: '+52',  flag: '🇲🇽', name: 'Mexico' },
+  { code: '+54',  flag: '🇦🇷', name: 'Argentina' },
+  { code: '+61',  flag: '🇦🇺', name: 'Australia' },
+  { code: '+64',  flag: '🇳🇿', name: 'New Zealand' },
+  { code: '+90',  flag: '🇹🇷', name: 'Turkey' },
+]
 
 const fmt = (n: number) => `$${n.toFixed(2)}`
 
@@ -202,8 +240,9 @@ export default function CheckoutPage() {
 
   // Delivery
   const [guestEmail, setGuestEmail] = useState('')
-  const [addr, setAddr] = useState({ name:'', phone:'', line1:'', city:'', country:'US', state:'', zip:'' })
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
+  const [addr, setAddr] = useState({ name:'', line1:'', city:'', country:'US', state:'', zip:'' })
+  const [dialCode, setDialCode] = useState('+92')
+  const [phoneLocal, setPhoneLocal] = useState('')
 
   // Rates
   const [rates, setRates]               = useState<RatesResult | null>(null)
@@ -249,18 +288,6 @@ export default function CheckoutPage() {
     if (authLoading) return
     if (user?.email) setGuestEmail(user.email)
     fetchCart()
-    if (user) {
-      authFetch('/api/auth/addresses')
-        .then(r => r.json())
-        .then(d => {
-          if (d.addresses?.length) {
-            setSavedAddresses(d.addresses)
-            const def: SavedAddress = d.addresses.find((a: SavedAddress) => a.isDefault) ?? d.addresses[0]
-            setAddr({ name: def.recipientName, phone: def.phone ?? '', line1: def.line1, city: def.city, country: def.country, state: def.state ?? '', zip: def.zip })
-          }
-        })
-        .catch(() => {})
-    }
   }, [user, authLoading, fetchCart])
 
   // Redirect to cart if empty — in effect, not during render
@@ -324,14 +351,16 @@ export default function CheckoutPage() {
   const removeVoucher = async (code: string) => { await fetchCart({ removeVoucher: code }) }
 
   /* ── Steps ── */
+  const fullPhone = dialCode + phoneLocal.replace(/[\s\-().]/g, '')
+
   const goDelivery = (e: React.FormEvent) => {
     e.preventDefault(); setError('')
     if (!user && !guestEmail.trim()) { setError('Email is required to continue'); return }
     if (!addr.name || !addr.line1 || !addr.city || !addr.zip) { setError('Please fill all address fields'); return }
     if (addr.country === 'US' && !addr.state) { setError('Please select your state'); return }
-    const normalisedPhone = addr.phone.replace(/[\s\-().]/g, '')
-    if (!/^\+?[1-9]\d{6,19}$/.test(normalisedPhone)) {
-      setError('Please enter a valid phone number with country code (e.g. +12025550123)')
+    const strippedLocal = phoneLocal.replace(/[\s\-().]/g, '')
+    if (!strippedLocal || !/^\d{5,15}$/.test(strippedLocal)) {
+      setError('Please enter a valid local phone number (5–15 digits, e.g. 3001234567)')
       return
     }
     setStep(2)
@@ -380,7 +409,7 @@ export default function CheckoutPage() {
             city: addr.city,
             country: addr.country,
             zip: addr.zip,
-            phone: addr.phone.replace(/[\s\-().]/g, ''),
+            phone: fullPhone,
           },
           idempotencyKey: key,
           voucherCodes: cart!.vouchers.map(v => v.code),
@@ -390,7 +419,18 @@ export default function CheckoutPage() {
         }),
       })
       const od = await orderRes.json()
-      if (!od.success) { setError(od.error || 'Order failed'); return }
+      if (!od.success) {
+        // Show field-level errors if available
+        if (od.errors) {
+          const msgs = Object.entries(od.errors as Record<string, string[]>)
+            .map(([field, errs]) => `${field}: ${(errs as string[]).join(', ')}`)
+            .join(' | ')
+          setError(msgs || od.error || 'Order failed')
+        } else {
+          setError(od.error || 'Order failed')
+        }
+        return
+      }
 
       const payRes = await smartFetch('/api/payments', {
         method: 'POST',
@@ -431,7 +471,7 @@ export default function CheckoutPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed!</h1>
           <p className="text-gray-500 mb-1">Thank you for your purchase.</p>
           {!user && <p className="text-xs text-gray-400 mb-1">A confirmation will be sent to <strong>{guestEmail}</strong></p>}
-          <p className="text-xs text-gray-400 font-mono mb-8">#{orderId}</p>
+          <p className="text-xs text-gray-400 font-mono mb-8">#{orderId?.slice(-8).toUpperCase()}</p>
           <button onClick={() => router.push('/products')} className="bg-gray-900 text-white px-8 py-3 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium">Continue Shopping</button>
         </div>
       </div>
@@ -480,28 +520,6 @@ export default function CheckoutPage() {
                   )}
                 </section>
 
-                {/* Saved address picker — logged-in users only */}
-                {savedAddresses.length > 0 && (
-                  <section className="border border-gray-200 rounded-xl p-5 space-y-3">
-                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Saved Addresses</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {savedAddresses.map(a => (
-                        <button
-                          key={a._id}
-                          type="button"
-                          onClick={() => setAddr({ name: a.recipientName, phone: a.phone ?? '', line1: a.line1, city: a.city, country: a.country, state: a.state ?? '', zip: a.zip })}
-                          className={`text-left p-3 border-2 rounded-xl text-sm transition-all ${addr.line1 === a.line1 && addr.zip === a.zip ? 'border-gray-900 bg-gray-50' : 'border-gray-200 hover:border-gray-400'}`}
-                        >
-                          <span className="inline-block text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-medium mr-1.5">{a.label || 'Address'}</span>
-                          <span className="font-medium text-gray-900">{a.recipientName}</span>
-                          <div className="text-gray-400 mt-0.5 truncate text-xs">{a.line1}, {a.city}</div>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-400">Or type a different address in the form below ↓</p>
-                  </section>
-                )}
-
                 {/* Address */}
                 <section className="border border-gray-200 rounded-xl p-5 space-y-4">
                   <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Shipping Address</h2>
@@ -511,19 +529,31 @@ export default function CheckoutPage() {
                   </F>
 
                   <F label="Phone Number" req>
-                    <input
-                      type="tel"
-                      required
-                      inputMode="tel"
-                      autoComplete="tel"
-                      value={addr.phone}
-                      onChange={e => setAddr({...addr, phone: e.target.value})}
-                      className={cls.input}
-                      placeholder="+12025550123"
-                      maxLength={30}
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={dialCode}
+                        onChange={e => setDialCode(e.target.value)}
+                        className="w-44 px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer"
+                      >
+                        {DIAL_CODES.map((d, i) => (
+                          <option key={`${d.code}-${i}`} value={d.code}>
+                            {d.flag} {d.name} ({d.code})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        required
+                        inputMode="numeric"
+                        value={phoneLocal}
+                        onChange={e => setPhoneLocal(e.target.value.replace(/[^\d\s\-().]/g, ''))}
+                        className={`flex-1 ${cls.input}`}
+                        placeholder="300 1234567"
+                        maxLength={15}
+                      />
+                    </div>
                     <p className="text-xs text-gray-400 mt-1">
-                      Include your country code (the leading +). We&apos;ll use this for delivery questions and shipping updates.
+                      Select your country code, then enter your local number.
                     </p>
                   </F>
 
@@ -570,7 +600,7 @@ export default function CheckoutPage() {
                     <p className="font-medium text-gray-900">{addr.name}</p>
                     <p className="text-gray-500">{addr.line1}, {addr.city}</p>
                     <p className="text-gray-500">{addr.state ? `${addr.state}, ` : ''}{addr.country} {addr.zip}</p>
-                    <p className="text-gray-500">{addr.phone}</p>
+                    <p className="text-gray-500">{fullPhone}</p>
                     {!user && <p className="text-gray-400 mt-0.5">{guestEmail}</p>}
                   </div>
                   <button type="button" onClick={() => setStep(1)} className="text-xs text-gray-400 hover:text-gray-700 underline">Edit</button>

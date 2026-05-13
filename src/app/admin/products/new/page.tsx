@@ -101,6 +101,17 @@ export default function NewProductPage() {
   const [lsLong, setLsLong]           = useState(false)
   const [lsSpf, setLsSpf]             = useState('')
 
+  /* SEO */
+  const [seoTitle, setSeoTitle]       = useState('')
+  const [seoDesc, setSeoDesc]         = useState('')
+  const [seoCanonical, setSeoCanonical] = useState('')
+
+  /* flash sale */
+  const [flashActive, setFlashActive]     = useState(false)
+  const [flashDiscount, setFlashDiscount] = useState('')
+  const [flashStart, setFlashStart]       = useState('')
+  const [flashEnd, setFlashEnd]           = useState('')
+
   /* submit */
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
@@ -276,6 +287,17 @@ export default function NewProductPage() {
       isSample,
       giftWrapping: { available: giftOn, price: parseFloat(giftPrice) || 0 },
       attributes:   buildAttrs(),
+      seo: {
+        ...(seoTitle.trim()     && { metaTitle:       seoTitle.trim() }),
+        ...(seoDesc.trim()      && { metaDescription: seoDesc.trim() }),
+        ...(seoCanonical.trim() && { canonicalUrl:    seoCanonical.trim() }),
+      },
+      flashSale: {
+        active:          flashActive,
+        discountPercent: parseFloat(flashDiscount) || 0,
+        ...(flashStart && { startsAt: new Date(flashStart).toISOString() }),
+        ...(flashEnd   && { endsAt:   new Date(flashEnd).toISOString() }),
+      },
     }
 
     setSaving(true)
@@ -659,6 +681,59 @@ export default function NewProductPage() {
               rows={3} placeholder="luxury, floral, summer, gift"
               className={`${inp} resize-none`}
             />
+          </Card>
+
+          <Card title="SEO">
+            <Field label="Meta title" hint="Max 60 chars. Defaults to product name if blank.">
+              <input
+                type="text" value={seoTitle} onChange={e => setSeoTitle(e.target.value)}
+                maxLength={60} placeholder="Oud Royale – Best Oud Perfume for Men"
+                className={inp}
+              />
+              <p className="text-xs text-gray-400 mt-0.5">{seoTitle.length}/60</p>
+            </Field>
+            <Field label="Meta description" hint="Max 160 chars. Shown in search results.">
+              <textarea
+                value={seoDesc} onChange={e => setSeoDesc(e.target.value)}
+                maxLength={160} rows={2} placeholder="A rich, smoky oud fragrance with notes of rose and sandalwood…"
+                className={`${inp} resize-none`}
+              />
+              <p className="text-xs text-gray-400 mt-0.5">{seoDesc.length}/160</p>
+            </Field>
+            <Field label="Canonical URL" hint="Only set if this product has a duplicate URL.">
+              <input
+                type="url" value={seoCanonical} onChange={e => setSeoCanonical(e.target.value)}
+                placeholder="https://yoursite.com/products/oud-royale"
+                className={inp}
+              />
+            </Field>
+          </Card>
+
+          <Card title="Flash Sale">
+            <Toggle id="flashActive" label="Enable flash sale" checked={flashActive} onChange={setFlashActive} />
+            {flashActive && (
+              <div className="space-y-4 mt-3">
+                <Field label="Discount %" hint="Applied on top of regular price (0–99).">
+                  <input
+                    type="number" value={flashDiscount} onChange={e => setFlashDiscount(e.target.value)}
+                    min="0" max="99" step="1" placeholder="20"
+                    className={inp}
+                  />
+                </Field>
+                <Field label="Starts at" hint="Leave blank for immediate start.">
+                  <input
+                    type="datetime-local" value={flashStart} onChange={e => setFlashStart(e.target.value)}
+                    className={inp}
+                  />
+                </Field>
+                <Field label="Ends at" hint="Leave blank for no expiry.">
+                  <input
+                    type="datetime-local" value={flashEnd} onChange={e => setFlashEnd(e.target.value)}
+                    className={inp}
+                  />
+                </Field>
+              </div>
+            )}
           </Card>
 
           <button

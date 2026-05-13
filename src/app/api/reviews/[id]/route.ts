@@ -74,7 +74,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const review = await Review.findByIdAndUpdate(
       id,
       { $set: { approved: validation.data.approved } },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean<IReview>()
 
     if (!review) return apiError(404, { error: 'Review not found' })

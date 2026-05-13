@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (!parsed.success) return apiError(400, { error: 'Validation failed', details: parsed.error.flatten() })
 
     const category = await Category.findByIdAndUpdate(
-      id, { $set: parsed.data }, { new: true, runValidators: true }
+      id, { $set: parsed.data }, { returnDocument: 'after', runValidators: true }
     )
     if (!category) return apiError(404, { error: 'Category not found' })
     return NextResponse.json({ success: true, category })

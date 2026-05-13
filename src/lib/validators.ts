@@ -150,6 +150,17 @@ const baseProductFields = {
   collectionId: z.string().optional().nullable(),
   ingredients: z.array(z.string().min(1).max(80)).max(100).default([]),
   skinTypes: z.array(z.enum(['oily', 'dry', 'combination', 'sensitive', 'normal', 'all'])).default([]),
+  seo: z.object({
+    metaTitle: z.string().max(60).trim().optional(),
+    metaDescription: z.string().max(160).trim().optional(),
+    canonicalUrl: z.string().url('Invalid canonical URL').optional(),
+  }).default({}),
+  flashSale: z.object({
+    active: z.boolean().default(false),
+    discountPercent: z.number().min(0).max(99).default(0),
+    startsAt: z.string().datetime().optional().nullable(),
+    endsAt: z.string().datetime().optional().nullable(),
+  }).default({ active: false, discountPercent: 0 }),
 }
 
 /**
@@ -217,6 +228,17 @@ export const productUpdateSchema = z
     skinTypes: z.array(z.enum(['oily', 'dry', 'combination', 'sensitive', 'normal', 'all'])).optional(),
     productType: z.enum(['perfume', 'lipstick', 'makeup', 'skincare', 'jewelry', 'other']).optional(),
     attributes: z.unknown().optional(),
+    seo: z.object({
+      metaTitle: z.string().max(60).trim().optional(),
+      metaDescription: z.string().max(160).trim().optional(),
+      canonicalUrl: z.string().url('Invalid canonical URL').optional(),
+    }).optional(),
+    flashSale: z.object({
+      active: z.boolean().optional(),
+      discountPercent: z.number().min(0).max(99).optional(),
+      startsAt: z.string().datetime().optional().nullable(),
+      endsAt: z.string().datetime().optional().nullable(),
+    }).optional(),
   })
   .strict()
 
@@ -252,27 +274,18 @@ export const cartItemSchema = z.object({
   quantity: z.number().int().min(1).max(100),
 })
 
-/**
- * International phone number validator (E.164-compatible).
- *
- * Accepts: an optional leading "+", followed by 7–20 digits. Spaces, dashes,
- * dots and parentheses in the input are stripped before validation, so users
- * may type any of:
- *   "+1 (555) 123-4567"   "+44 20 7946 0958"   "+92-300-1234567"
- *
- * The normalised output always starts with "+" and contains only digits,
- * which is the canonical format we store in the database.
- */
-export const internationalPhoneSchema = z
-  .string()
-  .trim()
-  .min(7, 'Phone number is too short')
-  .max(30, 'Phone number is too long')
-  .transform((v) => v.replace(/[\s\-().]/g, ''))
-  .refine((v) => /^\+?[1-9]\d{6,19}$/.test(v), {
-    message: 'Enter a valid international phone number (e.g. +12025550123)',
-  })
-  .transform((v) => (v.startsWith('+') ? v : `+${v}`))
+// Strips separators, ensures leading "+", then validates E.164 format.
+export const internationalPhoneSchema = z.preprocess(
+  (val) => {
+    if (typeof val !== 'string') return val
+    const stripped = val.trim().replace(/[\s\-().]/g, '')
+    return stripped.startsWith('+') ? stripped : `+${stripped}`
+  },
+  z.string().regex(
+    /^\+[1-9]\d{6,14}$/,
+    'Enter a valid international phone number (e.g. +923001234567)'
+  )
+)
 
 export const shippingAddressSchema = z.object({
   name: z.string().min(2).max(50).trim(),

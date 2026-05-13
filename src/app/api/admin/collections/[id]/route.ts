@@ -68,7 +68,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       update.$pull = { products: { $in: removeProducts.map(p => new mongoose.Types.ObjectId(p)) } }
     }
 
-    const collection = await Collection.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+    const collection = await Collection.findByIdAndUpdate(id, update, { returnDocument: 'after', runValidators: true })
     if (!collection) return apiError(404, { error: 'Collection not found' })
     return NextResponse.json({ success: true, collection })
   } catch (err) {

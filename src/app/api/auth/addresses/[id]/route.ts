@@ -85,7 +85,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const updated = await Address.findByIdAndUpdate(
       id,
       { $set: validation.data },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).lean()
 
     logger.info({ userId: user._id, addressId: id }, 'Address updated')

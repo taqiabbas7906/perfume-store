@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         $setOnInsert: { user: user._id },
         $push: { items: { productId: new mongoose.Types.ObjectId(productId), addedAt: new Date() } },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     )
       .populate('items.productId', 'name slug images minPrice active brand')
       .lean<IWishlist>()

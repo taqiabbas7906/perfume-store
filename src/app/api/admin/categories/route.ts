@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     const exists = await Category.exists({ slug: parsed.data.slug })
     if (exists) return apiError(409, { error: 'Category slug already exists' })
 
-    const category = await Category.create(parsed.data)
+    const category = await Category.create(parsed.data as any)
     return NextResponse.json({ success: true, category }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/categories', err)
