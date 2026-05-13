@@ -252,12 +252,35 @@ export const cartItemSchema = z.object({
   quantity: z.number().int().min(1).max(100),
 })
 
+/**
+ * International phone number validator (E.164-compatible).
+ *
+ * Accepts: an optional leading "+", followed by 7–20 digits. Spaces, dashes,
+ * dots and parentheses in the input are stripped before validation, so users
+ * may type any of:
+ *   "+1 (555) 123-4567"   "+44 20 7946 0958"   "+92-300-1234567"
+ *
+ * The normalised output always starts with "+" and contains only digits,
+ * which is the canonical format we store in the database.
+ */
+export const internationalPhoneSchema = z
+  .string()
+  .trim()
+  .min(7, 'Phone number is too short')
+  .max(30, 'Phone number is too long')
+  .transform((v) => v.replace(/[\s\-().]/g, ''))
+  .refine((v) => /^\+?[1-9]\d{6,19}$/.test(v), {
+    message: 'Enter a valid international phone number (e.g. +12025550123)',
+  })
+  .transform((v) => (v.startsWith('+') ? v : `+${v}`))
+
 export const shippingAddressSchema = z.object({
   name: z.string().min(2).max(50).trim(),
   address: z.string().min(5).max(200).trim(),
   city: z.string().min(2).max(50).trim(),
   country: z.string().min(2).max(50).trim(),
   zip: z.string().min(3).max(10).trim(),
+  phone: internationalPhoneSchema,
 })
 
 export const orderSchema = z.object({
@@ -269,6 +292,31 @@ export const orderSchema = z.object({
   shippingAmount: z.number().nonnegative().max(500).optional(),
   taxAmount: z.number().nonnegative().max(100_000).optional(),
   shippingLabel: z.string().max(80).optional(),
+})
+
+/* ─────────────────────────────────────────────────────────────
+ * Admin order operations
+ * ───────────────────────────────────────────────────────────── */
+export const adminTrackingSchema = z.object({
+  trackingNumber: z.string().trim().min(3).max(80),
+  trackingCarrier: z.string().trim().min(2).max(60),
+  trackingUrl: z.string().trim().url('Invalid tracking URL').max(500).optional().or(z.literal('')),
+})
+
+export const adminCancelOrderSchema = z.object({
+  reason: z.string().trim().min(3).max(500).optional(),
+})
+
+export const adminOrderListQuerySchema = z.object({
+  status: z
+    .enum(['pending', 'paid', 'failed', 'shipped', 'delivered', 'cancelled', 'refunded'])
+    .optional(),
+  country: z.string().trim().min(2).max(60).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  q: z.string().trim().max(120).optional(),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export const voucherSchema = z.object({

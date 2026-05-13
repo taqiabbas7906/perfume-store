@@ -1,0 +1,92 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { connectDB } from '@/lib/db'
+import { ordersRateLimit } from '@/lib/rateLimit'
+import { getAuthAdmin } from '@/lib/getAuthUser'
+import Order from '@/models/Order'
+import { apiError, logRouteError } from '@/lib/apiError'
+import { validateData } from '@/lib/validate'
+import { adminOrderListQuerySchema } from '@/lib/validators'
+
+/**
+ * GET /api/admin/orders
+ * Filterable order listing for admin dashboard.
+ *
+ * Query params:
+ *   status?     OrderStatus
+ *   country?    ISO country code or full name (matched against shippingAddress.country)
+ *   startDate?  ISO datetime — orders created on/after
+ *   endDate?    ISO datetime — orders created on/before
+ *   q?          free-text search (order id suffix, customer email, tracking number)
+ *   page, limit pagination
+ */
+export async function GET(req: NextRequest) {
+  const limited = await ordersRateLimit(req)
+  if (limited) return limited
+
+  try {
+    await connectDB()
+    const admin = await getAuthAdmin(req)
+    if (!admin) return apiError(403, { error: 'Forbidden' })
+
+    const params = Object.fromEntries(new URL(req.url).searchParams.entries())
+    const validation = validateData(adminOrderListQuerySchema, params)
+    if (!validation.success) return validation.response
+
+    const { status, country, startDate, endDate, q, page, limit } = validation.data
+
+    const filter: Record<string, unknown> = {}
+
+    if (status) filter.status = status
+
+    if (country) {
+      filter['shippingAddress.country'] = { $regex: `^${escapeRegex(country)}$`, $options: 'i' }
+    }
+
+    if (startDate || endDate) {
+      const range: Record<string, Date> = {}
+      if (startDate) range.$gte = new Date(startDate)
+      if (endDate)   range.$lte = new Date(endDate)
+      filter.createdAt = range
+    }
+
+    if (q) {
+      const safe = escapeRegex(q)
+      filter.$or = [
+        { guestEmail:     { $regex: safe, $options: 'i' } },
+        { trackingNumber: { $regex: safe, $options: 'i' } },
+        { 'shippingAddress.name':  { $regex: safe, $options: 'i' } },
+        { 'shippingAddress.phone': { $regex: safe, $options: 'i' } },
+      ]
+    }
+
+    const skip = (page - 1) * limit
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('user', 'name email')
+        .lean(),
+      Order.countDocuments(filter),
+    ])
+
+    return NextResponse.json({
+      success: true,
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
+  } catch (err) {
+    logRouteError('GET /api/admin/orders', err)
+    return apiError(500, { error: 'Internal server error' })
+  }
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}

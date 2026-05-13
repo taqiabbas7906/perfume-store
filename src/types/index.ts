@@ -11,7 +11,6 @@ export interface IUser {
   firebaseUid: string
   hasPassword: boolean
   role: 'user' | 'admin'
-  image?: string
   phone?: string
   emailVerified?: Date
   active: boolean
@@ -168,6 +167,7 @@ export interface IShippingAddress {
   city: string
   country: string
   zip: string
+  phone: string
 }
 
 export interface IOrderLog {
@@ -179,6 +179,14 @@ export interface IOrderLog {
   country?: string
   city?: string
   timestamp: Date
+}
+
+export interface IOrderStatusEntry {
+  status: OrderStatus
+  changedAt: Date
+  changedBy?: 'system' | 'admin' | 'customer' | 'webhook'
+  adminId?: Types.ObjectId
+  note?: string
 }
 
 export interface IOrder {
@@ -210,6 +218,15 @@ export interface IOrder {
   paidAt?: Date
   vouchersUsed?: (Types.ObjectId | IVoucher)[]
   inventoryReleased: boolean
+
+  trackingNumber?: string
+  trackingCarrier?: string
+  trackingUrl?: string
+  shippedAt?: Date
+  cancelledAt?: Date
+  cancelReason?: string
+
+  statusHistory: IOrderStatusEntry[]
 
   orderLog: IOrderLog
 
@@ -251,6 +268,7 @@ export interface IVoucherUsage {
   userId?: Types.ObjectId | IUser
   orderId?: Types.ObjectId | IOrder
   guestEmail?: string
+  guestIp?: string
   discountAmount: number
   usedAt: Date
   createdAt: Date

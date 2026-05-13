@@ -11,6 +11,7 @@ import {
   removeVoucherFromCart,
 } from '@/lib/services/cartService'
 import { apiError, logRouteError } from '@/lib/apiError'
+import { getRequestInfo } from '@/lib/getRequestInfo'
 import Cart from '@/models/Cart'
 import type { ICart } from '@/types'
 
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
         voucherCode: voucherCodeParam,
         userId: user?._id.toString(),
         guestEmail: undefined,
+        guestIp: getRequestInfo(req).ipAddress,
       })
 
       if (!applyResult.ok) {

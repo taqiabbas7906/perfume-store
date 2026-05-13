@@ -4,6 +4,7 @@ import { ordersRateLimit } from '@/lib/rateLimit'
 import { validateVoucher } from '@/lib/services/voucherService'
 import { getAuthUser } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
+import { getRequestInfo } from '@/lib/getRequestInfo'
 import Product from '@/models/Product'
 import { z } from 'zod'
 import { Types } from 'mongoose'
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
       categoryIdsInCart,
       userId: user?._id.toString(),
       guestEmail,
+      guestIp: getRequestInfo(req).ipAddress,
     })
 
     if (!result.ok) {

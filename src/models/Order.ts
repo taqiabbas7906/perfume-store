@@ -53,6 +53,34 @@ const ShippingAddressSchema = new Schema(
     city: { type: String, required: true },
     country: { type: String, required: true },
     zip: { type: String, required: true },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+      match: /^\+[1-9]\d{6,19}$/,
+    },
+  },
+  { _id: false }
+)
+
+/* ─────────────────────────────────────────────
+ * STATUS HISTORY (ORDER TIMELINE)
+ * ───────────────────────────────────────────── */
+const StatusHistorySchema = new Schema(
+  {
+    status: {
+      type: String,
+      enum: ['pending', 'paid', 'failed', 'shipped', 'delivered', 'cancelled', 'refunded'],
+      required: true,
+    },
+    changedAt: { type: Date, default: Date.now },
+    changedBy: {
+      type: String,
+      enum: ['system', 'admin', 'customer', 'webhook'],
+      default: 'system',
+    },
+    adminId: { type: Schema.Types.ObjectId, ref: 'User' },
+    note: { type: String, maxlength: 500 },
   },
   { _id: false }
 )
@@ -147,6 +175,22 @@ const OrderSchema = new Schema<IOrder>(
 
     inventoryReleased: { type: Boolean, default: false },
 
+    /* ───────── TRACKING (POST-SHIP) ───────── */
+    trackingNumber: { type: String, trim: true, maxlength: 80 },
+    trackingCarrier: { type: String, trim: true, maxlength: 60 },
+    trackingUrl: { type: String, trim: true, maxlength: 500 },
+    shippedAt: { type: Date },
+    cancelledAt: { type: Date },
+    cancelReason: { type: String, trim: true, maxlength: 500 },
+
+    /* ───────── TIMELINE ───────── */
+    statusHistory: {
+      type: [StatusHistorySchema],
+      default: () => [
+        { status: 'pending', changedAt: new Date(), changedBy: 'system' },
+      ],
+    },
+
     orderLog: {
       type: OrderLogSchema,
       default: () => ({
@@ -175,6 +219,9 @@ OrderSchema.index({ paymentIdempotencyKey: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ squarePaymentId: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ paymentIntentId: 1 })
 OrderSchema.index({ user: 1, createdAt: -1 })
+OrderSchema.index({ status: 1, createdAt: -1 })
+OrderSchema.index({ 'shippingAddress.country': 1 })
+OrderSchema.index({ trackingNumber: 1 }, { sparse: true })
 
 /* ─────────────────────────────────────────────
  * MODEL EXPORT (SAFE SINGLETON)

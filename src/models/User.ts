@@ -34,13 +34,6 @@ const UserSchema = new Schema<IUser>(
       default: 'user',
       index: true,
     },
-    image: {
-      type: String,
-      validate: {
-        validator: (v: string | undefined) => !v || /^https?:\/\/.+/.test(v),
-        message: 'image must be a valid URL',
-      },
-    },
     phone: {
       type: String,
       trim: true,

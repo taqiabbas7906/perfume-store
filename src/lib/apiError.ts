@@ -1,14 +1,6 @@
 import { NextResponse } from 'next/server'
 import { logger } from './logger'
 
-/**
- * A tiny error-response helper so every controller has a uniform shape.
- *
- *   { error, code?, details? }
- *
- * The `code` field is for client logic (e.g. `OUT_OF_STOCK`,
- * `IDEMPOTENCY_CONFLICT`). The `details` is opaque per route.
- */
 
 export interface ApiErrorBody {
   error: string

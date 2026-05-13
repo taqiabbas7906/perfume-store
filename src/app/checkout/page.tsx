@@ -201,7 +201,7 @@ export default function CheckoutPage() {
 
   // Delivery
   const [guestEmail, setGuestEmail] = useState('')
-  const [addr, setAddr] = useState({ name:'', line1:'', city:'', country:'US', state:'', zip:'' })
+  const [addr, setAddr] = useState({ name:'', phone:'', line1:'', city:'', country:'US', state:'', zip:'' })
 
   // Rates
   const [rates, setRates]               = useState<RatesResult | null>(null)
@@ -315,6 +315,11 @@ export default function CheckoutPage() {
     if (!user && !guestEmail.trim()) { setError('Email is required to continue'); return }
     if (!addr.name || !addr.line1 || !addr.city || !addr.zip) { setError('Please fill all address fields'); return }
     if (addr.country === 'US' && !addr.state) { setError('Please select your state'); return }
+    const normalisedPhone = addr.phone.replace(/[\s\-().]/g, '')
+    if (!/^\+?[1-9]\d{6,19}$/.test(normalisedPhone)) {
+      setError('Please enter a valid phone number with country code (e.g. +12025550123)')
+      return
+    }
     setStep(2)
   }
 
@@ -355,7 +360,14 @@ export default function CheckoutPage() {
         method: 'POST',
         body: JSON.stringify({
           items: cart!.items.map(i => ({ productId: i.productId, variantSku: i.variantSku, quantity: i.quantity })),
-          shippingAddress: { name: addr.name, address: addr.line1, city: addr.city, country: addr.country, zip: addr.zip },
+          shippingAddress: {
+            name: addr.name,
+            address: addr.line1,
+            city: addr.city,
+            country: addr.country,
+            zip: addr.zip,
+            phone: addr.phone.replace(/[\s\-().]/g, ''),
+          },
           idempotencyKey: key,
           voucherCodes: cart!.vouchers.map(v => v.code),
           guestEmail: !user ? guestEmail : undefined,
@@ -462,6 +474,23 @@ export default function CheckoutPage() {
                     <input type="text" required value={addr.name} onChange={e => setAddr({...addr, name: e.target.value})} className={cls.input} placeholder="Jane Smith" />
                   </F>
 
+                  <F label="Phone Number" req>
+                    <input
+                      type="tel"
+                      required
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={addr.phone}
+                      onChange={e => setAddr({...addr, phone: e.target.value})}
+                      className={cls.input}
+                      placeholder="+12025550123"
+                      maxLength={30}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Include your country code (the leading +). We&apos;ll use this for delivery questions and shipping updates.
+                    </p>
+                  </F>
+
                   <F label="Country" req>
                     <select required value={addr.country} onChange={e => setAddr({...addr, country: e.target.value, state: ''})} className={cls.select}>
                       {ALL_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -505,6 +534,7 @@ export default function CheckoutPage() {
                     <p className="font-medium text-gray-900">{addr.name}</p>
                     <p className="text-gray-500">{addr.line1}, {addr.city}</p>
                     <p className="text-gray-500">{addr.state ? `${addr.state}, ` : ''}{addr.country} {addr.zip}</p>
+                    <p className="text-gray-500">{addr.phone}</p>
                     {!user && <p className="text-gray-400 mt-0.5">{guestEmail}</p>}
                   </div>
                   <button type="button" onClick={() => setStep(1)} className="text-xs text-gray-400 hover:text-gray-700 underline">Edit</button>

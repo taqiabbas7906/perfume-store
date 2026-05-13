@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { authFetch } from '@/lib/api'
 import { logout } from '@/lib/logout'
+import { Avatar } from '@/components/Avatar'
 
 /* ─────────────────────────────────────────────────────────────
  * Types
@@ -14,7 +15,6 @@ interface UserProfile {
   name: string
   email: string
   phone?: string
-  image?: string
   role: string
   hasPassword: boolean
   emailVerified?: string
@@ -726,7 +726,6 @@ export default function AccountPage() {
   const [tab, setTab]               = useState<Tab>('profile')
   const [profile, setProfile]       = useState<UserProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
-  const avatarInputRef              = useRef<HTMLInputElement>(null)
 
   /* Redirect if not logged in */
   useEffect(() => {
@@ -754,10 +753,6 @@ export default function AccountPage() {
     )
   }
 
-  const initials = profile?.name
-    ? profile.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
-    : '?'
-
   return (
     <>
       <style>{STYLES}</style>
@@ -774,17 +769,8 @@ export default function AccountPage() {
           {/* ── Sidebar ── */}
           <aside className="acc-sidebar">
             <div className="acc-sidebar-avatar">
-              <div className="acc-avatar-wrap" onClick={() => { setTab('profile'); avatarInputRef.current?.click() }}>
-                {profile?.image
-                  ? <img src={profile.image} alt={profile.name} className="acc-avatar-img" />
-                  : <div className="acc-avatar-placeholder">{initials}</div>
-                }
-                <div className="acc-avatar-overlay">
-                  <span>📷</span>
-                  <span style={{ fontSize: 9, letterSpacing: '0.08em' }}>Change</span>
-                </div>
-              </div>
-              <div className="acc-sidebar-name">{profile?.name ?? '—'}</div>
+              <Avatar name={profile?.name} size={72} />
+              <div className="acc-sidebar-name" style={{ marginTop: 12 }}>{profile?.name ?? '—'}</div>
               <div className="acc-sidebar-email">{profile?.email ?? ''}</div>
               {profile?.role === 'admin' && (
                 <span className="acc-sidebar-role">Admin</span>
@@ -818,7 +804,6 @@ export default function AccountPage() {
               <ProfilePanel
                 profile={profile}
                 loading={profileLoading}
-                avatarInputRef={avatarInputRef}
                 onProfileUpdate={setProfile}
               />
             )}
@@ -837,19 +822,16 @@ export default function AccountPage() {
  * Profile Panel
  * ═══════════════════════════════════════════════════════════════ */
 function ProfilePanel({
-  profile, loading, avatarInputRef, onProfileUpdate,
+  profile, loading, onProfileUpdate,
 }: {
   profile: UserProfile | null
   loading: boolean
-  avatarInputRef: React.RefObject<HTMLInputElement | null>
   onProfileUpdate: (p: UserProfile) => void
 }) {
   const [name, setName]             = useState('')
   const [phone, setPhone]           = useState('')
   const [saving, setSaving]         = useState(false)
-  const [avatarUploading, setAvatarUploading] = useState(false)
   const [alert, setAlert]           = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (profile) {
@@ -861,54 +843,6 @@ function ProfilePanel({
   const showAlert = (type: 'success' | 'error', msg: string) => {
     setAlert({ type, msg })
     setTimeout(() => setAlert(null), 5000)
-  }
-
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (file.size > 5 * 1024 * 1024) {
-      showAlert('error', 'Avatar must be smaller than 5 MB.')
-      return
-    }
-    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
-      showAlert('error', 'Please upload a JPEG, PNG, WebP, or GIF image.')
-      return
-    }
-
-    // Preview
-    const reader = new FileReader()
-    reader.onload = e => setAvatarPreview(e.target?.result as string)
-    reader.readAsDataURL(file)
-
-    setAvatarUploading(true)
-    try {
-      const fd = new FormData()
-      fd.append('avatar', file)
-      const { user: fbUser } = await import('@/lib/firebase').then(m => ({ user: m.auth.currentUser }))
-      if (!fbUser) throw new Error('Not authenticated')
-      const token = await fbUser.getIdToken()
-      const res = await fetch('/api/auth/me', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      })
-      const data = await res.json()
-      if (data.success) {
-        onProfileUpdate(data.user)
-        setAvatarPreview(null)
-        showAlert('success', 'Avatar updated.')
-      } else {
-        setAvatarPreview(null)
-        showAlert('error', data.error || 'Avatar upload failed.')
-      }
-    } catch {
-      setAvatarPreview(null)
-      showAlert('error', 'Avatar upload failed.')
-    } finally {
-      setAvatarUploading(false)
-      if (avatarInputRef.current) avatarInputRef.current.value = ''
-    }
   }
 
   const handleSave = async (e: React.FormEvent) => {
@@ -940,11 +874,6 @@ function ProfilePanel({
     </div>
   )
 
-  const displayImg = avatarPreview || profile?.image
-  const initials = profile?.name
-    ? profile.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-    : '?'
-
   return (
     <div className="acc-panel fade-in">
       <h2 className="acc-panel-title">Profile</h2>
@@ -957,26 +886,12 @@ function ProfilePanel({
         </div>
       )}
 
-      {/* Avatar upload */}
-      <input
-        ref={avatarInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        style={{ display: 'none' }}
-        onChange={handleAvatarChange}
-      />
-      <div className="acc-avatar-upload" onClick={() => avatarInputRef.current?.click()}>
-        {displayImg
-          ? <img src={displayImg} alt="Avatar" className="acc-avatar-upload-img" />
-          : <div className="acc-avatar-upload-placeholder">{initials}</div>
-        }
-        <div className="acc-avatar-upload-text">
-          {avatarUploading
-            ? <><strong>Uploading…</strong><span>Please wait</span></>
-            : <><strong>Change profile photo</strong><span>JPEG, PNG, WebP or GIF · Max 5 MB</span></>
-          }
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 0 24px', borderBottom: '1px solid rgba(201,169,110,0.08)', marginBottom: 24 }}>
+        <Avatar name={profile?.name} size={64} />
+        <div style={{ fontSize: 12, color: 'rgba(245,234,216,0.4)', lineHeight: 1.6 }}>
+          Your profile badge is generated from your name. Update the name field below
+          and your avatar updates with it.
         </div>
-        {avatarUploading && <div className="acc-spinner" style={{ marginLeft: 'auto' }} />}
       </div>
 
       <form onSubmit={handleSave}>

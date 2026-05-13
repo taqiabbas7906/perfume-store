@@ -21,6 +21,10 @@ const VoucherUsageSchema = new Schema<IVoucherUsage>(
       lowercase: true,
       trim: true,
     },
+    guestIp: {
+      type: String,
+      trim: true,
+    },
     discountAmount: {
       type: Number,
       required: true,
@@ -42,6 +46,7 @@ VoucherUsageSchema.index({ userId: 1 })
 VoucherUsageSchema.index({ guestEmail: 1 })
 VoucherUsageSchema.index({ voucherId: 1, userId: 1 })
 VoucherUsageSchema.index({ voucherId: 1, guestEmail: 1 })
+VoucherUsageSchema.index({ voucherId: 1, guestIp: 1 }, { sparse: true })
 VoucherUsageSchema.index({ orderId: 1 }, { unique: true, sparse: true })
 
 const VoucherUsage: Model<IVoucherUsage> =

@@ -344,6 +344,7 @@ export async function addVoucherToCart(args: {
   voucherCode: string
   userId?: string
   guestEmail?: string
+  guestIp?: string
 }): Promise<{ ok: true; cart: ICart } | { ok: false; code: string; message: string }> {
   const filter = ownerFilter(args.owner)
 
@@ -369,6 +370,7 @@ export async function addVoucherToCart(args: {
     categoryIdsInCart,
     userId: args.userId,
     guestEmail: args.guestEmail,
+    guestIp: args.guestIp,
   })
 
   if (!validation.ok) {

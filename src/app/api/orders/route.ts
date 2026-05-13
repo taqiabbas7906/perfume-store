@@ -7,8 +7,9 @@ import Order from '@/models/Order'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { validateData } from '@/lib/validate'
 import { orderSchema } from '@/lib/validators'
-import { createOrder } from '@/lib/services/orderService'
+import { createOrder, transitionOrderStatus } from '@/lib/services/orderService'
 import { getRequestInfo } from '@/lib/getRequestInfo'
+import type { OrderStatus } from '@/types'
 
 export async function GET(req: NextRequest) {
   const limited = await ordersRateLimit(req)
@@ -99,30 +100,26 @@ export async function PATCH(req: NextRequest) {
 
     const { orderId, status } = body
 
-    const validStatuses = ['pending', 'paid', 'failed', 'shipped', 'delivered', 'cancelled', 'refunded']
+    const validStatuses: OrderStatus[] = ['pending', 'paid', 'failed', 'shipped', 'delivered', 'cancelled', 'refunded']
     if (!validStatuses.includes(status)) {
       return apiError(400, { error: 'Invalid status' })
     }
 
-    let updatePayload: any = { status };
-    if (status === 'paid') {
-      updatePayload.paymentStatus = 'completed';
-      updatePayload.paidAt = new Date();
-    } else if (status === 'cancelled' || status === 'failed') {
-      updatePayload.paymentStatus = status;
-    } else if (status === 'refunded') {
-      updatePayload.paymentStatus = 'refunded';
+    const result = await transitionOrderStatus({
+      orderId,
+      nextStatus: status as OrderStatus,
+      changedBy: 'admin',
+      adminId: String(admin._id),
+      note: typeof body.note === 'string' ? body.note.slice(0, 500) : undefined,
+    })
+
+    if (!result.ok) {
+      const code = result.code === 'NOT_FOUND' ? 404 :
+                   result.code === 'INVALID_TRANSITION' ? 409 : 500
+      return apiError(code, { error: result.message, code: result.code })
     }
 
-    const order = await Order.findByIdAndUpdate(
-      orderId,
-      { $set: updatePayload },
-      { new: true }
-    )
-
-    if (!order) return apiError(404, { error: 'Order not found' })
-
-    return NextResponse.json({ success: true, order })
+    return NextResponse.json({ success: true, order: result.order })
   } catch (err) {
     logRouteError('PATCH /api/orders', err)
     return apiError(500, { error: 'Internal server error' })

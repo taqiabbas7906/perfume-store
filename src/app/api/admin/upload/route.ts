@@ -11,8 +11,8 @@ const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE_MB  = 8
 const MAX_SIZE_B   = MAX_SIZE_MB * 1024 * 1024
 
-type UploadFolder = 'products' | 'avatars' | 'brands' | 'categories' | 'collections'
-const ADMIN_FOLDERS: UploadFolder[] = ['products', 'brands', 'categories', 'collections']
+type UploadFolder = 'products' | 'brands' | 'categories' | 'collections'
+const ALLOWED_FOLDERS: UploadFolder[] = ['products', 'brands', 'categories', 'collections']
 
 function configureCld() {
   cloudinary.config({
@@ -50,8 +50,8 @@ async function uploadBuffer(
     ]
   }
 
-  // Avatars / logos — square crop
-  if (folder === 'avatars' || folder === 'brands') {
+  // Brand/category logos — square crop
+  if (folder === 'brands') {
     opts.transformation = [
       { width: 400, height: 400, crop: 'fill', gravity: 'face' },
       { quality: 'auto', fetch_format: 'auto' },
@@ -66,11 +66,10 @@ async function uploadBuffer(
  *
  * Multipart FormData:
  *   file     File    (required)
- *   folder   string  products | avatars | brands | categories | collections
+ *   folder   string  products | brands | categories | collections
  *   publicId string  (optional — deterministic public_id)
  *
- * Admin folders require admin role.
- * avatars folder requires any authenticated user.
+ * Admin only — user profile pictures are no longer stored.
  */
 export async function POST(req: NextRequest) {
   const limited = await rateLimit(req)
@@ -82,10 +81,8 @@ export async function POST(req: NextRequest) {
     }
 
     await connectDB()
-    const user  = await getAuthUser(req)
     const admin = await getAuthAdmin(req)
-
-    if (!user) return apiError(401, { error: 'Unauthorized' })
+    if (!admin) return apiError(403, { error: 'Admin access required' })
 
     let formData: FormData
     try { formData = await req.formData() }
@@ -103,16 +100,15 @@ export async function POST(req: NextRequest) {
       return apiError(400, { error: `File too large. Maximum size is ${MAX_SIZE_MB} MB` })
     }
 
-    // Folder-level auth
-    if (ADMIN_FOLDERS.includes(folder) && !admin) {
-      return apiError(403, { error: 'Admin access required for this folder' })
+    if (!ALLOWED_FOLDERS.includes(folder)) {
+      return apiError(400, { error: `Invalid folder. Allowed: ${ALLOWED_FOLDERS.join(', ')}` })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const result = await uploadBuffer(buffer, file.type, folder, publicId)
 
     logger.info(
-      { folder, publicId: result.public_id, userId: user._id, size: file.size },
+      { folder, publicId: result.public_id, adminId: admin._id, size: file.size },
       'Image uploaded'
     )
 

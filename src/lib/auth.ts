@@ -10,14 +10,6 @@ export async function getUserFromToken(token: string) {
   }
 }
 
-/**
- * Idempotently sync a Firebase-authenticated user to the application database.
- *
- * - Creates the user on first sign-in.
- * - Updates non-immutable fields (name, image, lastLogin) on every call.
- * - NEVER updates `role` (privilege escalation prevention).
- * - NEVER updates `email` (immutable). The same Firebase UID always maps to one record.
- */
 export async function syncUserToDB(token: string) {
   try {
     const decoded = await verifyIdToken(token)
@@ -42,7 +34,6 @@ export async function syncUserToDB(token: string) {
         },
         $set: {
           name: decoded.name || email.split('@')[0],
-          image: decoded.picture || '',
           lastLogin: now,
         },
       },

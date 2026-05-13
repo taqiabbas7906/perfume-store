@@ -39,6 +39,7 @@ export interface ValidateVoucherInput {
   categoryIdsInCart?: string[]
   userId?: string
   guestEmail?: string
+  guestIp?: string
 }
 
 export type ValidateVoucherResult =
@@ -63,7 +64,7 @@ export type ValidateVoucherResult =
 export async function validateVoucher(
   input: ValidateVoucherInput
 ): Promise<ValidateVoucherResult> {
-  const { voucherCode, cartTotal, productIdsInCart, categoryIdsInCart, userId, guestEmail } = input
+  const { voucherCode, cartTotal, productIdsInCart, categoryIdsInCart, userId, guestEmail, guestIp } = input
 
   const voucher = await Voucher.findOne({
     code: voucherCode.trim().toUpperCase(),
@@ -182,23 +183,33 @@ export async function validateVoucher(
   }
 
   if (voucher.perUserLimit) {
-    let usageCount = 0
     if (userId) {
-      usageCount = await VoucherUsage.countDocuments({
+      const usageCount = await VoucherUsage.countDocuments({
         voucherId: voucher._id,
         userId: new Types.ObjectId(userId),
       })
-    } else if (guestEmail) {
-      usageCount = await VoucherUsage.countDocuments({
-        voucherId: voucher._id,
-        guestEmail: guestEmail.toLowerCase(),
-      })
-    }
-    if (usageCount >= voucher.perUserLimit!) {
-      return {
-        ok: false,
-        code: 'PER_USER_LIMIT_EXCEEDED',
-        message: 'You have used this voucher too many times',
+      if (usageCount >= voucher.perUserLimit) {
+        return { ok: false, code: 'PER_USER_LIMIT_EXCEEDED', message: 'You have used this voucher too many times' }
+      }
+    } else {
+      // Guest: enforce by email AND by IP independently
+      if (guestEmail) {
+        const emailCount = await VoucherUsage.countDocuments({
+          voucherId: voucher._id,
+          guestEmail: guestEmail.toLowerCase(),
+        })
+        if (emailCount >= voucher.perUserLimit) {
+          return { ok: false, code: 'PER_USER_LIMIT_EXCEEDED', message: 'You have used this voucher too many times' }
+        }
+      }
+      if (guestIp && guestIp !== 'unknown') {
+        const ipCount = await VoucherUsage.countDocuments({
+          voucherId: voucher._id,
+          guestIp,
+        })
+        if (ipCount >= voucher.perUserLimit) {
+          return { ok: false, code: 'PER_USER_LIMIT_EXCEEDED', message: 'This voucher has already been used from your network' }
+        }
       }
     }
   }
@@ -235,6 +246,7 @@ export interface IncrementVoucherUsageInput {
   userId?: string
   orderId?: string
   guestEmail?: string
+  guestIp?: string
   discountAmount: number
   session?: ClientSession
 }
@@ -242,7 +254,7 @@ export interface IncrementVoucherUsageInput {
 export async function incrementVoucherUsage(
   input: IncrementVoucherUsageInput
 ): Promise<void> {
-  const { voucherId, userId, orderId, guestEmail, discountAmount, session } = input
+  const { voucherId, userId, orderId, guestEmail, guestIp, discountAmount, session } = input
 
   const voucherObjectId = typeof voucherId === 'string' ? new Types.ObjectId(voucherId) : voucherId
 
@@ -259,6 +271,7 @@ export async function incrementVoucherUsage(
         userId: userId ? new Types.ObjectId(userId) : undefined,
         orderId: orderId ? new Types.ObjectId(orderId) : undefined,
         guestEmail: guestEmail ? guestEmail.toLowerCase() : undefined,
+        guestIp: (!userId && guestIp && guestIp !== 'unknown') ? guestIp : undefined,
         discountAmount,
         usedAt: new Date(),
       },

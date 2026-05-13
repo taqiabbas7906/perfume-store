@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { ordersRateLimit } from '@/lib/rateLimit'
-import { getAuthUser } from '@/lib/getAuthUser'
+import { getAuthAdmin, getAuthUser } from '@/lib/getAuthUser'
 import Order from '@/models/Order'
 import { apiError, logRouteError } from '@/lib/apiError'
 
@@ -14,10 +14,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params
     await connectDB()
-    const user = await getAuthUser(req)
+    const admin = await getAuthAdmin(req)
+    const user = admin ?? await getAuthUser(req)
     if (!user) return apiError(401, { error: 'Unauthorized' })
 
-    const order = await Order.findOne({ _id: id, user: user._id }).lean()
+    const query = admin ? { _id: id } : { _id: id, user: user._id }
+    const order = await Order.findOne(query).lean()
     if (!order) return apiError(404, { error: 'Order not found' })
     return NextResponse.json({ success: true, order })
   } catch (err) {

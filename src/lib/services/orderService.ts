@@ -13,7 +13,7 @@ import {
   releaseReservation,
   type DecrementInput,
 } from '@/lib/inventory'
-import type { ICart, IOrder, IProduct, IShippingAddress } from '@/types'
+import type { ICart, IOrder, IOrderStatusEntry, IProduct, IShippingAddress, OrderStatus } from '@/types'
 import type { IOrderLog } from '@/types'
 import { logger } from '@/lib/logger'
 
@@ -221,6 +221,7 @@ export async function createOrder(
         categoryIdsInCart,
         userId: input.userId,
         guestEmail: input.guestEmail,
+        guestIp: input.log.ipAddress,
       })
 
       if (validation.ok) {
@@ -306,6 +307,14 @@ export async function createOrder(
       paymentIntentId: '',
       inventoryReleased: false,
       orderLog: input.log,
+      statusHistory: [
+        {
+          status: 'pending',
+          changedAt: new Date(),
+          changedBy: input.userId ? 'customer' : 'system',
+          note: 'Order placed',
+        },
+      ],
     }
 
     const [order] = await Order.insertMany([orderPayload], {
@@ -332,6 +341,7 @@ export async function createOrder(
         userId: input.userId,
         orderId: order._id.toString(),
         guestEmail: input.guestEmail,
+        guestIp: input.log.ipAddress,
         discountAmount,
         session: undefined,
       })
@@ -397,4 +407,182 @@ async function safeStartSession() {
 
 function round2(n: number) {
   return Math.round(n * 100) / 100
+}
+
+/* ───────────────────────────────────────────── */
+/* ADMIN: STATUS TRANSITION WITH TIMELINE        */
+/* ───────────────────────────────────────────── */
+
+const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending:   ['paid', 'failed', 'cancelled'],
+  paid:      ['shipped', 'cancelled', 'refunded'],
+  shipped:   ['delivered', 'refunded'],
+  delivered: ['refunded'],
+  failed:    ['cancelled', 'pending'],
+  cancelled: [],
+  refunded:  [],
+}
+
+export type StatusChangeInput = {
+  orderId: string
+  nextStatus: OrderStatus
+  changedBy: 'admin' | 'system' | 'customer' | 'webhook'
+  adminId?: string
+  note?: string
+}
+
+export type StatusChangeResult =
+  | { ok: true; order: IOrder; previousStatus: OrderStatus }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_TRANSITION' | 'INTERNAL'; message: string }
+
+export async function transitionOrderStatus(
+  input: StatusChangeInput
+): Promise<StatusChangeResult> {
+  const order = await Order.findById(input.orderId)
+  if (!order) return { ok: false, code: 'NOT_FOUND', message: 'Order not found' }
+
+  const previous = order.status as OrderStatus
+  if (previous === input.nextStatus) {
+    return { ok: true, order: order.toObject() as IOrder, previousStatus: previous }
+  }
+
+  const allowed = VALID_TRANSITIONS[previous] || []
+  if (!allowed.includes(input.nextStatus)) {
+    return {
+      ok: false,
+      code: 'INVALID_TRANSITION',
+      message: `Cannot move order from "${previous}" to "${input.nextStatus}"`,
+    }
+  }
+
+  const entry: IOrderStatusEntry = {
+    status: input.nextStatus,
+    changedAt: new Date(),
+    changedBy: input.changedBy,
+    adminId: input.adminId ? toObjectId(input.adminId) ?? undefined : undefined,
+    note: input.note,
+  }
+
+  const set: Record<string, unknown> = { status: input.nextStatus }
+  if (input.nextStatus === 'paid') {
+    set.paymentStatus = 'completed'
+    set.paidAt = new Date()
+  } else if (input.nextStatus === 'cancelled') {
+    set.cancelledAt = new Date()
+    if (input.note) set.cancelReason = input.note
+  } else if (input.nextStatus === 'refunded') {
+    set.paymentStatus = 'refunded'
+  } else if (input.nextStatus === 'failed') {
+    set.paymentStatus = 'failed'
+  }
+
+  const updated = await Order.findByIdAndUpdate(
+    order._id,
+    { $set: set, $push: { statusHistory: entry } },
+    { new: true }
+  ).lean<IOrder>()
+
+  if (!updated) return { ok: false, code: 'INTERNAL', message: 'Update failed' }
+
+  return { ok: true, order: updated, previousStatus: previous }
+}
+
+/* ───────────────────────────────────────────── */
+/* ADMIN: CANCEL ORDER + INVENTORY RESTORE       */
+/* ───────────────────────────────────────────── */
+
+export type CancelOrderResult =
+  | { ok: true; order: IOrder; previousStatus: OrderStatus }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_TRANSITION' | 'INTERNAL'; message: string }
+
+export async function cancelOrderAsAdmin(input: {
+  orderId: string
+  adminId: string
+  reason?: string
+}): Promise<CancelOrderResult> {
+  const transition = await transitionOrderStatus({
+    orderId: input.orderId,
+    nextStatus: 'cancelled',
+    changedBy: 'admin',
+    adminId: input.adminId,
+    note: input.reason ?? 'Cancelled by admin',
+  })
+
+  if (!transition.ok) return transition
+
+  // Restore inventory (idempotent via inventoryReleased flag)
+  await releaseOrderInventory(input.orderId)
+
+  // Re-read to surface updated inventoryReleased flag
+  const fresh = await Order.findById(input.orderId).lean<IOrder>()
+  return {
+    ok: true,
+    order: fresh ?? transition.order,
+    previousStatus: transition.previousStatus,
+  }
+}
+
+/* ───────────────────────────────────────────── */
+/* ADMIN: ADD TRACKING NUMBER + MARK SHIPPED     */
+/* ───────────────────────────────────────────── */
+
+export type AddTrackingResult =
+  | { ok: true; order: IOrder; alreadyShipped: boolean }
+  | { ok: false; code: 'NOT_FOUND' | 'INVALID_STATUS' | 'INTERNAL'; message: string }
+
+export async function addOrderTracking(input: {
+  orderId: string
+  adminId: string
+  trackingNumber: string
+  trackingCarrier: string
+  trackingUrl?: string
+}): Promise<AddTrackingResult> {
+  const order = await Order.findById(input.orderId)
+  if (!order) return { ok: false, code: 'NOT_FOUND', message: 'Order not found' }
+
+  if (order.status !== 'paid' && order.status !== 'shipped') {
+    return {
+      ok: false,
+      code: 'INVALID_STATUS',
+      message: `Tracking can only be added to paid or shipped orders (current: ${order.status})`,
+    }
+  }
+
+  const alreadyShipped = order.status === 'shipped'
+  const set: Record<string, unknown> = {
+    trackingNumber: input.trackingNumber,
+    trackingCarrier: input.trackingCarrier,
+    trackingUrl: input.trackingUrl || undefined,
+  }
+  const push: Record<string, unknown> = {}
+
+  if (!alreadyShipped) {
+    set.status = 'shipped'
+    set.shippedAt = new Date()
+    push.statusHistory = {
+      status: 'shipped' as OrderStatus,
+      changedAt: new Date(),
+      changedBy: 'admin' as const,
+      adminId: toObjectId(input.adminId) ?? undefined,
+      note: `Tracking added: ${input.trackingCarrier} ${input.trackingNumber}`,
+    }
+  } else {
+    // Updating tracking on an already-shipped order — still log it
+    push.statusHistory = {
+      status: 'shipped' as OrderStatus,
+      changedAt: new Date(),
+      changedBy: 'admin' as const,
+      adminId: toObjectId(input.adminId) ?? undefined,
+      note: `Tracking updated: ${input.trackingCarrier} ${input.trackingNumber}`,
+    }
+  }
+
+  const updated = await Order.findByIdAndUpdate(
+    order._id,
+    { $set: set, $push: push },
+    { new: true }
+  ).lean<IOrder>()
+
+  if (!updated) return { ok: false, code: 'INTERNAL', message: 'Update failed' }
+  return { ok: true, order: updated, alreadyShipped }
 }

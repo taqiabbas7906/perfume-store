@@ -5,7 +5,6 @@ import { getAdmin } from '@/lib/firebaseAdmin'
 import { validateData } from '@/lib/validate'
 import { updateProfileSchema } from '@/lib/validators'
 import { updateProfileRateLimit, deleteAccountRateLimit } from '@/lib/authRateLimit'
-import { uploadAvatarBuffer, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { logger } from '@/lib/logger'
 import User from '@/models/User'
@@ -17,7 +16,7 @@ import Cart from '@/models/Cart'
  * Shared: safe public fields returned to client
  * ───────────────────────────────────────────── */
 const PUBLIC_FIELDS = [
-  '_id', 'name', 'email', 'image', 'phone', 'role',
+  '_id', 'name', 'email', 'phone', 'role',
   'hasPassword', 'emailVerified', 'createdAt',
 ] as const
 
@@ -44,12 +43,8 @@ export async function GET(req: NextRequest) {
 
 /* ─────────────────────────────────────────────
  * PUT /api/auth/me
- * Updates name, phone, avatar (multipart or JSON).
- *
- * Multipart FormData fields:
- *   name?   string
- *   phone?  string  (send "" to clear)
- *   avatar? File    (max 5 MB; jpeg/png/webp/gif)
+ * Updates name and phone. Profile photos are not stored — every account
+ * displays a generated initials avatar in the UI.
  *
  * JSON body: { name?, phone? }
  * ───────────────────────────────────────────── */
@@ -61,34 +56,12 @@ export async function PUT(req: NextRequest) {
     const user = await getAuthUser(req)
     if (!user) return apiError(401, 'Unauthorized')
 
-    const contentType = req.headers.get('content-type') ?? ''
-    let name: string | undefined
-    let phone: string | undefined
-    let avatarBuffer: Buffer | undefined
-    let avatarMime: string | undefined
+    const body = await req.json().catch(() => null)
+    if (!body) return apiError(400, 'Invalid JSON body')
 
-    if (contentType.includes('multipart/form-data')) {
-      let formData: FormData
-      try { formData = await req.formData() }
-      catch { return apiError(400, 'Could not parse form data') }
+    const name: string | undefined  = body.name
+    const phone: string | undefined = body.phone
 
-      name  = (formData.get('name')  as string | null) ?? undefined
-      phone = (formData.get('phone') as string | null) ?? undefined
-
-      const file = formData.get('avatar') as File | null
-      if (file && file.size > 0) {
-        if (file.size > 5 * 1024 * 1024) return apiError(400, { error: 'Avatar must be smaller than 5 MB' })
-        avatarMime   = file.type
-        avatarBuffer = Buffer.from(await file.arrayBuffer())
-      }
-    } else {
-      const body = await req.json().catch(() => null)
-      if (!body) return apiError(400, 'Invalid JSON body')
-      name  = body.name
-      phone = body.phone
-    }
-
-    /* ── validate text fields ── */
     const validation = validateData(updateProfileSchema, {
       ...(name  !== undefined && { name }),
       ...(phone !== undefined && { phone }),
@@ -98,22 +71,7 @@ export async function PUT(req: NextRequest) {
     const updates: Record<string, unknown> = {}
     if (validation.data.name !== undefined) updates.name = validation.data.name
     if (phone !== undefined) {
-      // explicit empty string = clear the field
       updates.phone = (validation.data.phone === '' || phone === '') ? undefined : validation.data.phone
-    }
-
-    /* ── upload avatar ── */
-    if (avatarBuffer) {
-      if (!isCloudinaryConfigured()) {
-        return apiError(503, { error: 'Avatar upload unavailable: Cloudinary not configured' })
-      }
-      try {
-        const result = await uploadAvatarBuffer(avatarBuffer, String(user._id), avatarMime!)
-        updates.image = result.url
-      } catch (uploadErr) {
-        logRouteError('PUT /api/auth/me avatar', uploadErr)
-        return apiError(502, { error: 'Avatar upload failed. Please try again.' })
-      }
     }
 
     if (Object.keys(updates).length === 0) return apiError(400, 'No updatable fields provided')
@@ -169,7 +127,7 @@ export async function DELETE(req: NextRequest) {
         deletedAt: new Date(),
         name: '[Deleted User]',
       },
-      $unset: { phone: 1, image: 1 },
+      $unset: { phone: 1 },
     })
 
     /* 2. Firebase deletion */
