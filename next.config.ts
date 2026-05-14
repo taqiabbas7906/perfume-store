@@ -101,6 +101,8 @@ const cspDirectives = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'standalone' as const,
+  compress: true,
 
   serverExternalPackages: [
     'firebase-admin',
@@ -160,10 +162,19 @@ const nextConfig = {
       {
         source: '/api/products/:path*',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, s-maxage=60, stale-while-revalidate=300',
-          },
+          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' },
+        ],
+      },
+      {
+        source: '/api/:resource(brands|categories|collections)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=900' },
+        ],
+      },
+      {
+        source: '/api/health',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
         ],
       },
     ]
