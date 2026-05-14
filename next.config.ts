@@ -107,6 +107,7 @@ const nextConfig = {
     'mongoose',
     'bcryptjs',
     'pino',
+    'algoliasearch',
   ],
 
   experimental: {

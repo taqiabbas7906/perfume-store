@@ -59,7 +59,7 @@ export async function configureAlgoliaIndex() {
     indexName: algoliaIndex,
     indexSettings: {
       searchableAttributes:  ['name', 'brand', 'description', 'tags', 'category'],
-      attributesForFaceting: ['brand', 'category', 'productType', 'filterOnly(active)'],
+      attributesForFaceting: ['brand', 'category', 'productType'],
       customRanking:         ['desc(ratingAverage)', 'desc(ratingCount)'],
       attributesToRetrieve:  [
         'objectID', 'name', 'brand', 'slug', 'image', 'minPrice', 'category', 'productType',

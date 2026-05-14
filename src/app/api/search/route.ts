@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
       searchParams: {
         query,
         hitsPerPage: limit,
-        filters:     'active:true',
       },
     })
 
