@@ -154,13 +154,12 @@ const OrderSchema = new Schema<IOrder>(
 
     paymentIdempotencyKey: {
       type: String,
-      sparse: true,
     },
 
     /* ───────── PAYMENT IDS ───────── */
     paymentIntentId: { type: String, default: '' },
-    squarePaymentId: { type: String, sparse: true },
-    squareOrderId: { type: String, sparse: true },
+    squarePaymentId: { type: String },
+    squareOrderId: { type: String },
 
     paymentStatus: {
       type: String,
