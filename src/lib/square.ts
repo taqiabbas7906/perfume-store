@@ -79,13 +79,17 @@ export async function verifySquareWebhook(args: {
   signatureKey: string
 }): Promise<boolean> {
   try {
-    // Square uses HMAC-SHA256
-    const hmac = crypto
+    if (typeof args.signature !== 'string' || !args.signature) return false
+
+    const expected = crypto
       .createHmac('sha256', args.signatureKey)
       .update(args.notificationUrl + args.rawBody)
-      .digest('base64')
+      .digest()
 
-    return hmac === args.signature
+    const provided = Buffer.from(args.signature, 'base64')
+    if (provided.length !== expected.length) return false
+
+    return crypto.timingSafeEqual(expected, provided)
   } catch {
     return false
   }

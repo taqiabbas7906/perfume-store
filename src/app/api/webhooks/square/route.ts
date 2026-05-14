@@ -95,8 +95,5 @@ export async function POST(req: NextRequest) {
 /* ───────────────────────────────────────────── */
 
 export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    configured: Boolean(process.env.SQUARE_WEBHOOK_SIGNATURE_KEY),
-  })
+  return NextResponse.json({ ok: true })
 }

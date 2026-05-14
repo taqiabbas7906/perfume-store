@@ -217,10 +217,11 @@ const OrderSchema = new Schema<IOrder>(
 OrderSchema.index({ idempotencyKey: 1 }, { unique: true })
 OrderSchema.index({ paymentIdempotencyKey: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ squarePaymentId: 1 }, { unique: true, sparse: true })
-OrderSchema.index({ paymentIntentId: 1 })
+OrderSchema.index({ paymentIntentId: 1 }, { sparse: true })
 OrderSchema.index({ user: 1, createdAt: -1 })
 OrderSchema.index({ status: 1, createdAt: -1 })
-OrderSchema.index({ 'shippingAddress.country': 1 })
+OrderSchema.index({ createdAt: -1 })
+OrderSchema.index({ 'items.productId': 1, status: 1, createdAt: -1 })
 OrderSchema.index({ trackingNumber: 1 }, { sparse: true })
 
 /* ─────────────────────────────────────────────

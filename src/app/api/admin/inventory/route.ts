@@ -30,61 +30,65 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const filter = searchParams.get('filter') ?? 'all'
 
-    // Aggregate all products with at least one concerning variant
-    const allProducts = await Product.find({ active: true })
-      .select('name slug brand variants totalStock')
-      .lean() as any[]
+    const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
+    const [variantRows, totalActiveProducts, recentLogs] = await Promise.all([
+      Product.aggregate([
+        { $match: { active: true } },
+        { $project: { name: 1, slug: 1, brand: 1, variants: 1 } },
+        { $unwind: '$variants' },
+        {
+          $match: {
+            $or: [
+              { 'variants.quantity': 0 },
+              { $expr: { $lte: ['$variants.quantity', { $ifNull: ['$variants.lowStockThreshold', 5] }] } },
+              { 'variants.expiresAt': { $lte: thirtyDays } },
+            ],
+          },
+        },
+        {
+          $project: {
+            productId:    '$_id',
+            productName:  '$name',
+            productSlug:  '$slug',
+            brand:        1,
+            variantSku:   '$variants.sku',
+            variantLabel: '$variants.label',
+            quantity:     '$variants.quantity',
+            threshold:    { $ifNull: ['$variants.lowStockThreshold', 5] },
+            expiresAt:    '$variants.expiresAt',
+          },
+        },
+      ]),
+      Product.countDocuments({ active: true }),
+      InventoryLog.find({})
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .populate('adminId', 'name email')
+        .populate('orderId', '_id')
+        .lean(),
+    ])
 
     const outOfStock:   any[] = []
     const lowStock:     any[] = []
     const expiringSoon: any[] = []
-    const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
-    for (const product of allProducts) {
-      if (!product.variants?.length) continue
-
-      for (const variant of product.variants) {
-        const threshold = variant.lowStockThreshold ?? 5
-        const base = {
-          productId:    product._id,
-          productName:  product.name,
-          productSlug:  product.slug,
-          brand:        product.brand,
-          variantSku:   variant.sku,
-          variantLabel: variant.label,
-          quantity:     variant.quantity,
-          threshold,
-          expiresAt:    variant.expiresAt,
-        }
-
-        if (variant.quantity === 0) {
-          outOfStock.push({ ...base, status: 'out_of_stock' })
-        } else if (variant.quantity <= threshold) {
-          lowStock.push({ ...base, status: 'low_stock' })
-        }
-
-        if (variant.expiresAt && new Date(variant.expiresAt) <= thirtyDays) {
-          expiringSoon.push({ ...base, status: 'expiring_soon', daysLeft: Math.ceil((new Date(variant.expiresAt).getTime() - Date.now()) / 86400000) })
-        }
+    for (const r of variantRows as any[]) {
+      if (r.quantity === 0) outOfStock.push({ ...r, status: 'out_of_stock' })
+      else if (r.quantity <= r.threshold) lowStock.push({ ...r, status: 'low_stock' })
+      if (r.expiresAt && new Date(r.expiresAt) <= thirtyDays) {
+        expiringSoon.push({ ...r, status: 'expiring_soon', daysLeft: Math.ceil((new Date(r.expiresAt).getTime() - Date.now()) / 86400000) })
       }
     }
 
-    // Sort: out_of_stock first, then by quantity asc
     lowStock.sort((a, b) => a.quantity - b.quantity)
     expiringSoon.sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())
-
-    const recentLogs = await InventoryLog.find({})
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .populate('adminId', 'name email')
-      .populate('orderId', '_id')
-      .lean()
 
     const summary = {
       outOfStockCount:   outOfStock.length,
       lowStockCount:     lowStock.length,
       expiringSoonCount: expiringSoon.length,
-      totalActiveProducts: allProducts.length,
+      totalActiveProducts,
     }
 
     let items: any[]

@@ -76,7 +76,13 @@ export async function ingestSquareEvent(args: {
   /* ───────── 2. PARSE BODY ───────── */
   const body = safeJsonParse(args.rawBody)
 
-  if (!body || !body.event_id || !body.type) {
+  if (
+    !body ||
+    typeof body.event_id !== 'string' ||
+    typeof body.type !== 'string' ||
+    body.event_id.length < 1 ||
+    body.event_id.length > 256
+  ) {
     return {
       ok: false,
       code: 'BAD_PAYLOAD',
@@ -141,14 +147,15 @@ export async function ingestSquareEvent(args: {
 
 async function reconcile(body: SquareWebhookEnvelope): Promise<void> {
   const payment = body.data?.object?.payment
-  if (!payment?.id) return
+  if (!payment || typeof payment.id !== 'string' || !payment.id) return
 
-  const status = mapSquareStatus(payment.status)
+  const refId  = typeof payment.reference_id === 'string' ? payment.reference_id : ''
+  const status = mapSquareStatus(typeof payment.status === 'string' ? payment.status : undefined)
 
   /* ───────── ORDER LOOKUP (SAFE FALLBACK) ───────── */
   const order =
-    (payment.reference_id &&
-      (await Order.findById(payment.reference_id))) ||
+    (refId && /^[a-f\d]{24}$/i.test(refId) &&
+      (await Order.findById(refId))) ||
     (await Order.findOne({ squarePaymentId: payment.id }))
 
   if (!order) {

@@ -39,6 +39,10 @@ const ReviewSchema = new Schema<IReview>(
   }
 )
 
+ReviewSchema.index({ product: 1, approved: 1, createdAt: -1 })
+ReviewSchema.index({ approved: 1, createdAt: -1 })
+ReviewSchema.index({ user: 1, createdAt: -1 })
+
 const Review: Model<IReview> =
   mongoose.models.Review ||
   mongoose.model<IReview>('Review', ReviewSchema)

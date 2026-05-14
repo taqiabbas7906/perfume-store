@@ -65,20 +65,19 @@ export async function POST(req: NextRequest) {
 
     await connectDB()
 
-    const product = await Product.exists({ _id: productId, active: true })
+    const pid = new mongoose.Types.ObjectId(productId)
+    const [product, current] = await Promise.all([
+      Product.exists({ _id: pid, active: true }),
+      Wishlist.findOne({ user: user._id }).select('items.productId').lean<IWishlist>(),
+    ])
+
     if (!product) return apiError(404, { error: 'Product not found' })
 
-    // Get or create wishlist, check for duplicate and cap
-    let wishlist = await Wishlist.findOne({ user: user._id }).lean<IWishlist>()
-
-    if (wishlist) {
-      const alreadyIn = wishlist.items.some(
-        (i) => i.productId.toString() === productId
-      )
-      if (alreadyIn) {
+    if (current) {
+      if (current.items.some((i) => i.productId.toString() === productId)) {
         return NextResponse.json({ success: true, message: 'Already in wishlist' })
       }
-      if (wishlist.items.length >= MAX_WISHLIST_ITEMS) {
+      if (current.items.length >= MAX_WISHLIST_ITEMS) {
         return apiError(400, { error: 'Wishlist is full (max 100 items)' })
       }
     }
@@ -87,7 +86,7 @@ export async function POST(req: NextRequest) {
       { user: user._id },
       {
         $setOnInsert: { user: user._id },
-        $push: { items: { productId: new mongoose.Types.ObjectId(productId), addedAt: new Date() } },
+        $push: { items: { productId: pid, addedAt: new Date() } },
       },
       { upsert: true, returnDocument: 'after' }
     )

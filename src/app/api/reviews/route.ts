@@ -9,6 +9,7 @@ import { updateProductRating } from '@/lib/services/reviewService'
 import Review from '@/models/Review'
 import Order from '@/models/Order'
 import Product from '@/models/Product'
+import { REVIEW_ELIGIBLE_STATUSES } from '@/lib/constants'
 import mongoose from 'mongoose'
 import { z } from 'zod'
 
@@ -96,37 +97,22 @@ export async function POST(req: NextRequest) {
 
     await connectDB()
 
-    // Order must belong to this user and contain the product
-    const order = await Order.findOne({
-      _id: orderId,
-      user: user._id,
-      status: { $in: ['paid', 'shipped', 'delivered'] },
-    })
-      .select('items status')
-      .lean()
+    const [order, existing, productExists] = await Promise.all([
+      Order.findOne({
+        _id: orderId,
+        user: user._id,
+        status: { $in: REVIEW_ELIGIBLE_STATUSES },
+      }).select('items').lean(),
+      Review.exists({ order: orderId }),
+      Product.exists({ _id: productId, active: true }),
+    ])
 
-    if (!order) {
-      return apiError(403, { error: 'No eligible order found for this product' })
-    }
-
-    const hasProduct = order.items.some(
-      (i) => i.productId.toString() === productId
-    )
-    if (!hasProduct) {
+    if (!order) return apiError(403, { error: 'No eligible order found for this product' })
+    if (!order.items.some((i) => i.productId.toString() === productId)) {
       return apiError(403, { error: 'This product is not in the specified order' })
     }
-
-    // One review per order (unique index on order field)
-    const existing = await Review.exists({ order: orderId })
-    if (existing) {
-      return apiError(409, { error: 'You have already reviewed this order' })
-    }
-
-    // Verify product exists
-    const productExists = await Product.exists({ _id: productId, active: true })
-    if (!productExists) {
-      return apiError(404, { error: 'Product not found' })
-    }
+    if (existing) return apiError(409, { error: 'You have already reviewed this order' })
+    if (!productExists) return apiError(404, { error: 'Product not found' })
 
     const review = await Review.create({
       user: user._id,

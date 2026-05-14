@@ -5,8 +5,7 @@ import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Order from '@/models/Order'
 import User from '@/models/User'
-
-const REVENUE_STATUSES = ['paid', 'shipped', 'delivered']
+import { REVENUE_STATUSES } from '@/lib/constants'
 
 function periodDates(p: string) {
   const now = new Date()

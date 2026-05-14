@@ -379,25 +379,21 @@ export async function createOrder(
 /* ───────────────────────────────────────────── */
 
 export async function releaseOrderInventory(orderId: string): Promise<void> {
-  const order = await Order.findOne({
-    _id: orderId,
-    inventoryReleased: false,
-  })
+  /* Atomic CAS: only the caller that flips `inventoryReleased` from false→true
+   * proceeds. Concurrent webhook + admin cancel cannot double-restore stock. */
+  const order = await Order.findOneAndUpdate(
+    { _id: orderId, inventoryReleased: false },
+    { $set: { inventoryReleased: true } },
+    { returnDocument: 'before', projection: { items: 1 } }
+  ).lean<{ items: IOrder['items'] } | null>()
 
   if (!order) return
-
-  const updated = await Order.updateOne(
-    { _id: orderId, inventoryReleased: false },
-    { $set: { inventoryReleased: true } }
-  )
-
-  if (updated.modifiedCount !== 1) return
 
   for (const item of order.items) {
     await restoreStock(
       { productId: item.productId, variantSku: item.variantSku, quantity: item.quantity },
       undefined,
-      { reason: 'order_cancelled', orderId: order._id }
+      { reason: 'order_cancelled', orderId }
     ).catch(err => {
       logger.warn({ err, orderId }, 'stock restore failed')
     })
@@ -458,12 +454,14 @@ export type StatusChangeResult =
 export async function transitionOrderStatus(
   input: StatusChangeInput
 ): Promise<StatusChangeResult> {
-  const order = await Order.findById(input.orderId)
-  if (!order) return { ok: false, code: 'NOT_FOUND', message: 'Order not found' }
+  const head = await Order.findById(input.orderId).select('status').lean<{ status: OrderStatus }>()
+  if (!head) return { ok: false, code: 'NOT_FOUND', message: 'Order not found' }
 
-  const previous = order.status as OrderStatus
+  const previous = head.status
   if (previous === input.nextStatus) {
-    return { ok: true, order: order.toObject() as IOrder, previousStatus: previous }
+    const same = await Order.findById(input.orderId).lean<IOrder>()
+    if (!same) return { ok: false, code: 'NOT_FOUND', message: 'Order not found' }
+    return { ok: true, order: same, previousStatus: previous }
   }
 
   const allowed = VALID_TRANSITIONS[previous] || []
@@ -496,15 +494,27 @@ export async function transitionOrderStatus(
     set.paymentStatus = 'failed'
   }
 
-  const updated = await Order.findByIdAndUpdate(
-    order._id,
+  /* Atomic compare-and-swap: only update if status is still `previous`.
+   * Prevents two concurrent transitions from both winning. */
+  const updated = await Order.findOneAndUpdate(
+    { _id: input.orderId, status: previous },
     { $set: set, $push: { statusHistory: entry } },
     { returnDocument: 'after' }
   ).lean<IOrder>()
 
-  if (!updated) return { ok: false, code: 'INTERNAL', message: 'Update failed' }
+  if (!updated) {
+    return { ok: false, code: 'INVALID_TRANSITION', message: 'Order status changed concurrently' }
+  }
 
-  // Fire status update email (non-blocking)
+  /* Restore inventory for terminal-with-stock states.
+   * Idempotent via the order's `inventoryReleased` flag. */
+  const RELEASE_INVENTORY: OrderStatus[] = ['cancelled', 'refunded', 'failed']
+  if (RELEASE_INVENTORY.includes(input.nextStatus)) {
+    await releaseOrderInventory(input.orderId).catch((err) =>
+      logger.warn({ err, orderId: input.orderId }, 'inventory release failed')
+    )
+  }
+
   const EMAIL_STATUSES = ['paid', 'shipped', 'delivered', 'cancelled', 'refunded']
   if (EMAIL_STATUSES.includes(input.nextStatus)) {
     void resolveOrderEmail(updated).then((recipient) => {

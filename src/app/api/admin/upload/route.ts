@@ -14,6 +14,14 @@ const MAX_SIZE_B   = MAX_SIZE_MB * 1024 * 1024
 type UploadFolder = 'products' | 'brands' | 'categories' | 'collections'
 const ALLOWED_FOLDERS: UploadFolder[] = ['products', 'brands', 'categories', 'collections']
 
+const PUBLIC_ID_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/
+
+function sanitizePublicId(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined
+  if (!PUBLIC_ID_PATTERN.test(raw)) return undefined
+  return raw
+}
+
 function configureCld() {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -90,8 +98,12 @@ export async function POST(req: NextRequest) {
 
     const file     = formData.get('file') as File | null
     const folder   = (formData.get('folder') as UploadFolder | null) ?? 'products'
-    const publicId = (formData.get('publicId') as string | null) ?? undefined
+    const rawId    = formData.get('publicId')
+    const publicId = sanitizePublicId(rawId)
 
+    if (rawId && !publicId) {
+      return apiError(400, { error: 'publicId must be 1-80 chars, alphanumeric, underscore or hyphen' })
+    }
     if (!file || file.size === 0) return apiError(400, { error: 'No file provided' })
     if (!ALLOWED_MIME.includes(file.type)) {
       return apiError(400, { error: `Unsupported file type: ${file.type}. Allowed: jpeg, png, webp, gif` })
@@ -146,14 +158,19 @@ export async function DELETE(req: NextRequest) {
     if (!admin) return apiError(403, { error: 'Forbidden' })
 
     const body = await req.json().catch(() => null)
-    const publicId = body?.publicId
-    if (!publicId || typeof publicId !== 'string') {
+    const rawId = body?.publicId
+    if (typeof rawId !== 'string' || !rawId) {
       return apiError(400, { error: 'publicId is required' })
+    }
+    // Cloudinary public IDs include the folder prefix (e.g. "products/abc_def").
+    // Allow one optional folder segment; reject path traversal.
+    if (!/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?$/.test(rawId) || rawId.length > 160) {
+      return apiError(400, { error: 'Invalid publicId format' })
     }
 
     configureCld()
-    await cloudinary.uploader.destroy(publicId)
-    logger.info({ publicId, adminId: admin._id }, 'Image deleted from Cloudinary')
+    await cloudinary.uploader.destroy(rawId)
+    logger.info({ publicId: rawId, adminId: admin._id }, 'Image deleted from Cloudinary')
 
     return NextResponse.json({ success: true })
   } catch (err) {

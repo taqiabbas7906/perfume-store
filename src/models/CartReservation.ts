@@ -31,11 +31,9 @@ const CartReservationSchema = new Schema<ICartReservation>(
   }
 )
 
-// Compound index for fast lookup by session + product + sku
-CartReservationSchema.index({ sessionKey: 1, productId: 1, variantSku: 1 })
-CartReservationSchema.index({ productId: 1, variantSku: 1 })
+CartReservationSchema.index({ sessionKey: 1, productId: 1, variantSku: 1 }, { unique: true })
+CartReservationSchema.index({ productId: 1, variantSku: 1, expiresAt: 1 })
 
-// MongoDB TTL — automatically deletes expired reservations
 CartReservationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
 const CartReservation: Model<ICartReservation> =

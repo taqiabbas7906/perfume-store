@@ -28,15 +28,21 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
 
   if (!cache.promise) {
+    const isProd = process.env.NODE_ENV === 'production'
     cache.promise = mongoose
       .connect(uri, {
         bufferCommands: false,
-        maxPoolSize: 10,
+        maxPoolSize: Number(process.env.MONGO_MAX_POOL ?? (isProd ? 50 : 10)),
+        minPoolSize: Number(process.env.MONGO_MIN_POOL ?? (isProd ? 5 : 0)),
         serverSelectionTimeoutMS: 5_000,
         socketTimeoutMS: 45_000,
+        maxIdleTimeMS: 60_000,
+        retryWrites: true,
+        retryReads: true,
+        compressors: ['zstd', 'zlib'],
+        appName: process.env.SERVICE_NAME ?? 'perfume-store',
       })
       .catch((err) => {
-        // Reset promise so a future call can retry.
         cache.promise = null
         throw err
       })
@@ -52,4 +58,25 @@ export async function disconnectDB(): Promise<void> {
     cache.conn = null
     cache.promise = null
   }
+}
+
+/* ─────────────────────────────────────────────
+ * GRACEFUL SHUTDOWN
+ *
+ * Registered once at module load. On SIGTERM/SIGINT we drain the Mongo pool
+ * before the process exits so in-flight queries complete cleanly.
+ * ───────────────────────────────────────────── */
+const globalForShutdown = globalThis as unknown as { __shutdownInstalled?: boolean }
+
+if (!globalForShutdown.__shutdownInstalled && typeof process !== 'undefined') {
+  globalForShutdown.__shutdownInstalled = true
+
+  const handler = (signal: NodeJS.Signals) => {
+    Promise.resolve(disconnectDB())
+      .catch(() => {})
+      .finally(() => process.exit(signal === 'SIGINT' ? 130 : 0))
+  }
+
+  process.once('SIGTERM', handler)
+  process.once('SIGINT', handler)
 }

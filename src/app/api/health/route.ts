@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
@@ -23,8 +24,9 @@ export async function GET() {
       },
     })
   } catch (err) {
+    logger.error({ err: (err as Error).message }, 'health check failed')
     return NextResponse.json(
-      { ok: false, error: (err as Error).message },
+      { ok: false, error: 'unhealthy' },
       { status: 503 }
     )
   }

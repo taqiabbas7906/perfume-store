@@ -150,21 +150,12 @@ export async function decrementStock(
   const v = validate(input)
   if (!v.ok) return false
 
-  // Get quantity before for logging
-  const before = await Product.findOne(
-    { _id: v.productId, 'variants.sku': input.variantSku },
-    { 'variants.$': 1 }
-  ).lean() as any
-  const quantityBefore: number = before?.variants?.[0]?.quantity ?? 0
-
-  const result = await Product.updateOne(
+  /* Single atomic op: decrement + capture the pre-update doc. */
+  const before = await Product.findOneAndUpdate(
     {
       _id: v.productId,
       variants: {
-        $elemMatch: {
-          sku: input.variantSku,
-          quantity: { $gte: input.quantity },
-        },
+        $elemMatch: { sku: input.variantSku, quantity: { $gte: input.quantity } },
       },
     },
     {
@@ -173,17 +164,21 @@ export async function decrementStock(
         totalStock: -input.quantity,
       },
     },
-    session ? { session } : {}
-  )
+    {
+      returnDocument: 'before',
+      projection: { 'variants.$': 1 },
+      ...(session ? { session } : {}),
+    }
+  ).lean() as any
 
-  const ok = result.modifiedCount === 1
-  if (ok) {
-    const quantityAfter = quantityBefore - input.quantity
-    // Fire-and-forget: log + low-stock check (don't block order flow)
-    void writeLog(v.productId, input.variantSku, -input.quantity, quantityBefore, quantityAfter, ctx)
-    void maybeSendLowStockAlert(v.productId, input.variantSku, quantityAfter)
-  }
-  return ok
+  if (!before) return false
+
+  const quantityBefore: number = before.variants?.[0]?.quantity ?? 0
+  const quantityAfter = quantityBefore - input.quantity
+
+  void writeLog(v.productId, input.variantSku, -input.quantity, quantityBefore, quantityAfter, ctx)
+  void maybeSendLowStockAlert(v.productId, input.variantSku, quantityAfter)
+  return true
 }
 
 /* ───────────────────────────────────────────── */
@@ -198,13 +193,7 @@ export async function restoreStock(
   const v = validate(input)
   if (!v.ok) return false
 
-  const before = await Product.findOne(
-    { _id: v.productId, 'variants.sku': input.variantSku },
-    { 'variants.$': 1 }
-  ).lean() as any
-  const quantityBefore: number = before?.variants?.[0]?.quantity ?? 0
-
-  const result = await Product.updateOne(
+  const before = await Product.findOneAndUpdate(
     { _id: v.productId, 'variants.sku': input.variantSku },
     {
       $inc: {
@@ -212,14 +201,18 @@ export async function restoreStock(
         totalStock: input.quantity,
       },
     },
-    session ? { session } : {}
-  )
+    {
+      returnDocument: 'before',
+      projection: { 'variants.$': 1 },
+      ...(session ? { session } : {}),
+    }
+  ).lean() as any
 
-  const ok = result.modifiedCount === 1
-  if (ok) {
-    void writeLog(v.productId, input.variantSku, +input.quantity, quantityBefore, quantityBefore + input.quantity, ctx)
-  }
-  return ok
+  if (!before) return false
+
+  const quantityBefore: number = before.variants?.[0]?.quantity ?? 0
+  void writeLog(v.productId, input.variantSku, +input.quantity, quantityBefore, quantityBefore + input.quantity, ctx)
+  return true
 }
 
 /* ───────────────────────────────────────────── */
@@ -234,35 +227,49 @@ export async function manualStockAdjustment(opts: {
   note?: string
 }): Promise<{ ok: boolean; quantityBefore: number; quantityAfter: number }> {
   const productId = toObjectId(opts.productId)
-  if (!productId) return { ok: false, quantityBefore: 0, quantityAfter: 0 }
+  if (!productId || !Number.isInteger(opts.newQuantity) || opts.newQuantity < 0) {
+    return { ok: false, quantityBefore: 0, quantityAfter: 0 }
+  }
 
-  const before = await Product.findOne(
+  /* Atomic: set the variant quantity and adjust totalStock by the same delta
+   * in one round trip, against the live document. */
+  const before = await Product.findOneAndUpdate(
     { _id: productId, 'variants.sku': opts.variantSku },
-    { name: 1, totalStock: 1, variants: 1 }
-  ) as any
+    [
+      {
+        $set: {
+          variants: {
+            $map: {
+              input: '$variants',
+              as: 'v',
+              in: {
+                $cond: [
+                  { $eq: ['$$v.sku', opts.variantSku] },
+                  { $mergeObjects: ['$$v', { quantity: opts.newQuantity }] },
+                  '$$v',
+                ],
+              },
+            },
+          },
+          totalStock: {
+            $add: [
+              { $subtract: ['$totalStock', { $ifNull: [{ $arrayElemAt: ['$variants.quantity', { $indexOfArray: ['$variants.sku', opts.variantSku] }] }, 0] }] },
+              opts.newQuantity,
+            ],
+          },
+        },
+      },
+    ],
+    { returnDocument: 'before', projection: { variants: 1 } }
+  ).lean() as any
 
   if (!before) return { ok: false, quantityBefore: 0, quantityAfter: 0 }
 
-  const variantIdx = before.variants.findIndex((v: any) => v.sku === opts.variantSku)
-  if (variantIdx === -1) return { ok: false, quantityBefore: 0, quantityAfter: 0 }
+  const variant = before.variants.find((v: any) => v.sku === opts.variantSku)
+  if (!variant) return { ok: false, quantityBefore: 0, quantityAfter: 0 }
 
-  const quantityBefore: number = before.variants[variantIdx].quantity
+  const quantityBefore: number = variant.quantity
   const delta = opts.newQuantity - quantityBefore
-
-  // Rebuild totalStock from all variants with the new quantity
-  const newTotalStock = before.variants.reduce((sum: number, v: any, i: number) => {
-    return sum + (i === variantIdx ? opts.newQuantity : v.quantity)
-  }, 0)
-
-  await Product.updateOne(
-    { _id: productId, 'variants.sku': opts.variantSku },
-    {
-      $set: {
-        'variants.$.quantity': opts.newQuantity,
-        totalStock: newTotalStock,
-      },
-    }
-  )
 
   void writeLog(productId, opts.variantSku, delta, quantityBefore, opts.newQuantity, {
     reason: delta >= 0 ? 'restock' : 'manual_adjustment',
@@ -270,7 +277,7 @@ export async function manualStockAdjustment(opts: {
     note: opts.note,
   })
 
-  if (opts.newQuantity <= (before.variants[variantIdx].lowStockThreshold ?? 5)) {
+  if (opts.newQuantity <= (variant.lowStockThreshold ?? 5)) {
     void maybeSendLowStockAlert(productId, opts.variantSku, opts.newQuantity)
   }
 

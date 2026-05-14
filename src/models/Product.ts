@@ -126,9 +126,14 @@ const ProductSchema = new Schema<IProduct>(
  * ───────────────────────────────────────────── */
 ProductSchema.index({ active: 1, category: 1 })
 ProductSchema.index({ active: 1, brand: 1 })
-
-// ✅ SAFE: NO unique array index
+ProductSchema.index({ active: 1, createdAt: -1 })
+ProductSchema.index({ active: 1, featured: 1, createdAt: -1 })
+ProductSchema.index({ active: 1, minPrice: 1 })
 ProductSchema.index({ 'variants.sku': 1 })
+ProductSchema.index(
+  { name: 'text', brand: 'text', description: 'text', tags: 'text' },
+  { weights: { name: 10, brand: 5, tags: 3, description: 1 } }
+)
 
 /* ─────────────────────────────────────────────
  * PRE-SAVE HOOK

@@ -4,8 +4,8 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Order from '@/models/Order'
-
-const REVENUE_STATUSES = ['paid', 'shipped', 'delivered']
+import { REVENUE_STATUSES } from '@/lib/constants'
+import { getPeriodRange } from '@/lib/utils/period'
 
 /* ─────────────────────────────────────────────────────────────
  * GET /api/admin/analytics/geo
@@ -22,15 +22,7 @@ export async function GET(req: NextRequest) {
 
     await connectDB()
 
-    const period = req.nextUrl.searchParams.get('period') ?? '30d'
-
-    const now   = new Date()
-    const start = new Date()
-    if (period === 'today')      start.setHours(0, 0, 0, 0)
-    else if (period === '7d')    start.setDate(now.getDate() - 7)
-    else if (period === '90d')   start.setDate(now.getDate() - 90)
-    else if (period === '1y')    start.setFullYear(now.getFullYear() - 1)
-    else                         start.setDate(now.getDate() - 30)
+    const { now, start, period } = getPeriodRange(req.nextUrl.searchParams.get('period'))
 
     const countries = await Order.aggregate([
       { $match: { status: { $in: REVENUE_STATUSES }, createdAt: { $gte: start, $lte: now } } },

@@ -52,7 +52,8 @@ const InventoryLogSchema = new Schema<IInventoryLog>(
 )
 
 InventoryLogSchema.index({ productId: 1, createdAt: -1 })
-InventoryLogSchema.index({ orderId: 1 })
+InventoryLogSchema.index({ orderId: 1, createdAt: -1 }, { sparse: true })
+InventoryLogSchema.index({ adminId: 1, createdAt: -1 }, { sparse: true })
 InventoryLogSchema.index({ createdAt: -1 })
 
 const InventoryLog: Model<IInventoryLog> =

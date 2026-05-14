@@ -7,6 +7,7 @@ import { productCreateSchema, productListQuerySchema } from '@/lib/validators'
 import { rateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 import { syncProductToAlgolia } from '@/lib/algolia'
+import { escapeRegex } from '@/lib/utils/regex'
 
 const PUBLIC_FIELDS = '-__v -variants.options._raw'
 
@@ -244,8 +245,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/* ───────────────────────────────────────────── */
-
-function escapeRegex(input: string) {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}

@@ -17,18 +17,21 @@ export async function GET(req: NextRequest) {
 
   try {
     await connectDB()
-    const admin = await getAuthAdmin(req)
     const user = await getAuthUser(req)
+    if (!user) return apiError(401, { error: 'Unauthorized' })
 
-    if (admin) {
-      const orders = await Order.find({}).sort({ createdAt: -1 }).lean()
-      return NextResponse.json({ success: true, orders })
-    } else if (user) {
-      const orders = await Order.find({ user: user._id }).sort({ createdAt: -1 }).lean()
-      return NextResponse.json({ success: true, orders })
-    } else {
-      return apiError(401, { error: 'Unauthorized' })
-    }
+    const sp     = req.nextUrl.searchParams
+    const page   = Math.max(1, parseInt(sp.get('page') ?? '1'))
+    const limit  = Math.min(100, Math.max(1, parseInt(sp.get('limit') ?? '50')))
+    const filter = user.role === 'admin' ? {} : { user: user._id }
+
+    const orders = await Order.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+
+    return NextResponse.json({ success: true, orders })
   } catch (err) {
     logRouteError('GET /api/orders', err)
     return apiError(500, { error: 'Internal server error' })

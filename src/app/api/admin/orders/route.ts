@@ -6,6 +6,7 @@ import Order from '@/models/Order'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { validateData } from '@/lib/validate'
 import { adminOrderListQuerySchema } from '@/lib/validators'
+import { escapeRegex } from '@/lib/utils/regex'
 
 /**
  * GET /api/admin/orders
@@ -66,6 +67,7 @@ export async function GET(req: NextRequest) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .select('-statusHistory -orderLog -__v')
         .populate('user', 'name email')
         .lean(),
       Order.countDocuments(filter),
@@ -87,6 +89,3 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}

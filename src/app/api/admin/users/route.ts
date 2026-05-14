@@ -5,6 +5,7 @@ import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { validateData } from '@/lib/validate'
 import { adminUserListQuerySchema } from '@/lib/validators'
+import { escapeRegex } from '@/lib/utils/regex'
 import User from '@/models/User'
 
 const USER_PROJECTION = {
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
     if (active !== undefined) filter.active = active === 'true'
 
     if (q) {
-      const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const safe = escapeRegex(q)
       filter.$or = [
         { name: { $regex: safe, $options: 'i' } },
         { email: { $regex: safe, $options: 'i' } },

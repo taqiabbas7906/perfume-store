@@ -126,10 +126,6 @@ export default function SearchBar() {
                         <p className="text-sm font-medium text-gray-900 truncate">{hit.name}</p>
                         <p className="text-xs text-gray-500 truncate">{hit.brand}</p>
                       </div>
-                      {/* Price */}
-                      <span className="text-sm font-semibold text-gray-900 shrink-0">
-                        ${hit.minPrice?.toFixed(2)}
-                      </span>
                     </Link>
                   </li>
                 ))}
