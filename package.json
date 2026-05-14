@@ -9,10 +9,13 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run lint && npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.2",
+    "@sentry/nextjs": "^10.53.1",
     "@stripe/stripe-js": "^9.3.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
@@ -39,9 +42,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ua-parser-js": "^0.7.39",
+    "@vitest/coverage-v8": "^4.1.6",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.6"
   }
 }

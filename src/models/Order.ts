@@ -103,6 +103,12 @@ const OrderSchema = new Schema<IOrder>(
       trim: true,
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     },
+    guestSessionId: {
+      type: String,
+      required: false,
+      trim: true,
+      maxlength: 128,
+    },
 
     items: {
       type: [OrderItemSchema],
@@ -219,6 +225,7 @@ OrderSchema.index({ paymentIdempotencyKey: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ squarePaymentId: 1 }, { unique: true, sparse: true })
 OrderSchema.index({ paymentIntentId: 1 }, { sparse: true })
 OrderSchema.index({ user: 1, createdAt: -1 })
+OrderSchema.index({ guestSessionId: 1, createdAt: -1 }, { sparse: true })
 OrderSchema.index({ status: 1, createdAt: -1 })
 OrderSchema.index({ createdAt: -1 })
 OrderSchema.index({ 'items.productId': 1, status: 1, createdAt: -1 })

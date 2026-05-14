@@ -41,13 +41,19 @@ export async function POST(req: NextRequest) {
       return apiError(400, { error: 'Invalid orderId' })
     }
 
-    // For guests: verify this order belongs to them via guestEmail in body or order lookup
+    // Guests must prove ownership via the session that placed the order.
     let actorId: string
     if (user) {
       actorId = String(user._id)
     } else {
-      // Look up the order to get its guestEmail as the actor identifier
-      const order = await Order.findById(v.data.orderId).lean<{ guestEmail?: string }>()
+      if (!sessionId) {
+        return apiError(401, { error: 'Cart session required for guest payment' })
+      }
+      const order = await Order.findOne({
+        _id: v.data.orderId,
+        guestSessionId: sessionId,
+      }).select('guestEmail').lean<{ guestEmail?: string }>()
+
       if (!order?.guestEmail) {
         return apiError(404, { error: 'Order not found' })
       }

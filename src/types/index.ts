@@ -212,6 +212,7 @@ export interface IOrder {
   _id: Types.ObjectId
   user?: Types.ObjectId | IUser
   guestEmail?: string
+  guestSessionId?: string
 
   items: IOrderItem[]
   shippingAddress: IShippingAddress

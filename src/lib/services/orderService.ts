@@ -18,6 +18,7 @@ import type { ICart, IOrder, IOrderStatusEntry, IProduct, IShippingAddress, Orde
 import type { IOrderLog } from '@/types'
 import { logger } from '@/lib/logger'
 import { sendEmail, buildOrderConfirmationEmail, buildStatusUpdateEmail } from '@/lib/email'
+import { getWorldRates } from '@/lib/worldRates'
 
 /* ───────────────────────────────────────────── */
 
@@ -275,11 +276,29 @@ export async function createOrder(
   const shippingCost = (hasFreeShippingVoucher || allProductsHaveFreeDelivery)
     ? 0
     : round2(input.shippingAmount ?? 0)
-  const taxCost = round2(input.taxAmount ?? 0)
+
+  /* SERVER-SIDE TAX COMPUTATION
+   *
+   * Never trust client-supplied taxAmount — a malicious payload could pass a
+   * negative value to discount the order. Recompute from the shipping
+   * country (state field not yet captured → US falls back to 0). */
+  let taxCost = 0
+  try {
+    const taxableBase = Math.max(0, round2(subtotal - discount))
+    const rates = await getWorldRates({
+      country: input.shippingAddress.country,
+      subtotal: taxableBase,
+    })
+    taxCost = round2(rates.tax.amount)
+  } catch (err) {
+    logger.warn({ err, country: input.shippingAddress.country }, 'tax computation failed; defaulting to 0')
+    taxCost = 0
+  }
 
     const orderPayload: any = {
       user: userId,
       guestEmail: input.guestEmail,
+      guestSessionId: userId ? undefined : input.sessionId,
 
       items: lines.map((l) => ({
         productId: l.productId,
