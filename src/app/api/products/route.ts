@@ -89,6 +89,12 @@ export async function GET(req: NextRequest) {
         case 'price_desc':
           return { minPrice: -1, _id: -1 }
 
+        case 'name_asc':
+          return { name: 1, _id: 1 }
+
+        case 'name_desc':
+          return { name: -1, _id: -1 }
+
         case 'oldest':
           return { createdAt: 1, _id: 1 }
 

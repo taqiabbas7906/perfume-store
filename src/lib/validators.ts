@@ -260,7 +260,7 @@ export const productListQuerySchema = z.object({
   collectionId: z.string().optional(),
   skinType: z.string().optional(),
   sort: z
-    .enum(['price_asc', 'price_desc', 'newest', 'oldest', 'rating', 'popular', 'relevance'])
+    .enum(['price_asc', 'price_desc', 'name_asc', 'name_desc', 'newest', 'oldest', 'rating', 'popular', 'relevance'])
     .default('newest'),
 })
 

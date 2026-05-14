@@ -129,6 +129,7 @@ ProductSchema.index({ active: 1, brand: 1 })
 ProductSchema.index({ active: 1, createdAt: -1 })
 ProductSchema.index({ active: 1, featured: 1, createdAt: -1 })
 ProductSchema.index({ active: 1, minPrice: 1 })
+ProductSchema.index({ active: 1, name: 1 })
 ProductSchema.index({ 'variants.sku': 1 })
 ProductSchema.index(
   { name: 'text', brand: 'text', description: 'text', tags: 'text' },
