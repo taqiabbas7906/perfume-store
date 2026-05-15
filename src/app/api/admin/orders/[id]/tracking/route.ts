@@ -21,7 +21,7 @@ type Ctx = { params: Promise<{ id: string }> }
  *   - sends a shipping confirmation email (best effort)
  */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const limited = await ordersRateLimit(req)
+  const limited = await ordersRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {

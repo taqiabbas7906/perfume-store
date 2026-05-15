@@ -17,7 +17,7 @@ const validateVoucherSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const limited = await ordersRateLimit(req)
+  const limited = await ordersRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {

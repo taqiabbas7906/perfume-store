@@ -19,7 +19,7 @@ export function withCors(req: NextRequest, res: NextResponse): NextResponse {
     if (isAllowed) {
       res.headers.set('Access-Control-Allow-Origin', origin)
       res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-user-id, x-cart-session, x-idempotency-key')
+      res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-cart-session, x-idempotency-key')
       res.headers.set('Access-Control-Allow-Credentials', 'true')
     }
   }

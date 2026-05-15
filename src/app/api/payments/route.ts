@@ -17,7 +17,7 @@ import mongoose from 'mongoose'
 import Order from '@/models/Order'
 
 export async function POST(req: NextRequest) {
-  const limited = await paymentsRateLimit(req)
+  const limited = await paymentsRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {
@@ -126,10 +126,9 @@ export async function POST(req: NextRequest) {
         success: false,
         error: result.message,
         code: result.code,
-        providerError: result.providerError,
       }
 
-      await failIdempotency({ key: idemKey, status, response: responseBody })
+      await failIdempotency({ key: idemKey, scope: 'payment', status, response: responseBody })
 
       return NextResponse.json(responseBody, { status })
     }
@@ -149,6 +148,7 @@ export async function POST(req: NextRequest) {
 
     await completeIdempotency({
       key: idemKey,
+      scope: 'payment',
       status: 200,
       response: responseBody,
       resourceId: v.data.orderId,

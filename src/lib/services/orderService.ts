@@ -145,6 +145,33 @@ async function normalizeLines(
 /* CREATE ORDER (SAFE + IDENTITY GUARANTEED) */
 /* ───────────────────────────────────────────── */
 
+async function calculateServerShipping(args: {
+  subtotal: number
+  discount: number
+  shippingAddress: IShippingAddress
+  requestedAmount?: number
+  forceFree: boolean
+}): Promise<number> {
+  if (args.forceFree) return 0
+
+  const taxableBase = Math.max(0, round2(args.subtotal - args.discount))
+  const rates = await getWorldRates({
+    country: args.shippingAddress.country,
+    state: args.shippingAddress.state,
+    subtotal: taxableBase,
+  })
+
+  const requested = round2(args.requestedAmount ?? Number.NaN)
+  const allowed = rates.shipping.map((option) => round2(option.price))
+
+  if (Number.isFinite(requested) && allowed.includes(requested)) {
+    return requested
+  }
+
+  const standard = rates.shipping[0]?.price
+  return round2(typeof standard === 'number' ? standard : 0)
+}
+
 export async function createOrder(
   input: CreateOrderInput
 ): Promise<CreateOrderResult> {
@@ -272,28 +299,31 @@ export async function createOrder(
         sku: dec.failedSku,
       }
     }
-
-  const shippingCost = (hasFreeShippingVoucher || allProductsHaveFreeDelivery)
-    ? 0
-    : round2(input.shippingAmount ?? 0)
-
-  /* SERVER-SIDE TAX COMPUTATION
-   *
-   * Never trust client-supplied taxAmount — a malicious payload could pass a
-   * negative value to discount the order. Recompute from the shipping
-   * country (state field not yet captured → US falls back to 0). */
-  let taxCost = 0
-  try {
-    const taxableBase = Math.max(0, round2(subtotal - discount))
-    const rates = await getWorldRates({
-      country: input.shippingAddress.country,
-      subtotal: taxableBase,
+    const shippingCost = await calculateServerShipping({
+      subtotal,
+      discount,
+      shippingAddress: input.shippingAddress,
+      requestedAmount: input.shippingAmount,
+      forceFree: hasFreeShippingVoucher || allProductsHaveFreeDelivery,
     })
-    taxCost = round2(rates.tax.amount)
-  } catch (err) {
-    logger.warn({ err, country: input.shippingAddress.country }, 'tax computation failed; defaulting to 0')
-    taxCost = 0
-  }
+
+    /* SERVER-SIDE TAX COMPUTATION
+     *
+     * Never trust client-supplied taxAmount. A malicious payload could pass a
+     * negative value to discount the order. Recompute from the shipping address. */
+    let taxCost = 0
+    try {
+      const taxableBase = Math.max(0, round2(subtotal - discount))
+      const rates = await getWorldRates({
+        country: input.shippingAddress.country,
+        state: input.shippingAddress.state,
+        subtotal: taxableBase,
+      })
+      taxCost = round2(rates.tax.amount)
+    } catch (err) {
+      logger.warn({ err, country: input.shippingAddress.country }, 'tax computation failed; defaulting to 0')
+      taxCost = 0
+    }
 
     const orderPayload: any = {
       user: userId,

@@ -291,6 +291,7 @@ export const shippingAddressSchema = z.object({
   name: z.string().min(2).max(50).trim(),
   address: z.string().min(5).max(200).trim(),
   city: z.string().min(2).max(50).trim(),
+  state: z.string().min(2).max(50).trim().optional(),
   country: z.string().min(2).max(50).trim(),
   zip: z.string().min(3).max(10).trim(),
   phone: internationalPhoneSchema,
