@@ -70,7 +70,7 @@ const IdempotencySchema = new Schema<IIdempotencyKey>(
 /**
  * Ensures true idempotency under race conditions
  */
-IdempotencySchema.index({ scope: 1, key: 1 }, { unique: true })
+IdempotencySchema.index({ key: 1 }, { unique: true })
 
 /**
  * Helps debugging + partitioning by scope

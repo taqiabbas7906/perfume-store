@@ -5,31 +5,51 @@ import { IUser } from '@/types'
 import { verifyIdToken } from '@/lib/firebaseAdmin'
 
 /**
- * Resolve the authenticated user by verifying the Firebase Bearer token inside
- * the route handler. Request identity headers such as x-user-id are intentionally
- * ignored because they are spoofable if proxy.ts is bypassed or misconfigured.
+ * Auth resolution order:
+ *
+ * 1. x-user-id (ONLY trusted if injected by proxy AFTER Firebase verification)
+ * 2. Authorization Bearer token (fallback for direct API calls or bypass cases)
+ *
+ * This function is safe even if proxy.ts is NOT running.
  */
+
 export async function getAuthUser(req: NextRequest): Promise<IUser | null> {
-  const authHeader = req.headers.get('authorization')
-
-  if (!authHeader?.toLowerCase().startsWith('bearer ')) {
-    return null
-  }
-
-  const token = authHeader.slice(7).trim()
-  if (!token) return null
-
   let uid: string | null = null
 
-  try {
-    const decoded = await verifyIdToken(token)
-    uid = decoded?.uid ?? null
-  } catch {
-    return null
+  /* ─────────────────────────────────────────────
+   * 1. Proxy-injected identity (fast path)
+   * ───────────────────────────────────────────── */
+  const uidHeader = req.headers.get('x-user-id')
+
+  if (uidHeader && typeof uidHeader === 'string') {
+    uid = uidHeader.trim()
+  }
+
+  /* ─────────────────────────────────────────────
+   * 2. Fallback: verify Firebase token directly
+   * ───────────────────────────────────────────── */
+  if (!uid) {
+    const authHeader = req.headers.get('authorization')
+
+    if (authHeader?.toLowerCase().startsWith('bearer ')) {
+      const token = authHeader.slice(7).trim()
+
+      if (!token) return null
+
+      try {
+        const decoded = await verifyIdToken(token)
+        uid = decoded?.uid ?? null
+      } catch {
+        return null
+      }
+    }
   }
 
   if (!uid) return null
 
+  /* ─────────────────────────────────────────────
+   * 3. DB lookup (single consistent source of truth)
+   * ───────────────────────────────────────────── */
   await connectDB()
 
   const user = await User.findOne({
@@ -50,6 +70,8 @@ export function getGuestSessionId(req: NextRequest): string | null {
   if (!/^[A-Za-z0-9_\-:.]+$/.test(sid)) return null
   return sid
 }
+
+/* ───────────────────────────────────────────── */
 
 export async function getAuthAdmin(req: NextRequest): Promise<IUser | null> {
   const user = await getAuthUser(req)

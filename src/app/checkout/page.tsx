@@ -407,7 +407,6 @@ export default function CheckoutPage() {
             name: addr.name,
             address: addr.line1,
             city: addr.city,
-            state: addr.state || undefined,
             country: addr.country,
             zip: addr.zip,
             phone: fullPhone,

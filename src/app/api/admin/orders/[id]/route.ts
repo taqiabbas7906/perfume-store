@@ -15,7 +15,7 @@ const STATUSES: OrderStatus[] = [
 ]
 
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
  * Body: { status: OrderStatus, note?: string }
  */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {
