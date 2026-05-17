@@ -41,11 +41,11 @@ const cspDirectives = [
   "default-src 'self'",
   `script-src ${scriptSrc.join(' ')}`,
 
-  // Styles — Google Fonts + Apple
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://appleid.cdn-apple.com",
+  // Styles — Google Fonts + Apple + Remixicon CDN
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net",
 
-  // Fonts
-  "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com",
+  // Fonts (Remixicon shipped from /public, Google fonts via next/font self-hosted)
+  "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net",
 
   // API calls made by Firebase SDK, Facebook SDK, Apple JS
   [
@@ -132,6 +132,13 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.facebook.com' },
       // Apple
       { protocol: 'https', hostname: 'appleid.apple.com' },
+      // Readdy AI generated imagery used by the storefront
+      { protocol: 'https', hostname: 'readdy.ai' },
+      // Stock/CDN imagery commonly used in seed data
+      { protocol: 'https', hostname: 'images.unsplash.com' },
+      { protocol: 'https', hostname: 'plus.unsplash.com' },
+      { protocol: 'https', hostname: 'picsum.photos' },
+      { protocol: 'https', hostname: 'images.pexels.com' },
     ],
   },
 
