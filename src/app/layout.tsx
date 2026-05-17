@@ -1,43 +1,58 @@
-import type { Metadata } from 'next'
-import { Cormorant_Garamond, Montserrat } from 'next/font/google'
-import { AuthProvider } from '@/context/AuthContext'
-import { CartProvider } from '@/context/CartContext'
-import { SearchProvider } from '@/context/SearchContext'
-import SiteShell from '@/components/layout/SiteShell'
+'use client'
+
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+import Link from 'next/link'
+import { logout } from '@/lib/logout'
+import { smartFetch } from '@/lib/api'
+import { useState, useEffect } from 'react'
+import SearchBar from '@/components/SearchBar'
 import './globals.css'
 
-const cormorant = Cormorant_Garamond({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-cormorant',
-  display: 'swap',
-})
+function Navbar() {
+  const { user, loading } = useAuth()
+  const [cartCount, setCartCount] = useState(0)
 
-const montserrat = Montserrat({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-montserrat',
-  display: 'swap',
-})
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await smartFetch('/api/cart')
+        const data = await res.json()
+        if (data.success) setCartCount(data.itemCount ?? 0)
+      } catch {}
+    }
+    if (!loading) fetchCount()
+  }, [user, loading])
 
-export const metadata: Metadata = {
-  title: {
-    default: 'Inscentives — Luxury Niche & Designer Perfumes',
-    template: '%s | Inscentives',
-  },
-  description:
-    'Discover the world\'s most coveted niche and designer fragrances. Authentic scents, honest prices, always free shipping.',
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-  ),
-  openGraph: {
-    type: 'website',
-    siteName: 'Inscentives',
-    title: 'Inscentives — Luxury Niche & Designer Perfumes',
-    description:
-      'Authentic niche and designer fragrances, curated for the discerning few.',
-  },
-  twitter: { card: 'summary_large_image' },
+  return (
+    <nav className="bg-gray-800 text-white">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-xl font-bold shrink-0">Perfume Store</Link>
+          <SearchBar />
+          <div className="flex items-center gap-6 shrink-0">
+            <Link href="/products" className="hover:text-gray-300">Products</Link>
+            <Link href="/cart" className="hover:text-gray-300 relative">
+              Cart
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-4 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </Link>
+            {user && (
+              <>
+                <Link href="/account" className="hover:text-gray-300">Account</Link>
+                <button onClick={logout} className="hover:text-gray-300">Logout</button>
+              </>
+            )}
+            {!user && !loading && (
+              <Link href="/login" className="hover:text-gray-300">Login</Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  )
 }
 
 export default function RootLayout({
@@ -46,28 +61,17 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html
-      lang="en"
-      className={`${cormorant.variable} ${montserrat.variable}`}
-    >
+    <html lang="en">
       <head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css"
-        />
         <script
           type="text/javascript"
           src="https://sandbox.web.squarecdn.com/v1/square.js"
-          async
-        />
+        ></script>
       </head>
-      <body className="font-sans bg-white text-ink antialiased">
+      <body>
         <AuthProvider>
-          <CartProvider>
-            <SearchProvider>
-              <SiteShell>{children}</SiteShell>
-            </SearchProvider>
-          </CartProvider>
+          <Navbar />
+          <main>{children}</main>
         </AuthProvider>
       </body>
     </html>
