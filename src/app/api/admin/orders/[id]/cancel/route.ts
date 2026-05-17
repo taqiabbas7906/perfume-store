@@ -17,7 +17,7 @@ type Ctx = { params: Promise<{ id: string }> }
  * Cancels an order, restores inventory, sends customer email.
  */
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const limited = await ordersRateLimit(req)
+  const limited = await ordersRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return apiError(status, { error: result.message, code: result.code })
     }
 
-    // Best-effort email notification — fire and forget
+    // Best-effort email notification â€” fire and forget
     void (async () => {
       try {
         const order = await Order.findById(id).populate('user', 'email').lean<IOrder & { user?: IUser }>()

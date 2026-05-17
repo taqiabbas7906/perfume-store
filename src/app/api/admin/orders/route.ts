@@ -15,13 +15,13 @@ import { escapeRegex } from '@/lib/utils/regex'
  * Query params:
  *   status?     OrderStatus
  *   country?    ISO country code or full name (matched against shippingAddress.country)
- *   startDate?  ISO datetime — orders created on/after
- *   endDate?    ISO datetime — orders created on/before
+ *   startDate?  ISO datetime â€” orders created on/after
+ *   endDate?    ISO datetime â€” orders created on/before
  *   q?          free-text search (order id suffix, customer email, tracking number)
  *   page, limit pagination
  */
 export async function GET(req: NextRequest) {
-  const limited = await ordersRateLimit(req)
+  const limited = await ordersRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {
@@ -88,4 +88,3 @@ export async function GET(req: NextRequest) {
     return apiError(500, { error: 'Internal server error' })
   }
 }
-

@@ -21,6 +21,10 @@ import VoucherUsage from '@/models/VoucherUsage'
  */
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return apiError(404, { error: 'Not found' })
+    }
+
     await connectDB()
     const admin = await getAuthAdmin(req)
     if (!admin) return apiError(403, { error: 'Forbidden' })
@@ -169,7 +173,12 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     return NextResponse.json(
-      { error: 'seed failed', message: (err as Error).message },
+      {
+        error: 'seed failed',
+        ...(process.env.NODE_ENV !== 'production'
+          ? { message: (err as Error).message }
+          : {}),
+      },
       { status: 500 }
     )
   }
@@ -177,6 +186,10 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return apiError(404, { error: 'Not found' })
+    }
+
     await connectDB()
     const admin = await getAuthAdmin(req)
     if (!admin) return apiError(403, { error: 'Forbidden' })
@@ -195,7 +208,12 @@ export async function GET(req: NextRequest) {
     })
   } catch (err) {
     return NextResponse.json(
-      { error: 'failed to get seed status', message: (err as Error).message },
+      {
+        error: 'failed to get seed status',
+        ...(process.env.NODE_ENV !== 'production'
+          ? { message: (err as Error).message }
+          : {}),
+      },
       { status: 500 }
     )
   }

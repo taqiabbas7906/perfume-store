@@ -5,27 +5,27 @@ import { ingestSquareEvent } from '@/lib/services/webhookService'
 import { logger } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
-  const limited = await webhooksRateLimit(req)
+  const limited = await webhooksRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {
     await connectDB()
 
-    // ❌ Guard: reject non-POST safety (defensive)
+    // Guard: reject non-POST requests defensively
     if (req.method !== 'POST') {
       return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
     }
 
     const rawBody = await req.text()
 
-    // ❌ Guard: prevent empty payload attacks
+    // Guard: prevent empty payload attacks
     if (!rawBody || rawBody.length < 2) {
       return NextResponse.json({ error: 'Empty payload' }, { status: 400 })
     }
 
     const signature = req.headers.get('x-square-hmacsha256-signature') || ''
 
-    // ❌ Guard: reject missing signature early
+    // Guard: reject missing signature early
     if (!signature) {
       logger.warn('Missing Square webhook signature')
       return NextResponse.json(
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
 
     const notificationUrl =
       process.env.SQUARE_WEBHOOK_NOTIFICATION_URL ||
+      process.env.SQUARE_WEBHOOK_URL ||
       `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/square`
 
     const result = await ingestSquareEvent({
@@ -90,9 +91,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/* ───────────────────────────────────────────── */
 /* HEALTH CHECK */
-/* ───────────────────────────────────────────── */
 
 export async function GET() {
   return NextResponse.json({ ok: true })

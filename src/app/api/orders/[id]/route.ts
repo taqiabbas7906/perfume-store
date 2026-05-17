@@ -8,7 +8,7 @@ import { apiError, logRouteError } from '@/lib/apiError'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const limited = await ordersRateLimit(req)
+  const limited = await ordersRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {

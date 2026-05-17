@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { paymentsRateLimit } from '@/lib/rateLimit'
-import { getAuthAdmin, getAuthUser } from '@/lib/getAuthUser'
+import { getAuthAdmin, getAuthUser, getGuestSessionId } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Order from '@/models/Order'
 import mongoose from 'mongoose'
@@ -20,19 +20,19 @@ const PAYMENT_PROJECTION = {
   paidAt: 1,
   user: 1,
   guestEmail: 1,
+  guestSessionId: 1,
 } as const
 
 /**
  * GET /api/payments/[orderId]
  *
  * Auth:
- *   - Admin   — any order
- *   - User    — own orders only (order.user === user._id)
- *   - Guest   — orderId acts as the bearer token; ObjectId is 24-hex chars,
- *               not guessable, and this endpoint returns no PII beyond totals.
+ *   - Admin - any order
+ *   - User  - own orders only
+ *   - Guest - must present the cart session that created the order
  */
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const limited = await paymentsRateLimit(req)
+  const limited = await paymentsRateLimit(req, { failClosed: true })
   if (limited) return limited
 
   try {
@@ -46,17 +46,25 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     const admin = await getAuthAdmin(req)
     const user = admin ?? await getAuthUser(req)
+    const guestSessionId = getGuestSessionId(req)
 
     const order = await Order.findById(orderId)
       .select(PAYMENT_PROJECTION)
-      .lean<Pick<IOrder, '_id' | 'status' | 'paymentStatus' | 'squarePaymentId' | 'paymentIntentId' | 'paymentError' | 'totalAmount' | 'currency' | 'paidAt' | 'user' | 'guestEmail'>>()
+      .lean<Pick<IOrder, '_id' | 'status' | 'paymentStatus' | 'squarePaymentId' | 'paymentIntentId' | 'paymentError' | 'totalAmount' | 'currency' | 'paidAt' | 'user' | 'guestEmail' | 'guestSessionId'>>()
 
     if (!order) return apiError(404, { error: 'Order not found' })
 
-    // Authenticated users can only see their own orders (admins bypass)
+    // Authenticated users can only see their own orders (admins bypass).
     if (user && !admin) {
       if (!order.user || order.user.toString() !== user._id.toString()) {
         return apiError(403, { error: 'Forbidden' })
+      }
+    }
+
+    // Guests must present the same cart session that created the order.
+    if (!user) {
+      if (!guestSessionId || order.guestSessionId !== guestSessionId) {
+        return apiError(404, { error: 'Order not found' })
       }
     }
 
