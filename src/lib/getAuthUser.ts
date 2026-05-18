@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import User from '@/models/User'
 import { IUser } from '@/types'
 import { verifyIdToken } from '@/lib/firebaseAdmin'
+import { ensureUserFromDecoded } from '@/lib/auth'
 
 /**
  * Resolve the authenticated user by verifying the Firebase Bearer token inside
@@ -19,15 +20,15 @@ export async function getAuthUser(req: NextRequest): Promise<IUser | null> {
   const token = authHeader.slice(7).trim()
   if (!token) return null
 
-  let uid: string | null = null
+  let decoded: Awaited<ReturnType<typeof verifyIdToken>> | null = null
 
   try {
-    const decoded = await verifyIdToken(token)
-    uid = decoded?.uid ?? null
+    decoded = await verifyIdToken(token)
   } catch {
     return null
   }
 
+  const uid = decoded?.uid
   if (!uid) return null
 
   await connectDB()
@@ -39,7 +40,9 @@ export async function getAuthUser(req: NextRequest): Promise<IUser | null> {
     .select('-password -__v')
     .lean<IUser>()
 
-  return user
+  if (user) return user
+
+  return ensureUserFromDecoded(decoded)
 }
 
 export function getGuestSessionId(req: NextRequest): string | null {

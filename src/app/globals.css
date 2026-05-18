@@ -88,7 +88,6 @@ body {
 }
 
 a {
-  color: inherit;
   text-decoration: none;
 }
 
@@ -146,6 +145,15 @@ img {
   }
 }
 
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .animate-fadeIn {
   animation: var(--animate-fade-in);
 }
@@ -156,6 +164,25 @@ img {
 
 .animate-bounce-once {
   animation: var(--animate-bounce-once);
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(
+    90deg,
+    var(--color-cream-400) 0%,
+    var(--color-cream-200) 45%,
+    var(--color-cream-400) 90%
+  );
+  background-size: 220% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+  }
 }
 
 .group:hover .group-hover\:scale-108 {

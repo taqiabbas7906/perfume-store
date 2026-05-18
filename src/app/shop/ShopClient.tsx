@@ -4,20 +4,52 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ShopFilters from '@/components/sections/shop/ShopFilters'
 import ShopGrid from '@/components/sections/shop/ShopGrid'
+import { ProductGridSkeleton, Skeleton } from '@/components/ui/Skeleton'
 import type {
   StorefrontBrand,
-  StorefrontCategory,
   StorefrontProduct,
   StorefrontPagination,
 } from '@/types/storefront'
 
 const DEFAULT_MAX = 1000
 
+function ShopShellSkeleton() {
+  return (
+    <>
+      <div className="pt-32 pb-10 px-6 bg-[var(--color-cream-600)] border-b border-[var(--color-border-soft)]">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-px w-6" />
+            <Skeleton className="h-3 w-28" />
+          </div>
+          <Skeleton className="h-12 w-72 max-w-full" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="flex gap-10 items-start">
+          <div className="hidden lg:block w-64 flex-shrink-0 space-y-5">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-44 w-full" />
+            <Skeleton className="h-44 w-full" />
+          </div>
+          <div className="flex-1">
+            <ProductGridSkeleton count={8} />
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
 function ShopClientInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const category = searchParams.get('category') ?? ''
+  // `audience` filters by Product.tags (men/women/unisex tag on each product).
+  // Backend's `category` field stores fragrance categories like
+  // "eau de parfum", not audience — so we use the tag filter for it.
+  const audience = searchParams.get('audience') ?? ''
   const brand = searchParams.get('brand') ?? ''
   const sort = searchParams.get('sort') ?? 'newest'
   const search = searchParams.get('search') ?? ''
@@ -26,16 +58,29 @@ function ShopClientInner() {
   const page = Number(searchParams.get('page') ?? 1)
 
   const [searchInput, setSearchInput] = useState(search)
-  const [products, setProducts] = useState<StorefrontProduct[]>([])
-  const [pagination, setPagination] = useState<StorefrontPagination | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState<StorefrontCategory[]>([])
+  const productQuery = useMemo(() => {
+    const qs = new URLSearchParams()
+    qs.set('sort', sort)
+    qs.set('limit', '24')
+    qs.set('page', String(page || 1))
+    if (audience) qs.set('tag', audience)
+    if (brand) qs.set('brand', brand)
+    if (search) qs.set('search', search)
+    if (minPrice > 0) qs.set('minPrice', String(minPrice))
+    if (maxPrice > 0 && maxPrice < DEFAULT_MAX)
+      qs.set('maxPrice', String(maxPrice))
+    return qs.toString()
+  }, [audience, brand, maxPrice, minPrice, page, search, sort])
+  const [productState, setProductState] = useState<{
+    query: string
+    products: StorefrontProduct[]
+    pagination: StorefrontPagination | null
+  }>({ query: '', products: [], pagination: null })
   const [brands, setBrands] = useState<StorefrontBrand[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
-
-  useEffect(() => {
-    setSearchInput(search)
-  }, [search])
+  const products = productState.products
+  const pagination = productState.pagination
+  const loading = productState.query !== productQuery
 
   const updateParams = useCallback(
     (updates: Record<string, string | number | null | undefined>) => {
@@ -55,14 +100,13 @@ function ShopClientInner() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      fetch('/api/categories').then((r) => r.json()).catch(() => null),
-      fetch('/api/brands').then((r) => r.json()).catch(() => null),
-    ]).then(([catData, brandData]) => {
-      if (cancelled) return
-      if (catData?.success) setCategories(catData.categories ?? [])
-      if (brandData?.success) setBrands(brandData.brands ?? [])
-    })
+    fetch('/api/brands')
+      .then((r) => r.json())
+      .then((brandData) => {
+        if (cancelled) return
+        if (brandData?.success) setBrands(brandData.brands ?? [])
+      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
@@ -70,48 +114,48 @@ function ShopClientInner() {
 
   useEffect(() => {
     const ac = new AbortController()
-    setLoading(true)
-    const qs = new URLSearchParams()
-    qs.set('sort', sort)
-    qs.set('limit', '24')
-    qs.set('page', String(page || 1))
-    if (category) qs.set('category', category)
-    if (brand) qs.set('brand', brand)
-    if (search) qs.set('search', search)
-    if (minPrice > 0) qs.set('minPrice', String(minPrice))
-    if (maxPrice > 0 && maxPrice < DEFAULT_MAX)
-      qs.set('maxPrice', String(maxPrice))
 
-    fetch(`/api/products?${qs.toString()}`, { signal: ac.signal })
+    fetch(`/api/products?${productQuery}`, { signal: ac.signal })
       .then((r) => r.json())
       .then((data) => {
         if (data?.success) {
-          setProducts(data.products ?? [])
-          setPagination(data.pagination ?? null)
+          setProductState({
+            query: productQuery,
+            products: data.products ?? [],
+            pagination: data.pagination ?? null,
+          })
+        } else {
+          setProductState({ query: productQuery, products: [], pagination: null })
         }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .catch(() => {
+        if (!ac.signal.aborted) {
+          setProductState({ query: productQuery, products: [], pagination: null })
+        }
+      })
 
     return () => ac.abort()
-  }, [category, brand, sort, search, minPrice, maxPrice, page])
+  }, [productQuery])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     updateParams({ search: searchInput || null, page: null })
   }
 
-  const clearAll = () => router.replace('/shop', { scroll: false })
+  const clearAll = () => {
+    setSearchInput('')
+    router.replace('/shop', { scroll: false })
+  }
 
   const hasFilters = useMemo(
     () =>
-      category ||
+      audience ||
       brand ||
       search ||
       sort !== 'newest' ||
       minPrice > 0 ||
       (maxPrice > 0 && maxPrice < DEFAULT_MAX),
-    [category, brand, search, sort, minPrice, maxPrice],
+    [audience, brand, search, sort, minPrice, maxPrice],
   )
 
   return (
@@ -125,32 +169,36 @@ function ShopClientInner() {
             </span>
           </div>
           <h1 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)] mb-2">
-            Shop All Fragrances
+            Shop All Products
           </h1>
-          <p className="text-sm text-gray-500 font-light">
-            {pagination ? `${pagination.total} products` : 'Loading…'}
+          <div className="text-sm text-gray-500 font-light">
+            {pagination ? (
+              `${pagination.total} products`
+            ) : (
+              <Skeleton className="inline-block h-4 w-24 align-middle" />
+            )}
             {search && (
               <span className="text-[var(--color-gold)] ml-2">
                 for &quot;{search}&quot;
               </span>
             )}
-          </p>
+          </div>
         </div>
       </div>
 
       <div className="border-b border-[var(--color-border-soft)] bg-white px-6 py-3">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4">
           <form
             onSubmit={handleSearchSubmit}
-            className="flex-1 flex items-center gap-3 border border-[var(--color-border)] px-4 py-2.5 focus-within:border-[var(--color-gold)] transition-colors"
+            className="flex-1 min-w-0 flex items-center gap-2 sm:gap-3 border border-[var(--color-border)] px-3 sm:px-4 py-2.5 focus-within:border-[var(--color-gold)] transition-colors"
           >
-            <i className="ri-search-line text-[var(--color-gold)] text-sm" />
+            <i className="ri-search-line text-[var(--color-gold)] text-sm shrink-0" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search fragrances, brands..."
-              className="flex-1 text-sm text-[var(--color-ink)] placeholder-gray-300 outline-none bg-transparent"
+              placeholder="Search..."
+              className="flex-1 min-w-0 text-sm text-[var(--color-ink)] placeholder-gray-300 outline-none bg-transparent"
             />
             {searchInput && (
               <button
@@ -159,7 +207,8 @@ function ShopClientInner() {
                   setSearchInput('')
                   updateParams({ search: null, page: null })
                 }}
-                className="text-gray-300 hover:text-[var(--color-ink)] transition-colors"
+                className="text-gray-300 hover:text-[var(--color-ink)] transition-colors shrink-0"
+                aria-label="Clear search"
               >
                 <i className="ri-close-circle-line text-sm" />
               </button>
@@ -169,10 +218,11 @@ function ShopClientInner() {
           <button
             type="button"
             onClick={() => setFiltersOpen(!filtersOpen)}
-            className="lg:hidden flex items-center gap-2 border border-[var(--color-border)] px-4 py-2.5 text-[11px] tracking-widest uppercase font-semibold text-[var(--color-ink)] hover:border-[var(--color-gold)] transition-colors whitespace-nowrap"
+            className="lg:hidden shrink-0 flex items-center gap-2 border border-[var(--color-border)] px-3 sm:px-4 py-2.5 text-[11px] tracking-widest uppercase font-semibold text-[var(--color-ink)] hover:border-[var(--color-gold)] transition-colors"
+            aria-label="Open filters"
           >
             <i className="ri-filter-3-line" />
-            Filters
+            <span className="hidden sm:inline">Filters</span>
           </button>
 
           {hasFilters && (
@@ -192,8 +242,8 @@ function ShopClientInner() {
         <div className="flex gap-10 items-start">
           <div className="hidden lg:block">
             <ShopFilters
-              category={category}
-              setCategory={(c) => updateParams({ category: c, page: null })}
+              category={audience}
+              setCategory={(c) => updateParams({ audience: c, page: null })}
               brand={brand}
               setBrand={(b) => updateParams({ brand: b, page: null })}
               minPrice={minPrice}
@@ -207,7 +257,6 @@ function ShopClientInner() {
               }
               sort={sort}
               setSort={(s) => updateParams({ sort: s, page: null })}
-              categories={categories}
               brands={brands}
             />
           </div>
@@ -232,8 +281,8 @@ function ShopClientInner() {
                   </button>
                 </div>
                 <ShopFilters
-                  category={category}
-                  setCategory={(c) => updateParams({ category: c, page: null })}
+                  category={audience}
+                  setCategory={(c) => updateParams({ audience: c, page: null })}
                   brand={brand}
                   setBrand={(b) => updateParams({ brand: b, page: null })}
                   minPrice={minPrice}
@@ -247,7 +296,6 @@ function ShopClientInner() {
                   }
                   sort={sort}
                   setSort={(s) => updateParams({ sort: s, page: null })}
-                  categories={categories}
                   brands={brands}
                 />
               </div>
@@ -289,7 +337,7 @@ function ShopClientInner() {
 
 export default function ShopClient() {
   return (
-    <Suspense fallback={<div className="pt-40 text-center text-gray-400">Loading…</div>}>
+    <Suspense fallback={<ShopShellSkeleton />}>
       <ShopClientInner />
     </Suspense>
   )

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { OrderListSkeleton, PageHeaderSkeleton } from '@/components/ui/Skeleton'
 
 interface OrderItem {
   name: string
@@ -63,7 +64,12 @@ export default function OrderHistoryPage() {
   }, [user, authLoading, router])
 
   if (authLoading || loading) {
-    return <div className="container mx-auto px-4 py-16 text-center text-gray-400">Loading…</div>
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <PageHeaderSkeleton />
+        <OrderListSkeleton count={5} />
+      </div>
+    )
   }
 
   return (

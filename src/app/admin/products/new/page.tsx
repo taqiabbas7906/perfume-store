@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 /* ─── local types ─── */
 
@@ -322,7 +323,13 @@ export default function NewProductPage() {
   }
 
   /* ── render guards ── */
-  if (!checked) return <div className="container mx-auto px-4 py-10 text-gray-400">Checking access…</div>
+  if (!checked) {
+    return (
+      <div className="container mx-auto px-4 py-10 max-w-6xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
+  }
   if (!isAdmin)  return null
 
   /* ══════════════════ JSX ══════════════════ */

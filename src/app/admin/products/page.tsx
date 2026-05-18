@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 interface Product {
   _id: string
@@ -58,7 +59,11 @@ export default function AdminProductsPage() {
   }, [user, router])
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-8 text-center">Loading...</div>
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <AdminTableSkeleton rows={8} />
+      </div>
+    )
   }
 
   if (!isAdmin) {

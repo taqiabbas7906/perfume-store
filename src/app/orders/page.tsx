@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { OrderListSkeleton, PageHeaderSkeleton } from '@/components/ui/Skeleton'
 
 interface CustomerOrder {
   _id: string
@@ -57,7 +58,14 @@ export default function MyOrdersPage() {
     return () => { cancelled = true }
   }, [user, authLoading, router])
 
-  if (authLoading || loading) return <div className="max-w-3xl mx-auto px-4 py-10 text-gray-400">Loading…</div>
+  if (authLoading || loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <PageHeaderSkeleton />
+        <OrderListSkeleton />
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">

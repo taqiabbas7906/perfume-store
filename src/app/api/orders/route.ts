@@ -12,7 +12,7 @@ import { getRequestInfo } from '@/lib/getRequestInfo'
 import type { OrderStatus } from '@/types'
 
 export async function GET(req: NextRequest) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {

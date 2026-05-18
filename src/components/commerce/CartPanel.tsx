@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/utils/format'
+import { CartPanelSkeleton } from '@/components/ui/Skeleton'
 
 const FREE_SHIPPING_THRESHOLD = 75
 
@@ -76,9 +77,7 @@ export default function CartPanel() {
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
           {loading && items.length === 0 ? (
-            <div className="text-center py-20 text-gray-400 text-xs tracking-wide">
-              Loading cart…
-            </div>
+            <CartPanelSkeleton />
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-5 text-center py-20">
               <div className="w-16 h-16 flex items-center justify-center border border-[var(--color-border)] rounded-full">

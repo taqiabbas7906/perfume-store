@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { OrderDetailSkeleton } from '@/components/ui/Skeleton'
 
 interface StatusEntry {
   status: string
@@ -117,8 +118,8 @@ export default function AdminOrderDetailPage() {
     }
   }
 
+  if (loading) return <OrderDetailSkeleton />
   if (!isAdmin) return null
-  if (loading) return <div className="container mx-auto px-4 py-8 text-gray-400">Loading order…</div>
   if (error)   return <div className="container mx-auto px-4 py-8 text-red-600">{error}</div>
   if (!order)  return <div className="container mx-auto px-4 py-8 text-gray-400">Order not found</div>
 

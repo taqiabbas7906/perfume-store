@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { authFetch } from '@/lib/api'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 type ReviewUser    = { _id: string; name: string; email: string }
 type ReviewProduct = { _id: string; name: string; slug: string }
@@ -81,6 +82,14 @@ export default function AdminReviewsPage() {
     } finally {
       setActionId(null)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
   }
 
   return (

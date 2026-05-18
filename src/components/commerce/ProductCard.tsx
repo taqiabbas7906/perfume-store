@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
-import { smartFetch } from '@/lib/api'
+import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
 import { formatPrice } from '@/lib/utils/format'
 import type { StorefrontProduct } from '@/types/storefront'
@@ -23,19 +23,23 @@ const BADGE_COLORS: Record<string, string> = {
   BESTSELLER: 'bg-emerald-800',
 }
 
-export default function ProductCard({ product, badge, priority }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  badge,
+  priority,
+}: ProductCardProps) {
   const router = useRouter()
   const { user } = useAuth()
   const { addItem } = useCart()
+  const { has: hasWish, toggle: toggleWish } = useWishlist()
   const [hovered, setHovered] = useState(false)
-  const [wished, setWished] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
 
   const primaryVariant = product.variants?.[0]
   const original = primaryVariant?.originalPrice ?? product.maxPrice
   const current =
-    primaryVariant?.discountedPrice ?? primaryVariant?.originalPrice ?? product.minPrice
+    primaryVariant?.discountedPrice ??
+    primaryVariant?.originalPrice ??
+    product.minPrice
   const discount =
     original && current && original > current
       ? Math.round(((original - current) / original) * 100)
@@ -44,49 +48,50 @@ export default function ProductCard({ product, badge, priority }: ProductCardPro
   const stars = product.ratingAverage ?? 0
   const reviews = product.ratingCount ?? 0
   const effectiveBadge =
-    badge ?? (product.isLimitedEdition ? 'NEW' : product.featured ? 'BESTSELLER' : undefined)
+    badge ??
+    (product.isLimitedEdition
+      ? 'NEW'
+      : product.featured
+        ? 'BESTSELLER'
+        : undefined)
+  const outOfStock = !primaryVariant || primaryVariant.quantity < 1
+  const wished = hasWish(product._id)
 
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 2000)
-    return () => clearTimeout(t)
-  }, [toast])
-
-  async function handleAdd(e: React.MouseEvent) {
+  function handleAdd(e: React.MouseEvent) {
     e.stopPropagation()
-    if (!primaryVariant) return
-    setBusy(true)
-    const r = await addItem({
+    if (!primaryVariant || outOfStock) return
+    // Fire-and-forget: optimistic state updates instantly, the cart context
+    // handles debounced sync + race-safe response handling.
+    void addItem({
       productId: product._id,
       variantSku: primaryVariant.sku,
       quantity: 1,
+      meta: {
+        name: product.name,
+        price: current,
+        image: image ?? '',
+        variantLabel: primaryVariant.label,
+        slug: product.slug,
+        brand: product.brand,
+      },
     })
-    setBusy(false)
-    if (!r.ok) setToast(r.error ?? 'Could not add')
   }
 
-  async function handleWishlist(e: React.MouseEvent) {
+  function handleWishlist(e: React.MouseEvent) {
     e.stopPropagation()
     if (!user) {
       router.push('/login')
       return
     }
-    try {
-      const next = !wished
-      setWished(next)
-      if (next) {
-        await smartFetch('/api/wishlist', {
-          method: 'POST',
-          body: JSON.stringify({ productId: product._id }),
-        })
-      } else {
-        await smartFetch(`/api/wishlist/${product._id}`, {
-          method: 'DELETE',
-        })
-      }
-    } catch {
-      setWished((v) => !v)
-    }
+    toggleWish(product._id, {
+      _id: product._id,
+      name: product.name,
+      slug: product.slug,
+      brand: product.brand,
+      minPrice: product.minPrice,
+      active: true,
+      images: product.images,
+    })
   }
 
   return (
@@ -134,31 +139,23 @@ export default function ProductCard({ product, badge, priority }: ProductCardPro
         >
           <i
             className={`${
-              wished ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-[var(--color-ink)]'
+              wished
+                ? 'ri-heart-fill text-red-500'
+                : 'ri-heart-line text-[var(--color-ink)]'
             } text-base`}
           />
         </button>
 
         <button
           onClick={handleAdd}
-          disabled={busy || !primaryVariant || primaryVariant.quantity < 1}
+          disabled={outOfStock}
           className={`absolute bottom-0 left-0 right-0 bg-[var(--color-gold)] py-3 text-center text-white text-[10px] tracking-widest uppercase font-bold transition-all duration-350 disabled:opacity-70 ${
             hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'
           }`}
         >
           <i className="ri-shopping-bag-line mr-1.5" />
-          {primaryVariant && primaryVariant.quantity < 1
-            ? 'Out of Stock'
-            : busy
-              ? 'Adding…'
-              : 'Add to Cart'}
+          {outOfStock ? 'Out of Stock' : 'Add to Cart'}
         </button>
-
-        {toast && (
-          <div className="absolute inset-x-3 bottom-14 z-20 bg-[var(--color-ink)] text-white text-[10px] tracking-widest uppercase px-3 py-2 text-center animate-fadeIn">
-            {toast}
-          </div>
-        )}
       </div>
 
       <Link href={`/product/${product.slug}`} className="block pt-3 pb-4 px-1">

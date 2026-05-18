@@ -9,6 +9,7 @@ import AccountOverview from '@/components/sections/account/AccountOverview'
 import AccountOrders from '@/components/sections/account/AccountOrders'
 import AccountWishlist from '@/components/sections/account/AccountWishlist'
 import AccountSettings from '@/components/sections/account/AccountSettings'
+import { AccountShellSkeleton } from '@/components/ui/Skeleton'
 
 interface MeUser {
   _id: string
@@ -72,11 +73,7 @@ function AccountInner() {
   }
 
   if (loading || (!user && !loading)) {
-    return (
-      <div className="pt-40 text-center text-gray-400 text-sm tracking-wide">
-        Loading…
-      </div>
-    )
+    return <AccountShellSkeleton />
   }
 
   const initials = (profile?.name || user?.email || 'A')
@@ -179,13 +176,7 @@ function AccountInner() {
 
 export default function AccountClient() {
   return (
-    <Suspense
-      fallback={
-        <div className="pt-40 text-center text-gray-400 text-sm tracking-wide">
-          Loading…
-        </div>
-      }
-    >
+    <Suspense fallback={<AccountShellSkeleton />}>
       <AccountInner />
     </Suspense>
   )

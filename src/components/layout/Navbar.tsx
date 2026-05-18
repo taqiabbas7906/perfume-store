@@ -33,7 +33,7 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="bg-[var(--color-cream-400)] text-[var(--color-gold-deep)] text-center text-xs py-2 tracking-widest uppercase font-semibold border-b border-[var(--color-border)]">
+      <div className="bg-[var(--color-cream-400)] text-[var(--color-gold-deep)] text-center text-[11px] sm:text-xs px-4 sm:px-6 py-2 tracking-widest uppercase font-semibold border-b border-[var(--color-border)]">
         Always Fast &amp; Free Shipping — No Minimum Order
       </div>
 
@@ -44,7 +44,7 @@ export default function Navbar() {
             : 'absolute top-8 bg-transparent'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
+        <div className="mt-[8px] max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
           <Link href="/" className="flex flex-col items-center group">
             <div className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
               <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />

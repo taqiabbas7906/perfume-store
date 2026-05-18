@@ -1,169 +1,182 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
-
-interface WishlistProduct {
-  _id: string
-  name: string
-  slug: string
-  brand: string
-  minPrice: number
-  images: Array<{ url: string; alt?: string }>
-  active: boolean
-}
-
-interface WishlistItem {
-  productId: WishlistProduct
-  addedAt: string
-}
+import { useCart } from '@/context/CartContext'
+import { useWishlist } from '@/context/WishlistContext'
+import { formatPrice } from '@/lib/utils/format'
+import { PageHeaderSkeleton, WishlistGridSkeleton } from '@/components/ui/Skeleton'
 
 export default function WishlistPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-
-  const [items, setItems]         = useState<WishlistItem[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [removing, setRemoving]   = useState<string | null>(null)
-  const [error, setError]         = useState('')
+  const { items, loading, remove } = useWishlist()
+  const { addItem } = useCart()
 
   useEffect(() => {
-    if (authLoading) return
-    if (!user) { router.replace('/login'); return }
-
-    authFetch('/api/wishlist')
-      .then(r => r.json())
-      .then(d => {
-        if (d.items) setItems(d.items)
-        else setError(d.error || 'Failed to load wishlist')
-      })
-      .catch(() => setError('Failed to load wishlist'))
-      .finally(() => setLoading(false))
+    if (!authLoading && !user) router.replace('/login?redirect=/wishlist')
   }, [user, authLoading, router])
 
-  const removeItem = async (productId: string) => {
-    setRemoving(productId)
-    try {
-      const res = await authFetch(`/api/wishlist/${productId}`, { method: 'DELETE' })
-      const d = await res.json()
-      if (d.success) {
-        setItems(prev => prev.filter(i => i.productId._id !== productId))
-      } else {
-        setError(d.error || 'Failed to remove item')
-      }
-    } catch {
-      setError('Failed to remove item')
-    } finally {
-      setRemoving(null)
-    }
-  }
-
-  if (authLoading || loading) {
+  if (authLoading || (loading && items.length === 0)) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm">Loading…</p>
+      <main className="min-h-screen pt-32 pb-20 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <PageHeaderSkeleton />
+          <WishlistGridSkeleton />
         </div>
-      </div>
+      </main>
     )
   }
 
+  async function moveToCart(productId: string, slug: string) {
+    // Fetch the product to get a sellable SKU.
+    try {
+      const res = await fetch(`/api/products/${slug}`)
+      const data = await res.json()
+      const variant = data?.product?.variants?.find(
+        (v: { quantity: number }) => v.quantity > 0,
+      )
+      if (!variant) return
+      void addItem({
+        productId,
+        variantSku: variant.sku,
+        quantity: 1,
+        meta: {
+          name: data.product.name,
+          price: variant.discountedPrice ?? variant.originalPrice,
+          image: data.product.images?.[0]?.url ?? '',
+          variantLabel: variant.label,
+          slug: data.product.slug,
+          brand: data.product.brand,
+        },
+      })
+    } catch {
+      /* silent */
+    }
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Wishlist</h1>
-          {items.length > 0 && (
-            <p className="text-sm text-gray-500 mt-1">{items.length} item{items.length !== 1 ? 's' : ''} saved</p>
-          )}
-        </div>
-        <Link href="/products" className="text-sm text-gray-500 hover:text-gray-900 underline">
-          ← Continue Shopping
-        </Link>
-      </div>
-
-      {error && (
-        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm">
-          {error}
-        </div>
-      )}
-
-      {items.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
-          <p className="text-5xl mb-4">♡</p>
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">Your wishlist is empty</h2>
-          <p className="text-sm mb-6">Save products you love by clicking the ♡ on any product page.</p>
+    <main className="min-h-screen pt-32 pb-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="mb-10 flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-6 h-[1px] bg-[var(--color-gold)]" />
+              <span className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold">
+                Saved for Later
+              </span>
+            </div>
+            <h1 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)]">
+              Wishlist
+            </h1>
+            {items.length > 0 && (
+              <p className="text-sm text-gray-500 font-light mt-2">
+                {items.length} item{items.length === 1 ? '' : 's'} saved
+              </p>
+            )}
+          </div>
           <Link
-            href="/products"
-            className="inline-block bg-gray-900 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-gray-700 transition-colors"
+            href="/shop"
+            className="text-[10px] tracking-[0.3em] uppercase font-semibold text-[var(--color-gold)] hover:text-[var(--color-ink)] transition-colors flex items-center gap-1.5"
           >
-            Browse Products
+            <i className="ri-arrow-left-line text-sm" />
+            Continue Shopping
           </Link>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {items.map(item => {
-            const p = item.productId
-            return (
-              <div key={p._id} className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow group">
-                {/* Image */}
-                <Link href={`/products/${p.slug}`} className="block aspect-square bg-gray-50 overflow-hidden">
-                  {p.images?.[0] ? (
-                    <img
-                      src={p.images[0].url}
-                      alt={p.images[0].alt || p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-4xl">◻</div>
-                  )}
-                </Link>
 
-                {/* Info */}
-                <div className="p-4">
-                  <p className="text-xs text-gray-400 mb-0.5">{p.brand}</p>
-                  <Link href={`/products/${p.slug}`} className="font-semibold text-gray-900 hover:underline block truncate">
-                    {p.name}
-                  </Link>
-                  <p className="text-sm font-bold text-gray-900 mt-1">
-                    From ${p.minPrice?.toFixed(2) ?? '—'}
-                  </p>
-                  {!p.active && (
-                    <p className="text-xs text-red-500 mt-1">Currently unavailable</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-1">
-                    Saved {new Date(item.addedAt).toLocaleDateString()}
-                  </p>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 mt-3">
-                    <Link
-                      href={`/products/${p.slug}`}
-                      className="flex-1 text-center py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      View Product
-                    </Link>
+        {items.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-20 h-20 flex items-center justify-center border border-[var(--color-border)] rounded-full mx-auto mb-6">
+              <i className="ri-heart-line text-4xl text-[var(--color-gold)]" />
+            </div>
+            <h2 className="font-serif text-2xl font-light text-[var(--color-ink)] mb-2">
+              Your wishlist is empty
+            </h2>
+            <p className="text-sm text-gray-400 tracking-wide mb-8">
+              Save fragrances you love by tapping the heart icon.
+            </p>
+            <Link
+              href="/shop"
+              className="inline-block bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[11px] tracking-[0.3em] uppercase font-bold px-10 py-4 transition-all duration-300"
+            >
+              Browse Fragrances
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            {items.map(({ product, addedAt }) => {
+              const img = product.images?.[0]?.url
+              return (
+                <div key={product._id} className="group bg-white relative">
+                  <Link
+                    href={`/product/${product.slug}`}
+                    className="block relative overflow-hidden bg-[var(--color-cream-500)] aspect-[3/4]"
+                  >
+                    {img && (
+                      <Image
+                        src={img}
+                        alt={product.name}
+                        fill
+                        sizes="(min-width: 1024px) 25vw, 50vw"
+                        className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                      />
+                    )}
                     <button
-                      onClick={() => removeItem(p._id)}
-                      disabled={removing === p._id}
-                      title="Remove from wishlist"
-                      className="w-10 flex items-center justify-center border border-gray-200 rounded-lg text-gray-400 hover:border-red-300 hover:text-red-500 transition-colors disabled:opacity-40"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        remove(product._id)
+                      }}
+                      className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-white text-red-500 transition-all duration-200"
+                      aria-label="Remove from wishlist"
                     >
-                      {removing === p._id ? (
-                        <span className="w-3 h-3 border border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-                      ) : '♥'}
+                      <i className="ri-heart-fill text-sm" />
+                    </button>
+                  </Link>
+
+                  <div className="pt-3 pb-4 px-1">
+                    {product.brand && (
+                      <p className="text-[9px] text-[var(--color-gold)] tracking-[0.3em] uppercase font-bold">
+                        {product.brand}
+                      </p>
+                    )}
+                    <Link
+                      href={`/product/${product.slug}`}
+                      className="block text-xs font-semibold text-[var(--color-ink)] mt-0.5 hover:text-[var(--color-gold)] transition-colors line-clamp-2"
+                    >
+                      {product.name}
+                    </Link>
+                    {typeof product.minPrice === 'number' && (
+                      <p className="text-xs font-bold text-[var(--color-ink)] mt-2">
+                        From {formatPrice(product.minPrice)}
+                      </p>
+                    )}
+                    {product.active === false && (
+                      <p className="text-[10px] text-red-500 mt-1 tracking-wide">
+                        Currently unavailable
+                      </p>
+                    )}
+                    {addedAt && (
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        Saved {new Date(addedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => moveToCart(product._id, product.slug)}
+                      disabled={product.active === false}
+                      className="mt-3 w-full bg-[var(--color-ink)] hover:bg-[var(--color-gold)] disabled:opacity-60 text-white text-[9px] tracking-widest uppercase font-bold py-2 transition-all duration-300"
+                    >
+                      Add to Cart
                     </button>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </main>
   )
 }

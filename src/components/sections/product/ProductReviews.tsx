@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 interface ReviewUser {
   _id?: string
@@ -61,7 +62,37 @@ export default function ProductReviews({
   }, [productId])
 
   if (loading && reviews.length === 0) {
-    return null
+    return (
+      <section className="py-12 lg:py-16 border-t border-[var(--color-border-soft)]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-10 space-y-3">
+            <Skeleton className="h-3 w-36 mx-auto" />
+            <Skeleton className="h-8 w-64 mx-auto max-w-full" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-16">
+            <div className="space-y-4">
+              <Skeleton className="h-44 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/5" />
+            </div>
+            <div className="lg:col-span-2 space-y-6">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex gap-3 pb-6">
+                  <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+                  <div className="flex-1 space-y-3">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-4/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   const ratingBreakdown = [5, 4, 3, 2, 1].map((star) => {

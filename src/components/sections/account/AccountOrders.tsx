@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { smartFetch } from '@/lib/api'
 import { formatPrice } from '@/lib/utils/format'
+import { OrderListSkeleton } from '@/components/ui/Skeleton'
 
 interface OrderItem {
   productId: string
@@ -65,6 +66,8 @@ export default function AccountOrders() {
     }
   }, [])
 
+  if (loading) return <OrderListSkeleton count={5} />
+
   return (
     <div className="bg-white">
       <div className="px-6 py-4 border-b border-[var(--color-border-soft)]">
@@ -77,11 +80,7 @@ export default function AccountOrders() {
       </div>
 
       <div className="divide-y divide-[var(--color-cream-400)]">
-        {loading ? (
-          <div className="py-10 text-center text-gray-400 text-xs tracking-widest uppercase">
-            Loading…
-          </div>
-        ) : orders.length === 0 ? (
+        {orders.length === 0 ? (
           <div className="py-16 px-6 text-center">
             <p className="text-sm text-gray-400">No orders yet.</p>
           </div>

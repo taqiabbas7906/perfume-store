@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 interface Voucher {
   _id: string
@@ -166,7 +167,13 @@ export default function AdminVouchersPage() {
   const fmtDiscount = (v: Voucher) =>
     v.type === 'percentage' ? `${v.value}%` : v.type === 'fixed' ? fmt(v.value) : 'Free Shipping'
 
-  if (loading) return <div className="container mx-auto px-4 py-8 text-center">Loading...</div>
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
+  }
   if (!isAdmin) return null
 
   return (

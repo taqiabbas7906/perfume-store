@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 interface AdminOrder {
   _id: string
@@ -126,9 +127,20 @@ export default function AdminOrdersPage() {
   }
 
   if (!authChecked) {
-    return <div className="container mx-auto px-4 py-8 text-center text-gray-500">Checking access…</div>
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
   }
   if (!isAdmin) return null
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <AdminTableSkeleton rows={8} />
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">

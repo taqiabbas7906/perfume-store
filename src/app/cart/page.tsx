@@ -1,302 +1,339 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { smartFetch } from '@/lib/api'
-import { useAuth } from '@/context/AuthContext'
+import Image from 'next/image'
+import { useCart } from '@/context/CartContext'
+import { formatPrice } from '@/lib/utils/format'
+import { CartPageSkeleton } from '@/components/ui/Skeleton'
 
-interface CartItem {
-  productId: string
-  variantSku: string
-  name: string
-  variantLabel: string
-  price: number
-  quantity: number
-  image?: string
-}
-
-interface CartVoucher {
-  code: string
-  voucherId: string
-  discount: number
-}
-
-interface CartSummary {
-  items: CartItem[]
-  subtotal: number
-  total: number
-  itemCount: number
-  discount: number
-  vouchers: CartVoucher[]
-}
+const FREE_SHIPPING_THRESHOLD = 75
 
 export default function CartPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
-  const [cart, setCart] = useState<CartSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState<string | null>(null)
-  const [error, setError] = useState('')
+  const {
+    items,
+    subtotal,
+    total,
+    totalItems,
+    discount,
+    vouchers,
+    loading,
+    isSyncing,
+    updateQty,
+    removeItem,
+    applyVoucher,
+    removeVoucher,
+  } = useCart()
+
   const [voucherCode, setVoucherCode] = useState('')
-  const [applyingVoucher, setApplyingVoucher] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState('')
 
-  const fetchCart = async (params?: { voucherCode?: string; removeVoucher?: string }) => {
-    try {
-      const searchParams = new URLSearchParams()
-      if (params?.voucherCode) searchParams.set('voucherCode', params.voucherCode)
-      if (params?.removeVoucher) searchParams.set('removeVoucher', params.removeVoucher)
-      const url = searchParams.toString() ? `/api/cart?${searchParams.toString()}` : '/api/cart'
-      const res = await smartFetch(url)
-      const data = await res.json()
-      if (data.success) {
-        setCart(data)
-      } else {
-        setError(data.error || 'Failed to load cart')
-      }
-    } catch (err) {
-      setError('Failed to load cart')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const removeVoucher = async (code: string) => {
-    await fetchCart({ removeVoucher: code })
-  }
-
-  const applyVoucher = async (e: React.FormEvent) => {
+  async function handleApplyVoucher(e: React.FormEvent) {
     e.preventDefault()
-    if (!voucherCode.trim()) return
-    setApplyingVoucher(true)
+    const code = voucherCode.trim()
+    if (!code) return
+    setApplying(true)
     setError('')
-    
-    try {
-      const validateRes = await smartFetch('/api/vouchers/validate', {
-        method: 'POST',
-        body: JSON.stringify({
-          code: voucherCode.trim(),
-          cartTotal: cart?.subtotal || 0,
-          productIds: cart?.items.map(i => i.productId) || [],
-        }),
-      })
-      const validateData = await validateRes.json()
-      
-      if (!validateRes.ok) {
-        setError(validateData.error || 'Invalid voucher')
-        setApplyingVoucher(false)
-        return
-      }
-      
-      if (!validateData.success) {
-        setError(validateData.error || 'Invalid voucher')
-        setApplyingVoucher(false)
-        return
-      }
-      
-      await fetchCart({ voucherCode: voucherCode.trim() })
-      setVoucherCode('')
-    } catch (err) {
-      setError('Failed to apply voucher')
-    } finally {
-      setApplyingVoucher(false)
-    }
+    const r = await applyVoucher(code)
+    setApplying(false)
+    if (!r.ok) setError(r.error ?? 'Invalid voucher')
+    else setVoucherCode('')
   }
 
-  useEffect(() => {
-    if (authLoading) return
-    fetchCart()
-  }, [user, authLoading, router])
-
-  const updateQuantity = async (sku: string, newQuantity: number) => {
-    if (newQuantity < 1) return
-
-    const originalItems = cart?.items || []
-    const optimisticItems = originalItems.map(item => 
-      item.variantSku === sku ? { ...item, quantity: newQuantity } : item
-    )
-    
-    setCart(prev => prev ? { ...prev, items: optimisticItems } : null)
-    setUpdating(sku)
-
-    try {
-      const res = await smartFetch(`/api/cart/items/${sku}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ quantity: newQuantity }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setCart(data)
-      } else {
-        setError(data.error || 'Failed to update quantity')
-        setCart(prev => prev ? { ...prev, items: originalItems } : null)
-      }
-    } catch (err) {
-      setError('Failed to update quantity')
-      setCart(prev => prev ? { ...prev, items: originalItems } : null)
-    } finally {
-      setUpdating(null)
-    }
+  if (loading) {
+    return <CartPageSkeleton />
   }
 
-  const removeItem = async (sku: string) => {
-    const originalItems = cart?.items || []
-    const optimisticItems = originalItems.filter(item => item.variantSku !== sku)
-    
-    setCart(prev => prev ? { ...prev, items: optimisticItems } : null)
-    setUpdating(sku)
-
-    try {
-      const res = await smartFetch(`/api/cart/items/${sku}`, {
-        method: 'DELETE',
-      })
-      const data = await res.json()
-      if (data.success) {
-        setCart(data)
-      } else {
-        setError(data.error || 'Failed to remove item')
-        setCart(prev => prev ? { ...prev, items: originalItems } : null)
-      }
-    } catch (err) {
-      setError('Failed to remove item')
-      setCart(prev => prev ? { ...prev, items: originalItems } : null)
-    } finally {
-      setUpdating(null)
-    }
-  }
-
-  if (authLoading || loading) {
-    return <div className="container mx-auto px-4 py-8 text-center">Loading...</div>
-  }
-
-  if (error && !cart) {
-    return <div className="container mx-auto px-4 py-8 text-center text-red-500">{error}</div>
-  }
-
-  if (!cart || !cart.items || cart.items.length === 0) {
+  if (items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Your cart is empty</h1>
-        <Link href="/products" className="text-blue-600 hover:underline">Continue shopping</Link>
-      </div>
-    )
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          {cart.items.map((item) => (
-            <div key={item.variantSku} className="flex gap-4 py-4 border-b">
-              <div className="w-24 h-24 bg-gray-100 rounded flex items-center justify-center">
-                {item.image ? (
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded" />
-                ) : (
-                  <span className="text-gray-400">No image</span>
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold">{item.name}</h3>
-                <p className="text-gray-600">{item.variantLabel}</p>
-                <p className="font-bold mt-1">${item.price.toFixed(2)}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateQuantity(item.variantSku, item.quantity - 1)}
-                      disabled={updating === item.variantSku}
-                      className="px-3 py-1 border rounded"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.variantSku, item.quantity + 1)}
-                      disabled={updating === item.variantSku}
-                      className="px-3 py-1 border rounded"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => removeItem(item.variantSku)}
-                    disabled={updating === item.variantSku}
-                    className="text-red-600 hover:underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-              <div className="text-right font-bold">
-                ${(item.price * item.quantity).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="border rounded-lg p-6 h-fit">
-          <h2 className="text-xl font-bold mb-4">Order Summary</h2>
-          
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              {error}
-            </div>
-          )}
-          
-          <form onSubmit={applyVoucher} className="mb-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Voucher code"
-                value={voucherCode}
-                onChange={(e) => setVoucherCode(e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-lg"
-              />
-              <button
-                type="submit"
-                disabled={applyingVoucher || !voucherCode.trim()}
-                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50"
-              >
-                Apply
-              </button>
-            </div>
-          </form>
-          
-          {cart?.vouchers?.map((voucher) => (
-            <div key={voucher.code} className="flex justify-between items-center mb-2 text-green-600">
-              <span>{voucher.code}</span>
-              <div className="flex items-center gap-2">
-                <span>-${voucher.discount.toFixed(2)}</span>
-                <button
-                  onClick={() => removeVoucher(voucher.code)}
-                  className="text-red-500 hover:underline text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
-          
-          <div className="flex justify-between mb-2">
-            <span>Subtotal</span>
-            <span>${cart?.subtotal.toFixed(2)}</span>
+      <main className="min-h-screen pt-32 pb-20 bg-white">
+        <div className="max-w-lg mx-auto px-6 text-center py-20">
+          <div className="w-20 h-20 flex items-center justify-center border border-[var(--color-border)] rounded-full mx-auto mb-6">
+            <i className="ri-shopping-bag-line text-4xl text-[var(--color-gold)]" />
           </div>
-          
-          {cart?.discount > 0 && (
-            <div className="flex justify-between mb-2 text-green-600">
-              <span>Total Discount</span>
-              <span>-${cart.discount.toFixed(2)}</span>
-            </div>
-          )}
-          
-          <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-            <span>Total</span>
-            <span>${cart?.total.toFixed(2)}</span>
-          </div>
-          <Link href="/checkout" className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 text-center block mt-6">
-            Proceed to Checkout
+          <h1 className="font-serif text-3xl font-light text-[var(--color-ink)] mb-3">
+            Your Cart is Empty
+          </h1>
+          <p className="text-sm text-gray-400 tracking-wide mb-8">
+            Add some fragrances to get started.
+          </p>
+          <Link
+            href="/shop"
+            className="inline-flex items-center gap-3 bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[11px] tracking-[0.3em] uppercase font-bold px-10 py-4 transition-all duration-300 whitespace-nowrap"
+          >
+            <i className="ri-store-2-line" />
+            Browse the Shop
           </Link>
         </div>
+      </main>
+    )
+  }
+
+  const freeShipDelta = FREE_SHIPPING_THRESHOLD - subtotal
+
+  return (
+    <main className="min-h-screen pt-32 pb-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-6 h-[1px] bg-[var(--color-gold)]" />
+            <span className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold">
+              Your Bag
+            </span>
+          </div>
+          <h1 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)]">
+            Shopping Cart
+          </h1>
+          <p className="text-sm text-gray-500 font-light mt-2">
+            {totalItems} item{totalItems === 1 ? '' : 's'}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {/* Items */}
+          <div className="lg:col-span-2 space-y-1">
+            {items.map((item) => (
+              <div
+                key={item.variantSku}
+                className="flex gap-5 border-b border-[var(--color-border-soft)] py-6 last:border-0 group"
+              >
+                <div className="relative w-24 h-28 flex-shrink-0 bg-[var(--color-cream-500)] overflow-hidden">
+                  {item.image && (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="96px"
+                      className="object-cover object-top"
+                    />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  {item.brand && (
+                    <p className="text-[10px] text-[var(--color-gold)] tracking-[0.3em] uppercase font-bold">
+                      {item.brand}
+                    </p>
+                  )}
+                  <Link
+                    href={item.slug ? `/product/${item.slug}` : '#'}
+                    className="block text-sm font-semibold text-[var(--color-ink)] mt-0.5 hover:text-[var(--color-gold)] transition-colors line-clamp-2"
+                  >
+                    {item.name}
+                  </Link>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {item.variantLabel}
+                  </p>
+
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center border border-[var(--color-border)]">
+                      <button
+                        onClick={() =>
+                          updateQty(item.variantSku, item.quantity - 1)
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
+                        aria-label="Decrease quantity"
+                      >
+                        <i className="ri-subtract-line text-sm" />
+                      </button>
+                      <span className="w-8 h-8 flex items-center justify-center text-xs font-semibold text-[var(--color-ink)] border-x border-[var(--color-border)]">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() =>
+                          updateQty(item.variantSku, item.quantity + 1)
+                        }
+                        className="w-8 h-8 flex items-center justify-center text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
+                        aria-label="Increase quantity"
+                      >
+                        <i className="ri-add-line text-sm" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => removeItem(item.variantSku)}
+                      className="text-[10px] tracking-[0.2em] uppercase font-semibold text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1.5"
+                    >
+                      <i className="ri-delete-bin-line" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-shrink-0 text-right">
+                  <p className="text-sm font-bold text-[var(--color-ink)]">
+                    {formatPrice(item.price * item.quantity)}
+                  </p>
+                  {item.quantity > 1 && (
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {formatPrice(item.price)} ea
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Summary */}
+          <div className="lg:col-span-1">
+            <div className="bg-[var(--color-cream-50)] border border-[var(--color-border)] p-6 lg:sticky lg:top-32">
+              <h2 className="font-serif text-lg font-light text-[var(--color-ink)] tracking-wider mb-5 pb-5 border-b border-[var(--color-border-soft)]">
+                Order Summary
+              </h2>
+
+              {/* Free shipping progress */}
+              {freeShipDelta > 0 && (
+                <div className="mb-5">
+                  <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
+                    <span className="tracking-wide">Free Shipping</span>
+                    <span className="font-semibold text-[var(--color-gold)]">
+                      {formatPrice(freeShipDelta)} away
+                    </span>
+                  </div>
+                  <div className="h-1 bg-[var(--color-border-soft)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--color-gold)] rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(
+                          (subtotal / FREE_SHIPPING_THRESHOLD) * 100,
+                          100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Voucher */}
+              <form onSubmit={handleApplyVoucher} className="mb-5">
+                <p className="text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--color-ink)] mb-2.5">
+                  Promo Code
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="FRAGSALE"
+                    value={voucherCode}
+                    onChange={(e) => {
+                      setVoucherCode(e.target.value.toUpperCase())
+                      setError('')
+                    }}
+                    className="flex-1 px-3 py-2.5 border border-[var(--color-border)] text-xs text-[var(--color-ink)] placeholder:text-gray-300 outline-none transition-all focus:border-[var(--color-gold)] bg-white tracking-wider"
+                  />
+                  <button
+                    type="submit"
+                    disabled={applying || !voucherCode.trim()}
+                    className="border border-[var(--color-ink)] hover:bg-[var(--color-ink)] hover:text-white text-[var(--color-ink)] disabled:opacity-40 text-[10px] tracking-[0.2em] uppercase font-bold px-4 py-2.5 transition-all whitespace-nowrap"
+                  >
+                    Apply
+                  </button>
+                </div>
+                {error && (
+                  <p className="text-[10px] text-red-400 mt-1.5 tracking-wide">
+                    {error}
+                  </p>
+                )}
+                {vouchers.length > 0 && (
+                  <div className="mt-3 space-y-1.5">
+                    {vouchers.map((v) => (
+                      <div
+                        key={v.code}
+                        className="flex justify-between items-center bg-[var(--color-cream-300)] border border-[var(--color-gold-soft)] px-3 py-2 text-xs"
+                      >
+                        <span className="font-mono font-bold text-[var(--color-gold)] tracking-wider">
+                          {v.code}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600 font-semibold">
+                            −{formatPrice(v.discount)}
+                          </span>
+                          <button
+                            onClick={() => removeVoucher(v.code)}
+                            className="text-gray-400 hover:text-red-500 transition-colors text-xs"
+                            aria-label={`Remove ${v.code}`}
+                          >
+                            <i className="ri-close-line" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </form>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500 tracking-wide">
+                    Subtotal
+                  </span>
+                  <span className="text-sm font-semibold text-[var(--color-ink)]">
+                    {formatPrice(subtotal)}
+                  </span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-emerald-600 tracking-wide">
+                      Discount
+                    </span>
+                    <span className="text-sm font-semibold text-emerald-600">
+                      −{formatPrice(discount)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500 tracking-wide">
+                    Shipping
+                  </span>
+                  <span className="text-xs text-gray-400 tracking-wide">
+                    Calculated at checkout
+                  </span>
+                </div>
+                <div className="h-[1px] bg-[var(--color-border)] my-1" />
+                <div className="flex justify-between items-baseline">
+                  <span className="text-xs tracking-[0.3em] uppercase font-bold text-[var(--color-ink)]">
+                    Order Total
+                  </span>
+                  <span className="font-serif text-2xl font-light text-[var(--color-ink)]">
+                    {formatPrice(total)}
+                  </span>
+                </div>
+              </div>
+
+              <Link
+                href="/checkout"
+                aria-disabled={isSyncing}
+                onClick={(e) => {
+                  if (isSyncing) e.preventDefault()
+                }}
+                className={`w-full block text-center bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[11px] tracking-[0.3em] uppercase font-bold py-4 transition-all duration-300 ${
+                  isSyncing ? 'opacity-60 pointer-events-none' : ''
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  {isSyncing ? (
+                    <>
+                      <i className="ri-loader-4-line animate-spin" />
+                      Syncing cart…
+                    </>
+                  ) : (
+                    <>
+                      <i className="ri-lock-line" />
+                      Secure Checkout
+                    </>
+                  )}
+                </span>
+              </Link>
+
+              <Link
+                href="/shop"
+                className="mt-3 w-full block text-center border border-[var(--color-ink)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.2em] uppercase font-semibold py-3 transition-all duration-300"
+              >
+                Continue Shopping
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   )
 }

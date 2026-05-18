@@ -1,89 +1,43 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { smartFetch } from '@/lib/api'
 import { useCart } from '@/context/CartContext'
+import { useWishlist } from '@/context/WishlistContext'
 import { formatPrice } from '@/lib/utils/format'
-
-interface WishlistProduct {
-  _id: string
-  name: string
-  slug: string
-  brand?: string
-  minPrice: number
-  images?: Array<{ url: string }>
-}
-
-interface WishlistItemRaw {
-  productId: WishlistProduct | string
-  addedAt?: string
-}
-
-interface WishlistItem {
-  product: WishlistProduct
-  addedAt?: string
-}
+import { WishlistGridSkeleton } from '@/components/ui/Skeleton'
 
 export default function AccountWishlist() {
-  const [items, setItems] = useState<WishlistItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState<string | null>(null)
+  const { items, loading, remove } = useWishlist()
   const { addItem } = useCart()
 
-  useEffect(() => {
-    let cancelled = false
-    smartFetch('/api/wishlist')
-      .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled && data?.success) {
-          const normalised: WishlistItem[] = (data.items ?? [])
-            .map((it: WishlistItemRaw) => {
-              if (typeof it.productId === 'object' && it.productId !== null) {
-                return { product: it.productId, addedAt: it.addedAt }
-              }
-              return null
-            })
-            .filter((v: WishlistItem | null): v is WishlistItem => v !== null)
-          setItems(normalised)
-        }
-      })
-      .catch(() => {})
-      .finally(() => !cancelled && setLoading(false))
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  async function handleRemove(productId: string) {
-    setBusy(productId)
+  async function moveToCart(productId: string, slug: string) {
     try {
-      await smartFetch(`/api/wishlist/${productId}`, { method: 'DELETE' })
-      setItems((prev) => prev.filter((i) => i.product._id !== productId))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function handleAddToCart(item: WishlistItem) {
-    // Fetch full product to grab a sellable variant SKU
-    try {
-      const res = await fetch(`/api/products/${item.product.slug}`)
+      const res = await fetch(`/api/products/${slug}`)
       const data = await res.json()
       const variant = data?.product?.variants?.find(
         (v: { quantity: number }) => v.quantity > 0,
       )
       if (!variant) return
-      await addItem({
-        productId: item.product._id,
+      void addItem({
+        productId,
         variantSku: variant.sku,
         quantity: 1,
+        meta: {
+          name: data.product.name,
+          price: variant.discountedPrice ?? variant.originalPrice,
+          image: data.product.images?.[0]?.url ?? '',
+          variantLabel: variant.label,
+          slug: data.product.slug,
+          brand: data.product.brand,
+        },
       })
     } catch {
-      /* ignore */
+      /* silent */
     }
   }
+
+  if (loading && items.length === 0) return <WishlistGridSkeleton count={4} />
 
   return (
     <div>
@@ -96,11 +50,7 @@ export default function AccountWishlist() {
         </p>
       </div>
 
-      {loading ? (
-        <p className="py-10 text-center text-gray-400 text-xs tracking-widest uppercase">
-          Loading…
-        </p>
-      ) : items.length === 0 ? (
+      {items.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-center">
           <div className="w-16 h-16 flex items-center justify-center border border-[var(--color-border)] rounded-full mb-4">
             <i className="ri-heart-line text-2xl text-[var(--color-gold)]" />
@@ -138,9 +88,8 @@ export default function AccountWishlist() {
                   <button
                     onClick={(e) => {
                       e.preventDefault()
-                      handleRemove(product._id)
+                      remove(product._id)
                     }}
-                    disabled={busy === product._id}
                     className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-white text-red-400 transition-all duration-200 opacity-0 group-hover:opacity-100"
                     aria-label="Remove from wishlist"
                   >
@@ -156,13 +105,13 @@ export default function AccountWishlist() {
                   <h3 className="text-xs font-semibold text-[var(--color-ink)] mt-0.5 line-clamp-2">
                     {product.name}
                   </h3>
-                  <p className="text-xs font-bold text-[var(--color-ink)] mt-2">
-                    {formatPrice(product.minPrice)}
-                  </p>
+                  {typeof product.minPrice === 'number' && (
+                    <p className="text-xs font-bold text-[var(--color-ink)] mt-2">
+                      {formatPrice(product.minPrice)}
+                    </p>
+                  )}
                   <button
-                    onClick={() =>
-                      handleAddToCart({ product, addedAt: undefined })
-                    }
+                    onClick={() => moveToCart(product._id, product.slug)}
                     className="mt-3 w-full bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[9px] tracking-widest uppercase font-bold py-2 transition-all duration-300"
                   >
                     Add to Cart

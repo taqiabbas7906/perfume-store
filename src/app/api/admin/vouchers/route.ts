@@ -5,8 +5,6 @@ import { ordersRateLimit } from '@/lib/rateLimit'
 import {
   createVoucher,
   updateVoucher,
-  getVoucherAnalytics,
-  getVoucherUsageHistory,
 } from '@/lib/services/voucherService'
 import Voucher from '@/models/Voucher'
 import { apiError, logRouteError } from '@/lib/apiError'
@@ -35,7 +33,7 @@ const updateVoucherSchema = createVoucherSchema.partial().extend({
 })
 
 export async function GET(req: NextRequest) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {
@@ -55,7 +53,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {
@@ -89,7 +87,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const limited = await ordersRateLimit(req, { failClosed: true })
+  const limited = await ordersRateLimit(req)
   if (limited) return limited
 
   try {

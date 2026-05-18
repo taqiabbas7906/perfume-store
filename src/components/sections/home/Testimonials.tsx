@@ -1,10 +1,10 @@
-'use client'
+import TestimonialsClient, {
+  type TestimonialItem,
+} from './TestimonialsClient'
 
-import { useState } from 'react'
-
-const reviews = [
+const FALLBACK: TestimonialItem[] = [
   {
-    id: 1,
+    id: 'fb-1',
     name: 'Shannon A.',
     location: 'Miami, FL',
     rating: 5,
@@ -16,7 +16,7 @@ const reviews = [
     product: 'Creed Aventus',
   },
   {
-    id: 2,
+    id: 'fb-2',
     name: 'LaSyd S.',
     location: 'Atlanta, GA',
     rating: 5,
@@ -28,7 +28,7 @@ const reviews = [
     product: 'Bond No.9 City Rhythm',
   },
   {
-    id: 3,
+    id: 'fb-3',
     name: 'Donovan M.',
     location: 'New York, NY',
     rating: 5,
@@ -40,7 +40,7 @@ const reviews = [
     product: 'Tom Ford Oud Wood',
   },
   {
-    id: 4,
+    id: 'fb-4',
     name: 'Priya K.',
     location: 'Houston, TX',
     rating: 5,
@@ -52,7 +52,7 @@ const reviews = [
     product: 'MFK Baccarat Rouge 540',
   },
   {
-    id: 5,
+    id: 'fb-5',
     name: 'Marcus T.',
     location: 'Chicago, IL',
     rating: 5,
@@ -64,7 +64,7 @@ const reviews = [
     product: 'Byredo Mojave Ghost',
   },
   {
-    id: 6,
+    id: 'fb-6',
     name: 'Isabella R.',
     location: 'Los Angeles, CA',
     rating: 5,
@@ -77,119 +77,110 @@ const reviews = [
   },
 ]
 
-const trust = [
-  { icon: 'ri-verified-badge-line', label: '100% Authentic' },
-  { icon: 'ri-truck-line', label: 'Free Shipping' },
-  { icon: 'ri-lock-password-line', label: 'Secure Checkout' },
-  { icon: 'ri-refresh-line', label: 'Easy Returns' },
-  { icon: 'ri-customer-service-2-line', label: 'Expert Support' },
+const AVATAR_COLORS = [
+  'bg-rose-500',
+  'bg-amber-500',
+  'bg-emerald-600',
+  'bg-violet-600',
+  'bg-sky-600',
+  'bg-pink-500',
+  'bg-teal-600',
+  'bg-indigo-500',
 ]
 
-export default function Testimonials() {
-  const [page, setPage] = useState(0)
-  const perPage = 3
-  const totalPages = Math.ceil(reviews.length / perPage)
-  const visible = reviews.slice(page * perPage, page * perPage + perPage)
+function colorFor(seed: string) {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]
+}
+
+function formatMonthYear(iso?: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+interface ApiReview {
+  _id: string
+  rating: number
+  comment: string
+  createdAt: string
+  user?: { name?: string } | null
+  product?: { name?: string; brand?: string } | null
+}
+
+interface ApiReviewsResponse {
+  success: boolean
+  reviews: ApiReview[]
+  pagination?: { total: number }
+}
+
+async function fetchTopReviews(): Promise<{
+  items: TestimonialItem[]
+  total: number
+  average: number | null
+}> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const res = await fetch(
+      `${base}/api/reviews?limit=18&minRating=4`,
+      { next: { revalidate: 300 } },
+    )
+    if (!res.ok) return { items: [], total: 0, average: null }
+    const data = (await res.json()) as ApiReviewsResponse
+    if (!data?.success || !Array.isArray(data.reviews)) {
+      return { items: [], total: 0, average: null }
+    }
+
+    const items: TestimonialItem[] = data.reviews.map((r) => {
+      const fullName = r.user?.name?.trim() || 'Verified Buyer'
+      const parts = fullName.split(/\s+/)
+      const initial = (parts[0]?.[0] ?? 'A').toUpperCase()
+      const display =
+        parts.length > 1
+          ? `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`
+          : fullName
+      const productLabel = r.product
+        ? [r.product.brand, r.product.name].filter(Boolean).join(' ')
+        : ''
+      return {
+        id: r._id,
+        name: display,
+        location: '',
+        rating: r.rating,
+        date: formatMonthYear(r.createdAt),
+        text: r.comment,
+        avatar: initial,
+        color: colorFor(r._id),
+        product: productLabel,
+      }
+    })
+
+    const total = data.pagination?.total ?? items.length
+    const avg =
+      items.length > 0
+        ? items.reduce((s, r) => s + r.rating, 0) / items.length
+        : null
+
+    return { items, total, average: avg }
+  } catch {
+    return { items: [], total: 0, average: null }
+  }
+}
+
+export default async function Testimonials() {
+  const { items, total, average } = await fetchTopReviews()
+  const usingReal = items.length > 0
+  const display = usingReal ? items : FALLBACK
+  const summaryAverage = average ?? 4.9
+  const summaryCount = usingReal ? total : 1200
 
   return (
-    <section id="reviews" className="py-20 px-6 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-14">
-          <p className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold mb-3">
-            Customer Love
-          </p>
-          <h2 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)]">
-            What Our Customers Say
-          </h2>
-          <div className="flex items-center justify-center gap-2 mt-5">
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <i key={i} className="ri-star-fill text-[var(--color-gold)] text-base" />
-              ))}
-            </div>
-            <span className="text-xl font-bold text-[var(--color-ink)]">4.9</span>
-            <span className="text-sm text-gray-400">
-              / 5 &nbsp;·&nbsp; 1,200+ verified reviews
-            </span>
-          </div>
-          <div className="w-10 h-[1px] bg-[var(--color-gold)] mx-auto mt-5" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {visible.map((r) => (
-            <div
-              key={r.id}
-              className="bg-[var(--color-cream-500)] p-7 flex flex-col gap-4 hover:bg-[var(--color-cream-600)] transition-colors duration-300"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 flex items-center justify-center rounded-full text-white text-sm font-bold flex-shrink-0 ${r.color}`}
-                  >
-                    {r.avatar}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--color-ink)]">{r.name}</p>
-                    <p className="text-[10px] text-gray-400 tracking-wider">{r.location}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <i key={i} className="ri-star-fill text-[var(--color-gold)] text-xs" />
-                    ))}
-                  </div>
-                  <p className="text-[9px] text-gray-400 tracking-wider">{r.date}</p>
-                </div>
-              </div>
-
-              <i className="ri-double-quotes-l text-[var(--color-gold)]/30 text-3xl -mb-2" />
-
-              <p className="text-sm text-gray-500 leading-relaxed flex-1">{r.text}</p>
-
-              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                <i className="ri-shopping-bag-2-line text-[var(--color-gold)] text-xs" />
-                <span className="text-[10px] text-gray-400 tracking-wider">
-                  Purchased:{' '}
-                  <strong className="text-[var(--color-ink)] font-semibold">
-                    {r.product}
-                  </strong>
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-10">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Page ${i + 1}`}
-                onClick={() => setPage(i)}
-                className={`transition-all duration-300 rounded-full ${
-                  i === page
-                    ? 'w-8 h-2 bg-[var(--color-gold)]'
-                    : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center justify-center gap-10 mt-16 pt-12 border-t border-gray-100">
-          {trust.map((b) => (
-            <div key={b.label} className="flex flex-col items-center gap-2.5">
-              <div className="w-11 h-11 flex items-center justify-center border border-[var(--color-gold)]/30 hover:bg-[var(--color-gold)]/5 transition-colors">
-                <i className={`${b.icon} text-[var(--color-gold)] text-lg`} />
-              </div>
-              <span className="text-[10px] tracking-widest uppercase text-gray-400 font-semibold">
-                {b.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <TestimonialsClient
+      reviews={display}
+      average={summaryAverage}
+      count={summaryCount}
+    />
   )
 }

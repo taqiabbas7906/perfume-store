@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { smartFetch } from '@/lib/api'
 import { formatPrice } from '@/lib/utils/format'
+import { useWishlist } from '@/context/WishlistContext'
+import { AccountOverviewSkeleton } from '@/components/ui/Skeleton'
 
 interface RecentOrder {
   _id: string
@@ -31,33 +33,25 @@ export default function AccountOverview({
   onNavigate: (tab: string) => void
 }) {
   const [orders, setOrders] = useState<RecentOrder[]>([])
-  const [wishlistCount, setWishlistCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const { count: wishlistCount } = useWishlist()
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([
-      smartFetch('/api/orders?limit=5')
-        .then((r) => r.json())
-        .catch(() => null),
-      smartFetch('/api/wishlist')
-        .then((r) => r.json())
-        .catch(() => null),
-    ])
-      .then(([ordersData, wishlistData]) => {
+    smartFetch('/api/orders?limit=5')
+      .then((r) => r.json())
+      .then((data) => {
         if (cancelled) return
-        if (ordersData?.success) setOrders(ordersData.orders ?? [])
-        if (wishlistData?.success) {
-          setWishlistCount(
-            wishlistData.count ?? wishlistData.items?.length ?? 0,
-          )
-        }
+        if (data?.success) setOrders(data.orders ?? [])
       })
+      .catch(() => {})
       .finally(() => !cancelled && setLoading(false))
     return () => {
       cancelled = true
     }
   }, [])
+
+  if (loading || parentLoading) return <AccountOverviewSkeleton />
 
   const stats = [
     {
@@ -107,11 +101,7 @@ export default function AccountOverview({
           </button>
         </div>
         <div className="divide-y divide-[var(--color-cream-400)]">
-          {loading || parentLoading ? (
-            <div className="py-8 px-6 text-center text-gray-400 text-xs tracking-wide">
-              Loading…
-            </div>
-          ) : orders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="py-12 px-6 text-center text-gray-400 text-sm tracking-wide">
               You haven&apos;t placed any orders yet.
             </div>

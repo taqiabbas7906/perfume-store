@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useSearch } from '@/context/SearchContext'
 import { formatPrice } from '@/lib/utils/format'
+import { SearchResultsSkeleton } from '@/components/ui/Skeleton'
 
 interface SearchHit {
   _id?: string
@@ -195,9 +196,7 @@ export default function SearchOverlay() {
           {query.trim().length > 1 ? (
             <>
               {loading ? (
-                <p className="py-6 text-center text-xs text-gray-400 tracking-widest uppercase">
-                  Searching…
-                </p>
+                <SearchResultsSkeleton />
               ) : hits.length > 0 ? (
                 <>
                   <p className="text-[9px] text-[var(--color-gold)] tracking-[0.4em] uppercase font-semibold mb-4">

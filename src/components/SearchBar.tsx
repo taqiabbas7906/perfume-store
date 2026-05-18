@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { SearchResultsSkeleton } from '@/components/ui/Skeleton'
 
 interface AlgoliaHit {
   objectID: string
@@ -101,8 +102,14 @@ export default function SearchBar() {
       {/* Dropdown */}
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50">
-          {hits.length === 0 && !loading ? (
-            <div className="px-4 py-3 text-sm text-gray-500">No results for "{query}"</div>
+          {loading ? (
+            <div className="p-3">
+              <SearchResultsSkeleton count={3} />
+            </div>
+          ) : hits.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-gray-500">
+              No results for &quot;{query}&quot;
+            </div>
           ) : (
             <>
               <ul>
@@ -135,7 +142,7 @@ export default function SearchBar() {
                 onClick={handleSeeAll}
                 className="w-full px-4 py-2.5 text-xs text-center text-indigo-600 font-medium bg-gray-50 hover:bg-gray-100 border-t border-gray-100 transition-colors"
               >
-                See all results for "{query}"
+                See all results for &quot;{query}&quot;
               </button>
             </>
           )}

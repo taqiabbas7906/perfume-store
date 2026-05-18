@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Cormorant_Garamond, Montserrat } from 'next/font/google'
 import { AuthProvider } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
+import { WishlistProvider } from '@/context/WishlistContext'
 import { SearchProvider } from '@/context/SearchContext'
 import SiteShell from '@/components/layout/SiteShell'
 import './globals.css'
@@ -64,9 +65,11 @@ export default function RootLayout({
       <body className="font-sans bg-white text-ink antialiased">
         <AuthProvider>
           <CartProvider>
-            <SearchProvider>
-              <SiteShell>{children}</SiteShell>
-            </SearchProvider>
+            <WishlistProvider>
+              <SearchProvider>
+                <SiteShell>{children}</SiteShell>
+              </SearchProvider>
+            </WishlistProvider>
           </CartProvider>
         </AuthProvider>
       </body>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 type Tab = 'categories' | 'brands' | 'collections' | 'upload'
 
@@ -158,6 +159,14 @@ export default function AdminCatalogPage() {
 
   const f = (key: string, val: unknown) => setForm(prev => ({ ...prev, [key]: val }))
 
+  if (authLoading || !isAdmin || loading) {
+    return (
+      <div className="container mx-auto px-4 py-10 max-w-5xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
+  }
+
   const tabs: Tab[] = ['categories', 'brands', 'collections', 'upload']
 
   const tabStyle = (t: Tab) => ({
@@ -171,8 +180,6 @@ export default function AdminCatalogPage() {
     fontWeight: 500,
     textTransform: 'capitalize' as const,
   })
-
-  if (authLoading || !isAdmin) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Loading…</div>
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>

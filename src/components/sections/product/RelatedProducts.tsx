@@ -5,13 +5,29 @@ interface RelatedProductsProps {
   currentSlug: string
   brand: string
   category?: string
+  productType?: string
+}
+
+const HEADINGS: Record<string, { eyebrow: string; title: string }> = {
+  perfume: { eyebrow: 'You May Also Like', title: 'Related Fragrances' },
+  lipstick: { eyebrow: 'You May Also Like', title: 'Related Lipsticks' },
+  makeup: { eyebrow: 'You May Also Like', title: 'Related Makeup' },
+  jewelry: { eyebrow: 'You May Also Like', title: 'Related Pieces' },
+  skincare: { eyebrow: 'You May Also Like', title: 'Related Skincare' },
+}
+const DEFAULT_HEADING = {
+  eyebrow: 'You May Also Like',
+  title: 'Related Products',
 }
 
 async function fetchRelated({
   currentSlug,
   brand,
   category,
-}: RelatedProductsProps): Promise<StorefrontProduct[]> {
+}: Pick<
+  RelatedProductsProps,
+  'currentSlug' | 'brand' | 'category'
+>): Promise<StorefrontProduct[]> {
   try {
     const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const qs = new URLSearchParams({ limit: '8', sort: 'popular' })
@@ -52,18 +68,22 @@ async function fetchRelated({
 }
 
 export default async function RelatedProducts(props: RelatedProductsProps) {
+  const { productType } = props
   const products = await fetchRelated(props)
   if (products.length === 0) return null
+
+  const heading =
+    (productType && HEADINGS[productType]) || DEFAULT_HEADING
 
   return (
     <section className="py-12 lg:py-16 border-t border-[var(--color-border-soft)] bg-[var(--color-cream-100)]">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-10">
           <p className="text-[10px] text-[var(--color-gold)] tracking-[0.4em] uppercase font-bold mb-2">
-            You May Also Like
+            {heading.eyebrow}
           </p>
           <h2 className="font-serif text-2xl font-bold text-[var(--color-ink)]">
-            Related Fragrances
+            {heading.title}
           </h2>
         </div>
 

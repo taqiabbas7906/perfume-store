@@ -44,11 +44,56 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-function attrArray(value: unknown, fallbackIcon: string) {
-  if (!Array.isArray(value)) return []
-  return value
-    .filter((v) => typeof v === 'string' && v.length > 0)
-    .map((name) => ({ name: String(name), icon: fallbackIcon }))
+function attrArray(
+  value: unknown,
+  fallbackIcon: string,
+): { name: string; icon: string }[] {
+  // Accepts: ["a","b"] | "a,b" | [{name,icon},{name}] | {name}
+  const raw: unknown[] = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(',')
+      : value && typeof value === 'object'
+        ? [value]
+        : []
+
+  return raw
+    .map((item) => {
+      if (typeof item === 'string') {
+        const name = item.trim()
+        return name ? { name, icon: fallbackIcon } : null
+      }
+      if (item && typeof item === 'object') {
+        const obj = item as { name?: unknown; icon?: unknown }
+        const name = typeof obj.name === 'string' ? obj.name.trim() : ''
+        if (!name) return null
+        const icon = typeof obj.icon === 'string' && obj.icon ? obj.icon : fallbackIcon
+        return { name, icon }
+      }
+      return null
+    })
+    .filter((v): v is { name: string; icon: string } => v !== null)
+}
+
+function readNoteAttr(
+  attrs: Record<string, unknown> | undefined,
+  keys: string[],
+): unknown {
+  if (!attrs) return undefined
+  for (const k of keys) {
+    if (attrs[k] !== undefined && attrs[k] !== null) return attrs[k]
+  }
+  // Nested: attributes.notes.top
+  const nested = attrs.notes
+  if (nested && typeof nested === 'object') {
+    const n = nested as Record<string, unknown>
+    for (const k of keys) {
+      const short = k.replace(/Notes$/i, '').toLowerCase()
+      if (n[short] !== undefined && n[short] !== null) return n[short]
+      if (n[k] !== undefined && n[k] !== null) return n[k]
+    }
+  }
+  return undefined
 }
 
 export default async function ProductDetailPage({ params }: Params) {
@@ -56,11 +101,28 @@ export default async function ProductDetailPage({ params }: Params) {
   const product = await getProduct(slug)
   if (!product) notFound()
 
+  const isFragrance = product.productType === 'perfume'
+
   const attrs = (product as unknown as { attributes?: Record<string, unknown> })
     .attributes
-  const topNotes = attrArray(attrs?.topNotes, 'ri-sun-line')
-  const heartNotes = attrArray(attrs?.heartNotes, 'ri-flower-line')
-  const baseNotes = attrArray(attrs?.baseNotes, 'ri-contrast-drop-line')
+  const topNotes = isFragrance
+    ? attrArray(
+        readNoteAttr(attrs, ['topNotes', 'top_notes', 'top']),
+        'ri-sun-line',
+      )
+    : []
+  const heartNotes = isFragrance
+    ? attrArray(
+        readNoteAttr(attrs, ['heartNotes', 'heart_notes', 'middleNotes', 'middle', 'heart']),
+        'ri-flower-line',
+      )
+    : []
+  const baseNotes = isFragrance
+    ? attrArray(
+        readNoteAttr(attrs, ['baseNotes', 'base_notes', 'base']),
+        'ri-contrast-drop-line',
+      )
+    : []
 
   const breadcrumbs = [
     { label: 'Home', href: '/' },
@@ -111,11 +173,13 @@ export default async function ProductDetailPage({ params }: Params) {
         </div>
       </section>
 
-      <ProductNotes
-        topNotes={topNotes}
-        heartNotes={heartNotes}
-        baseNotes={baseNotes}
-      />
+      {isFragrance && (
+        <ProductNotes
+          topNotes={topNotes}
+          heartNotes={heartNotes}
+          baseNotes={baseNotes}
+        />
+      )}
 
       {product.ratingCount && product.ratingCount > 0 ? (
         <ProductReviews
@@ -129,6 +193,7 @@ export default async function ProductDetailPage({ params }: Params) {
         currentSlug={product.slug}
         brand={product.brand}
         category={product.category}
+        productType={product.productType}
       />
     </>
   )

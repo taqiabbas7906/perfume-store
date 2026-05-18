@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminDashboardSkeleton } from '@/components/ui/Skeleton'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -52,7 +53,7 @@ export default function AdminDashboard() {
   }, [user, authLoading, router])
 
   if (authLoading || loading) {
-    return <div className="container mx-auto px-4 py-8 text-center">Loading...</div>
+    return <AdminDashboardSkeleton />
   }
 
   if (!isAdmin) {

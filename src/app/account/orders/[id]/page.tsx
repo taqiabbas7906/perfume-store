@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { OrderDetailSkeleton } from '@/components/ui/Skeleton'
 
 interface OrderItem {
   name: string
@@ -88,7 +89,7 @@ export default function OrderDetailPage() {
   }, [id, user, authLoading, router])
 
   if (authLoading || loading) {
-    return <div className="container mx-auto px-4 py-16 text-center text-gray-400">Loading…</div>
+    return <OrderDetailSkeleton />
   }
 
   if (error || !order) {

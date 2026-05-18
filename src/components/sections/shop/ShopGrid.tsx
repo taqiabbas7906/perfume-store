@@ -1,6 +1,7 @@
 'use client'
 
 import ProductCard from '@/components/commerce/ProductCard'
+import { ProductGridSkeleton } from '@/components/ui/Skeleton'
 import type { StorefrontProduct } from '@/types/storefront'
 
 export default function ShopGrid({
@@ -12,13 +13,8 @@ export default function ShopGrid({
 }) {
   if (loading) {
     return (
-      <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="bg-[var(--color-cream-500)] aspect-[3/4] animate-pulse"
-          />
-        ))}
+      <div className="flex-1">
+        <ProductGridSkeleton count={12} />
       </div>
     )
   }
@@ -30,7 +26,7 @@ export default function ShopGrid({
           <i className="ri-search-line text-2xl text-[var(--color-gold)]" />
         </div>
         <p className="text-[var(--color-ink)] font-medium tracking-wide">
-          No fragrances found
+          No products found
         </p>
         <p className="text-gray-400 text-xs mt-1.5 tracking-wide">
           Try adjusting your filters

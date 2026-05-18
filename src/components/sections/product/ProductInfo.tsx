@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
+import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
-import { smartFetch } from '@/lib/api'
 import { formatPrice } from '@/lib/utils/format'
 import type { StorefrontProduct } from '@/types/storefront'
 
@@ -16,13 +16,12 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const router = useRouter()
   const { user } = useAuth()
   const { addItem } = useCart()
+  const { has: hasWish, toggle: toggleWish } = useWishlist()
   const variants = product.variants ?? []
   const [selectedSku, setSelectedSku] = useState(variants[0]?.sku ?? '')
   const [qty, setQty] = useState(1)
-  const [wishlist, setWishlist] = useState(false)
-  const [busy, setBusy] = useState(false)
   const [added, setAdded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const wished = hasWish(product._id)
 
   const variant =
     variants.find((v) => v.sku === selectedSku) ?? variants[0]
@@ -40,58 +39,57 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const reviewCount = product.ratingCount ?? 0
   const tags = product.tags ?? []
 
-  async function handleAddToCart() {
-    if (busy) return
-    setBusy(true)
-    setError(null)
-    const r = await addItem({
+  function handleAddToCart() {
+    void addItem({
       productId: product._id,
       variantSku: variant.sku,
       quantity: qty,
+      meta: {
+        name: product.name,
+        price: price,
+        image: product.images?.[0]?.url ?? '',
+        variantLabel: variant.label,
+        slug: product.slug,
+        brand: product.brand,
+      },
     })
-    setBusy(false)
-    if (r.ok) {
-      setAdded(true)
-      setTimeout(() => setAdded(false), 2500)
-    } else {
-      setError(r.error ?? 'Failed to add to bag')
-    }
+    setAdded(true)
+    setTimeout(() => setAdded(false), 2500)
   }
 
-  async function handleWishlist() {
+  function handleWishlist() {
     if (!user) {
       router.push('/login')
       return
     }
-    try {
-      const next = !wishlist
-      setWishlist(next)
-      await smartFetch(`/api/wishlist/${product._id}`, {
-        method: next ? 'POST' : 'DELETE',
-      })
-    } catch {
-      setWishlist((w) => !w)
-    }
+    toggleWish(product._id, {
+      _id: product._id,
+      name: product.name,
+      slug: product.slug,
+      brand: product.brand,
+      minPrice: product.minPrice,
+      active: true,
+      images: product.images,
+    })
   }
+
+  const isFragrance = product.productType === 'perfume'
 
   const attrs = (product.attributes ?? {}) as Record<string, unknown>
   const attr = (k: string) => (typeof attrs[k] === 'string' ? (attrs[k] as string) : '')
   const tagline = attr('tagline')
-  const concentration = attr('concentration')
-  const longevity = attr('longevity')
-  const sillage = attr('sillage')
-  const season = attr('season')
-  const gender = attr('gender')
 
-  const richSpecs = [
-    { label: 'Concentration', value: concentration, icon: 'ri-drop-line' },
-    { label: 'Longevity', value: longevity, icon: 'ri-time-line' },
-    { label: 'Sillage', value: sillage, icon: 'ri-blur-off-line' },
-    { label: 'Season', value: season, icon: 'ri-sun-line' },
-    { label: 'Gender', value: gender, icon: 'ri-user-3-line' },
-  ].filter((s) => s.value)
+  const fragranceSpecs = isFragrance
+    ? [
+        { label: 'Concentration', value: attr('concentration'), icon: 'ri-drop-line' },
+        { label: 'Longevity', value: attr('longevity'), icon: 'ri-time-line' },
+        { label: 'Sillage', value: attr('sillage'), icon: 'ri-blur-off-line' },
+        { label: 'Season', value: attr('season'), icon: 'ri-sun-line' },
+        { label: 'Gender', value: attr('gender'), icon: 'ri-user-3-line' },
+      ].filter((s) => s.value)
+    : []
 
-  const fallbackSpecs = [
+  const genericSpecs = [
     { label: 'Brand', value: product.brand, icon: 'ri-shopping-bag-line' },
     { label: 'Category', value: product.category, icon: 'ri-price-tag-3-line' },
     {
@@ -106,7 +104,13 @@ export default function ProductInfo({ product }: ProductInfoProps) {
     },
   ]
 
-  const specs = richSpecs.length > 0 ? richSpecs : fallbackSpecs
+  const specs =
+    isFragrance && fragranceSpecs.length > 0 ? fragranceSpecs : genericSpecs
+
+  const detailsHeading = isFragrance ? 'Fragrance Details' : 'Product Details'
+  const descriptionHeading = isFragrance
+    ? 'About this Fragrance'
+    : 'About this Product'
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
@@ -232,7 +236,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       <div className="flex gap-3">
         <button
           onClick={handleAddToCart}
-          disabled={busy || variant.quantity < 1}
+          disabled={variant.quantity < 1}
           className={`flex-1 h-12 flex items-center justify-center gap-2 font-bold text-xs tracking-widest uppercase whitespace-nowrap transition-all duration-300 disabled:opacity-70 ${
             added
               ? 'bg-emerald-700 text-white'
@@ -244,8 +248,6 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               <i className="ri-check-line text-base" />
               Added to Bag!
             </>
-          ) : busy ? (
-            'Adding…'
           ) : variant.quantity < 1 ? (
             'Out of Stock'
           ) : (
@@ -257,20 +259,16 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </button>
         <button
           onClick={handleWishlist}
-          aria-label={wishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+          aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
           className={`w-12 h-12 flex items-center justify-center border transition-all duration-200 ${
-            wishlist
+            wished
               ? 'border-red-400 bg-red-50 text-red-500'
               : 'border-[var(--color-border)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)]'
           }`}
         >
-          <i className={`text-lg ${wishlist ? 'ri-heart-fill' : 'ri-heart-line'}`} />
+          <i className={`text-lg ${wished ? 'ri-heart-fill' : 'ri-heart-line'}`} />
         </button>
       </div>
-
-      {error && (
-        <p className="text-xs text-red-500 tracking-wide">{error}</p>
-      )}
 
       <div className="grid grid-cols-3 gap-2 pt-1">
         {[
@@ -296,7 +294,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
 
       <div>
         <p className="text-xs font-semibold tracking-widest uppercase text-[var(--color-ink)] mb-3">
-          Fragrance Details
+          {detailsHeading}
         </p>
         <div className="grid grid-cols-2 gap-2">
           {specs.map((s) => (
@@ -336,7 +334,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
       {product.description && (
         <div className="bg-[var(--color-cream-100)] border border-[var(--color-border-soft)] p-4">
           <p className="text-xs font-semibold tracking-widest uppercase text-[var(--color-ink)] mb-2">
-            About this Fragrance
+            {descriptionHeading}
           </p>
           <p className="text-sm text-[var(--color-ink-muted)] leading-relaxed whitespace-pre-line">
             {product.description}

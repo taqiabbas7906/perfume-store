@@ -1,6 +1,6 @@
 'use client'
 
-import type { StorefrontCategory, StorefrontBrand } from '@/types/storefront'
+import type { StorefrontBrand } from '@/types/storefront'
 
 interface ShopFiltersProps {
   category: string
@@ -12,7 +12,6 @@ interface ShopFiltersProps {
   setPriceRange: (range: { min: number; max: number }) => void
   sort: string
   setSort: (s: string) => void
-  categories: StorefrontCategory[]
   brands: StorefrontBrand[]
 }
 
@@ -25,6 +24,12 @@ const sortOptions = [
   { value: 'name_asc', label: 'Name: A → Z' },
 ]
 
+const audienceOptions = [
+  { value: 'men', label: 'Men' },
+  { value: 'women', label: 'Women' },
+  { value: 'unisex', label: 'Unisex' },
+]
+
 export default function ShopFilters({
   category,
   setCategory,
@@ -35,7 +40,6 @@ export default function ShopFilters({
   setPriceRange,
   sort,
   setSort,
-  categories,
   brands,
 }: ShopFiltersProps) {
   return (
@@ -73,12 +77,12 @@ export default function ShopFilters({
               active={!category}
               onClick={() => setCategory('')}
             />
-            {categories.map((c) => (
+            {audienceOptions.map((opt) => (
               <FilterButton
-                key={c._id}
-                label={c.name}
-                active={category === c.slug}
-                onClick={() => setCategory(c.slug)}
+                key={opt.value}
+                label={opt.label}
+                active={category === opt.value}
+                onClick={() => setCategory(opt.value)}
               />
             ))}
           </div>

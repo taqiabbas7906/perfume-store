@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 /* ─── types ─── */
 type Period = 'today' | '7d' | '30d' | '90d'
@@ -166,7 +167,14 @@ export default function AnalyticsPage() {
 
   useEffect(() => { if (isAdmin) fetchAll(period) }, [isAdmin, period, fetchAll])
 
-  if (!checked) return <div className="container mx-auto px-4 py-8 text-gray-400">Checking access…</div>
+  if (!checked || (isAdmin && loading)) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <AdminTableSkeleton rows={8} />
+      </div>
+    )
+  }
+
   if (!isAdmin)  return null
 
   const PERIODS: { label: string; value: Period }[] = [

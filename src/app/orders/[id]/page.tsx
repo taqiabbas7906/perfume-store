@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { OrderDetailSkeleton } from '@/components/ui/Skeleton'
 
 interface StatusEntry {
   status: string
@@ -74,7 +75,7 @@ export default function CustomerOrderDetailPage() {
     return () => { cancelled = true }
   }, [params?.id, user, authLoading, router])
 
-  if (authLoading || loading) return <div className="max-w-3xl mx-auto px-4 py-10 text-gray-400">Loading…</div>
+  if (authLoading || loading) return <OrderDetailSkeleton />
   if (error) return <div className="max-w-3xl mx-auto px-4 py-10 text-red-600">{error}</div>
   if (!order) return null
 

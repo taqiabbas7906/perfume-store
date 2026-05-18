@@ -3,12 +3,24 @@ import { logger } from './logger'
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
-/* ───────────────────────────────────────────── */
-/* Redis client setup */
-/* ───────────────────────────────────────────── */
-
 let redisClient: Redis | null = null
 const limiterCache = new Map<string, Ratelimit>()
+
+type LocalBucket = {
+  count: number
+  reset: number
+}
+
+type LimitResult = {
+  success: boolean
+  limit: number
+  remaining: number
+  reset: number
+}
+
+const localBuckets = new Map<string, LocalBucket>()
+const fallbackWarnings = new Set<string>()
+let nextLocalSweep = 0
 
 function isUpstashConfigured(): boolean {
   return Boolean(
@@ -30,19 +42,11 @@ function getRedisClient(): Redis | null {
   return redisClient
 }
 
-/* ───────────────────────────────────────────── */
-/* Limiter config */
-/* ───────────────────────────────────────────── */
-
 export interface LimiterConfig {
   name: string
   limit: number
   window: `${number} ${'s' | 'm' | 'h' | 'd'}`
 }
-
-/* ───────────────────────────────────────────── */
-/* Limiter factory (cached) */
-/* ───────────────────────────────────────────── */
 
 function getLimiter(config: LimiterConfig): Ratelimit | null {
   const redis = getRedisClient()
@@ -64,10 +68,6 @@ function getLimiter(config: LimiterConfig): Ratelimit | null {
   return limiter
 }
 
-/* ───────────────────────────────────────────── */
-/* IP extraction (correct proxy-safe version) */
-/* ───────────────────────────────────────────── */
-
 function getClientIp(req: NextRequest): string {
   const realIp = req.headers.get('x-real-ip')
   if (realIp) return realIp.trim()
@@ -79,91 +79,140 @@ function getClientIp(req: NextRequest): string {
       .map((s) => s.trim())
       .filter(Boolean)
 
-    if (ips.length > 0) {
-      return ips[0] // correct: original client IP
-    }
+    if (ips.length > 0) return ips[0]
   }
 
   return 'unknown'
 }
 
-/* ───────────────────────────────────────────── */
-/* Core limiter logic */
-/* ───────────────────────────────────────────── */
+function parseWindowMs(window: LimiterConfig['window']) {
+  const [amountRaw, unit] = window.split(' ') as [
+    string,
+    's' | 'm' | 'h' | 'd',
+  ]
+  const amount = Number(amountRaw)
+  const multipliers = {
+    s: 1_000,
+    m: 60_000,
+    h: 3_600_000,
+    d: 86_400_000,
+  } as const
+
+  return amount * multipliers[unit]
+}
+
+function sweepLocalBuckets(now: number) {
+  if (now < nextLocalSweep) return
+  nextLocalSweep = now + 60_000
+
+  for (const [key, bucket] of localBuckets.entries()) {
+    if (bucket.reset <= now) localBuckets.delete(key)
+  }
+}
+
+function localLimit(config: LimiterConfig, ip: string): LimitResult {
+  const now = Date.now()
+  sweepLocalBuckets(now)
+
+  const key = `${config.name}:${ip}`
+  let bucket = localBuckets.get(key)
+
+  if (!bucket || bucket.reset <= now) {
+    bucket = {
+      count: 0,
+      reset: now + parseWindowMs(config.window),
+    }
+    localBuckets.set(key, bucket)
+  }
+
+  bucket.count += 1
+
+  return {
+    success: bucket.count <= config.limit,
+    limit: config.limit,
+    remaining: Math.max(0, config.limit - bucket.count),
+    reset: bucket.reset,
+  }
+}
+
+function logRedisFallback(config: LimiterConfig, failClosed: boolean) {
+  if (process.env.NODE_ENV !== 'production') return
+  if (fallbackWarnings.has(config.name)) return
+
+  fallbackWarnings.add(config.name)
+  logger.warn(
+    { limiter: config.name, failClosed },
+    'Rate limiting using in-memory fallback (Redis not configured)'
+  )
+}
+
+function rateLimitExceededResponse(
+  ip: string,
+  limiter: string,
+  result: LimitResult
+) {
+  const retryAfter = Math.max(
+    1,
+    Math.ceil((result.reset - Date.now()) / 1000)
+  )
+
+  logger.warn(
+    { ip, limiter, retryAfter },
+    `Rate limit exceeded [${limiter}]`
+  )
+
+  return NextResponse.json(
+    {
+      error: 'Too many requests',
+      retryAfter,
+    },
+    {
+      status: 429,
+      headers: {
+        'Retry-After': retryAfter.toString(),
+        'X-RateLimit-Limit': result.limit.toString(),
+        'X-RateLimit-Remaining': result.remaining.toString(),
+        'X-RateLimit-Reset': new Date(result.reset).toISOString(),
+      },
+    }
+  )
+}
 
 async function applyLimit(
   req: NextRequest,
   config: LimiterConfig,
   options?: { failClosed?: boolean }
 ): Promise<NextResponse | null> {
-  const limiter = getLimiter(config)
   const failClosed = options?.failClosed ?? false
+  const ip = getClientIp(req)
+  const limiter = getLimiter(config)
 
   if (!limiter) {
-    if (process.env.NODE_ENV === 'production') {
-      logger.warn(
-        { limiter: config.name, failClosed },
-        failClosed
-          ? 'Rate limit failed-closed (Redis not configured)'
-          : 'Rate limit skipped (Redis not configured)'
-      )
-    }
-    if (failClosed) {
-      return NextResponse.json(
-        { error: 'Service unavailable' },
-        { status: 503 }
-      )
-    }
-    return null
+    logRedisFallback(config, failClosed)
+    const result = localLimit(config, ip)
+
+    if (result.success) return null
+    return rateLimitExceededResponse(ip, config.name, result)
   }
 
-  const ip = getClientIp(req)
-
   try {
-    const { success, limit, remaining, reset } = await limiter.limit(ip)
+    const result = await limiter.limit(ip)
 
-    if (success) return null
-
-    const retryAfter = Math.max(
-      1,
-      Math.ceil((reset - Date.now()) / 1000)
-    )
-
-    logger.warn(
-      { ip, limiter: config.name, retryAfter },
-      `Rate limit exceeded [${config.name}]`
-    )
-
-    return NextResponse.json(
-      {
-        error: 'Too many requests',
-        retryAfter,
-      },
-      {
-        status: 429,
-        headers: {
-          'Retry-After': retryAfter.toString(),
-          'X-RateLimit-Limit': limit.toString(),
-          'X-RateLimit-Remaining': remaining.toString(),
-          'X-RateLimit-Reset': new Date(reset).toISOString(),
-        },
-      }
-    )
+    if (result.success) return null
+    return rateLimitExceededResponse(ip, config.name, result)
   } catch (err) {
     logger.error({ err, limiter: config.name, failClosed }, 'Rate limiter error')
+
     if (failClosed) {
       return NextResponse.json(
         { error: 'Service unavailable' },
         { status: 503 }
       )
     }
+
     return null
   }
 }
-
-/* ───────────────────────────────────────────── */
-/* Base limiters */
-/* ───────────────────────────────────────────── */
 
 const GLOBAL: LimiterConfig = {
   name: 'global',
@@ -176,10 +225,6 @@ const AUTH: LimiterConfig = {
   limit: 5,
   window: '15 m',
 }
-
-/* ───────────────────────────────────────────── */
-/* Feature-specific limiters (MERGED FROM EMERGENT IDEA) */
-/* ───────────────────────────────────────────── */
 
 const CART: LimiterConfig = {
   name: 'cart',
@@ -205,37 +250,44 @@ const WEBHOOKS: LimiterConfig = {
   window: '1 m',
 }
 
-/* ───────────────────────────────────────────── */
-/* Public API helpers */
-/* ───────────────────────────────────────────── */
-
 export function rateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
   return applyLimit(req, GLOBAL, options)
 }
 
-export function authRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+export function authRateLimit(
+  req: NextRequest,
+  options?: { failClosed?: boolean }
+) {
   return applyLimit(req, AUTH, options)
 }
 
-export function cartRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+export function cartRateLimit(
+  req: NextRequest,
+  options?: { failClosed?: boolean }
+) {
   return applyLimit(req, CART, options)
 }
 
-export function ordersRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+export function ordersRateLimit(
+  req: NextRequest,
+  options?: { failClosed?: boolean }
+) {
   return applyLimit(req, ORDERS, options)
 }
 
-export function paymentsRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+export function paymentsRateLimit(
+  req: NextRequest,
+  options?: { failClosed?: boolean }
+) {
   return applyLimit(req, PAYMENTS, options)
 }
 
-export function webhooksRateLimit(req: NextRequest, options?: { failClosed?: boolean }) {
+export function webhooksRateLimit(
+  req: NextRequest,
+  options?: { failClosed?: boolean }
+) {
   return applyLimit(req, WEBHOOKS, options)
 }
-
-/* ───────────────────────────────────────────── */
-/* Advanced usage (optional) */
-/* ───────────────────────────────────────────── */
 
 export function customRateLimit(
   req: NextRequest,

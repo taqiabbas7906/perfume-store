@@ -68,7 +68,7 @@ export default async function BestSellers() {
         <div className="text-center mt-14">
           <Link
             href="/shop"
-            className="inline-flex items-center gap-3 border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)] hover:text-white text-[11px] tracking-[0.25em] uppercase font-bold px-16 py-4 transition-all duration-300 whitespace-nowrap group"
+            className="inline-flex items-center justify-center gap-3 max-w-full border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)] hover:text-white text-[11px] tracking-[0.2em] sm:tracking-[0.25em] uppercase font-bold px-8 sm:px-16 py-4 transition-all duration-300 whitespace-nowrap group"
           >
             Browse Full Collection
             <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1" />

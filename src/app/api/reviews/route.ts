@@ -14,14 +14,18 @@ import mongoose from 'mongoose'
 import { z } from 'zod'
 
 const listQuerySchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().min(1).optional(),
+  minRating: z.coerce.number().int().min(1).max(5).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(10),
 })
 
 /* ─────────────────────────────────────────────────────────────
  * GET /api/reviews?productId=...&page=1&limit=10
- * Public — returns approved reviews for a product
+ *   - productId given → reviews for that product, newest first
+ *   - productId omitted → cross-product approved reviews, ranked by
+ *     rating desc then createdAt desc; optional minRating filter.
+ *     Populates `product` (name/brand/slug) so callers can label.
  * ───────────────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const limited = await rateLimit(req)
@@ -33,25 +37,41 @@ export async function GET(req: NextRequest) {
     if (!parsed.success) {
       return apiError(400, { error: 'Invalid query', details: parsed.error.flatten().fieldErrors })
     }
-    const { productId, page, limit } = parsed.data
-
-    if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return apiError(400, { error: 'Invalid productId' })
-    }
+    const { productId, minRating, page, limit } = parsed.data
 
     await connectDB()
 
-    const filter = { product: new mongoose.Types.ObjectId(productId), approved: true }
+    const filter: Record<string, unknown> = { approved: true }
+    let sort: Record<string, 1 | -1> = { createdAt: -1 }
+    let includeProduct = false
+
+    if (productId) {
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        return apiError(400, { error: 'Invalid productId' })
+      }
+      filter.product = new mongoose.Types.ObjectId(productId)
+    } else {
+      // Cross-product mode (homepage testimonials, etc.)
+      if (minRating) filter.rating = { $gte: minRating }
+      sort = { rating: -1, createdAt: -1 }
+      includeProduct = true
+    }
+
     const skip = (page - 1) * limit
+
+    const query = Review.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate('user', 'name')
+
+    if (includeProduct) {
+      query.populate('product', 'name brand slug')
+    }
 
     const [total, reviews] = await Promise.all([
       Review.countDocuments(filter),
-      Review.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('user', 'name')
-        .lean(),
+      query.lean(),
     ])
 
     return NextResponse.json({

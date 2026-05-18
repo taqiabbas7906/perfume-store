@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 interface UserDetail {
   _id: string
@@ -105,19 +106,15 @@ export default function AdminUserDetailPage() {
     }
   }
 
-  if (!checked) return <div className="container mx-auto px-4 py-8 text-gray-400">Checking access…</div>
-  if (!isAdmin) return null
-
-  if (loading) {
+  if (!checked || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm">Loading…</p>
-        </div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <AdminTableSkeleton rows={5} />
       </div>
     )
   }
+
+  if (!isAdmin) return null
 
   if (error && !userData) {
     return (

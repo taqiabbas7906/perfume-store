@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 interface User {
   _id: string
@@ -67,7 +68,22 @@ export default function AdminUsersPage() {
 
   const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); fetchUsers() }
 
-  if (!checked) return <div className="container mx-auto px-4 py-8 text-gray-400">Checking access…</div>
+  if (!checked) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
+  }
+
+  if (isAdmin && loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <AdminTableSkeleton rows={8} />
+      </div>
+    )
+  }
+
   if (!isAdmin) return null
 
   return (

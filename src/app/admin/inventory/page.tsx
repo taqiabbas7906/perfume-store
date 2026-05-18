@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 
 type FilterType = 'all' | 'out_of_stock' | 'low_stock' | 'expiring'
 
@@ -125,6 +126,14 @@ export default function AdminInventoryPage() {
     expiring_soon: { bg: '#eff6ff', text: '#2563eb', badge: '#dbeafe', badgeText: '#1e40af' },
   }[s] ?? { bg: '#f9fafb', text: '#6b7280', badge: '#f3f4f6', badgeText: '#374151' })
 
+  if (authLoading || !isAdmin || loading) {
+    return (
+      <div className="container mx-auto px-4 py-10 max-w-6xl">
+        <AdminTableSkeleton rows={6} />
+      </div>
+    )
+  }
+
   const reasonLabel: Record<string, string> = {
     order_placed:      '🛒 Order',
     order_cancelled:   '↩️ Cancelled',
@@ -135,8 +144,6 @@ export default function AdminInventoryPage() {
     expiry_removal:    '🗑 Expired',
     system_correction: '🔧 System',
   }
-
-  if (authLoading || !isAdmin) return <div style={{ padding: 60, textAlign: 'center', color: '#9ca3af' }}>Loading…</div>
 
   const FILTERS: { key: FilterType; label: string; count?: number }[] = [
     { key: 'all',          label: 'All Issues',   count: (summary?.outOfStockCount ?? 0) + (summary?.lowStockCount ?? 0) },
