@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -9,6 +10,12 @@ import { AdminTableSkeleton } from '@/components/ui/Skeleton'
 type Tab = 'categories' | 'brands' | 'collections' | 'upload'
 
 interface Item { _id: string; name: string; slug: string; active: boolean; [k: string]: unknown }
+
+declare global {
+  interface Window {
+    __firebaseToken?: string
+  }
+}
 
 const API: Record<Tab, string> = {
   categories:  '/api/admin/categories',
@@ -70,7 +77,12 @@ export default function AdminCatalogPage() {
     finally { setLoading(false) }
   }, [tab])
 
-  useEffect(() => { if (isAdmin) fetchItems() }, [isAdmin, fetchItems])
+  useEffect(() => {
+    if (!isAdmin) return
+    queueMicrotask(() => {
+      void fetchItems()
+    })
+  }, [isAdmin, fetchItems])
 
   const defaultForm: Record<Tab, Record<string, unknown>> = {
     categories:  { name: '', slug: '', description: '', active: true, sortOrder: 0 },
@@ -139,10 +151,9 @@ export default function AdminCatalogPage() {
       const fd = new FormData()
       fd.append('file', uploadFile)
       fd.append('folder', uploadFolder)
-      const token = await (await authFetch('/api/auth/me')).json()
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${(window as any).__firebaseToken ?? ''}` },
+        headers: { Authorization: `Bearer ${window.__firebaseToken ?? ''}` },
         body: fd,
       })
       // Use authFetch-style but with FormData (can't set Content-Type manually with multipart)
@@ -150,7 +161,7 @@ export default function AdminCatalogPage() {
       const data = JSON.parse(text)
       if (data.success) setUploadResult(data.url)
       else setError(data.error)
-    } catch (err) {
+    } catch {
       setError('Upload failed')
     } finally {
       setUploading(false)
@@ -231,7 +242,14 @@ export default function AdminCatalogPage() {
             <div style={{ marginTop: 20, padding: 16, background: '#f0fdf4', borderRadius: 8 }}>
               <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#16a34a' }}>✓ Uploaded successfully</p>
               <input readOnly value={uploadResult} style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1fae5', borderRadius: 6, fontSize: 12, fontFamily: 'monospace' }} />
-              <img src={uploadResult} alt="uploaded" style={{ marginTop: 12, maxWidth: '100%', maxHeight: 200, objectFit: 'contain', borderRadius: 8 }} />
+              <Image
+                src={uploadResult}
+                alt="Uploaded image preview"
+                width={400}
+                height={200}
+                sizes="(min-width: 768px) 400px, 100vw"
+                style={{ marginTop: 12, maxWidth: '100%', maxHeight: 200, width: 'auto', height: 'auto', objectFit: 'contain', borderRadius: 8 }}
+              />
             </div>
           )}
         </div>

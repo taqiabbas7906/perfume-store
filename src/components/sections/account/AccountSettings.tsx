@@ -65,8 +65,11 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className={labelCls}>Full Name</label>
+              <label htmlFor="account-full-name" className={labelCls}>
+                Full Name
+              </label>
               <input
+                id="account-full-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -75,8 +78,11 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>Email Address</label>
+              <label htmlFor="account-email" className={labelCls}>
+                Email Address
+              </label>
               <input
+                id="account-email"
                 type="email"
                 value={profile?.email ?? ''}
                 disabled
@@ -84,8 +90,11 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>Phone Number</label>
+              <label htmlFor="account-phone" className={labelCls}>
+                Phone Number
+              </label>
               <input
+                id="account-phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -255,9 +264,12 @@ function ChangePasswordSection({ hasPassword }: { hasPassword?: boolean }) {
 
       {isSet && (
         <div>
-          <label className={labelCls}>Current Password</label>
+          <label htmlFor="current-password" className={labelCls}>
+            Current Password
+          </label>
           <div className="relative">
             <input
+              id="current-password"
               type={showCurrent ? 'text' : 'password'}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -271,6 +283,7 @@ function ChangePasswordSection({ hasPassword }: { hasPassword?: boolean }) {
               onClick={() => setShowCurrent((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tracking-widest uppercase text-gray-400 hover:text-[var(--color-gold)] transition-colors font-semibold"
               tabIndex={-1}
+              aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
             >
               {showCurrent ? 'Hide' : 'Show'}
             </button>
@@ -279,9 +292,12 @@ function ChangePasswordSection({ hasPassword }: { hasPassword?: boolean }) {
       )}
 
       <div>
-        <label className={labelCls}>New Password</label>
+        <label htmlFor="new-password" className={labelCls}>
+          New Password
+        </label>
         <div className="relative">
           <input
+            id="new-password"
             type={showNew ? 'text' : 'password'}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -296,6 +312,7 @@ function ChangePasswordSection({ hasPassword }: { hasPassword?: boolean }) {
             onClick={() => setShowNew((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tracking-widest uppercase text-gray-400 hover:text-[var(--color-gold)] transition-colors font-semibold"
             tabIndex={-1}
+            aria-label={showNew ? 'Hide new password' : 'Show new password'}
           >
             {showNew ? 'Hide' : 'Show'}
           </button>
@@ -303,8 +320,11 @@ function ChangePasswordSection({ hasPassword }: { hasPassword?: boolean }) {
       </div>
 
       <div>
-        <label className={labelCls}>Confirm New Password</label>
+        <label htmlFor="confirm-new-password" className={labelCls}>
+          Confirm New Password
+        </label>
         <input
+          id="confirm-new-password"
           type={showNew ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}

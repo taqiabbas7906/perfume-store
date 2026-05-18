@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { smartFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -99,7 +100,6 @@ const fmt = (n: number) => `$${n.toFixed(2)}`
 const inputBase =
   'w-full px-4 py-3.5 border text-sm text-[var(--color-ink)] placeholder:text-gray-300 outline-none transition-all duration-200 focus:border-[var(--color-gold)] bg-white'
 const inputDefault = `${inputBase} border-[var(--color-border)]`
-const inputErr = `${inputBase} border-red-300`
 const labelCls =
   'block text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--color-ink)] mb-2'
 const btnDark =
@@ -171,15 +171,17 @@ function Field({
   req,
   children,
   error,
+  htmlFor,
 }: {
   label: string
   req?: boolean
   children: React.ReactNode
   error?: string
+  htmlFor?: string
 }) {
   return (
     <div>
-      <label className={labelCls}>
+      <label htmlFor={htmlFor} className={labelCls}>
         {label}
         {req && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -241,13 +243,14 @@ function Summary({
           {cart.items.map((item) => (
             <div key={item.variantSku} className="flex gap-3">
               <div className="relative flex-shrink-0">
-                <div className="w-16 h-20 bg-white border border-[var(--color-border-soft)] overflow-hidden">
+                <div className="relative w-16 h-20 bg-white border border-[var(--color-border-soft)] overflow-hidden">
                   {item.image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={item.image}
                       alt={item.name ?? ''}
-                      className="w-full h-full object-cover object-top"
+                      fill
+                      sizes="64px"
+                      className="object-cover object-top"
                     />
                   )}
                 </div>
@@ -283,11 +286,15 @@ function Summary({
         </div>
 
         <div className="mb-5 pb-5 border-b border-[var(--color-border-soft)]">
-          <p className="text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--color-ink)] mb-2.5">
+          <label
+            htmlFor="checkout-promo-code"
+            className="block text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--color-ink)] mb-2.5"
+          >
             Promo Code
-          </p>
+          </label>
           <form onSubmit={applyVoucher} className="flex gap-2">
             <input
+              id="checkout-promo-code"
               type="text"
               placeholder="FRAGSALE"
               value={voucherCode}
@@ -688,9 +695,12 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (authLoading) return
-    if (user?.email) setGuestEmail(user.email)
-    fetchCart()
-  }, [user, authLoading, fetchCart])
+    const timer = window.setTimeout(() => {
+      if (user?.email) setGuestEmail(user.email)
+      void fetchCart()
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [user?.email, authLoading, fetchCart])
 
   const fetchRates = useCallback(
     async (country: string, state: string, subtotal: number) => {
@@ -1052,10 +1062,11 @@ export default function CheckoutPage() {
                       </p>
                     </div>
                   ) : (
-                    <Field label="Email Address" req>
+                    <Field label="Email Address" req htmlFor="checkout-email">
                       <div className="relative">
                         <i className="ri-mail-line text-[var(--color-gold)] text-sm absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
+                          id="checkout-email"
                           type="email"
                           required
                           value={guestEmail}
@@ -1093,8 +1104,9 @@ export default function CheckoutPage() {
                   </p>
 
                   <div className="space-y-5">
-                    <Field label="Full Name" req>
+                    <Field label="Full Name" req htmlFor="shipping-name">
                       <input
+                        id="shipping-name"
                         type="text"
                         required
                         value={addr.name}
@@ -1106,9 +1118,11 @@ export default function CheckoutPage() {
                       />
                     </Field>
 
-                    <Field label="Phone Number" req>
+                    <Field label="Phone Number" req htmlFor="shipping-phone">
                       <div className="flex gap-2">
                         <select
+                          id="shipping-dial-code"
+                          aria-label="Country code"
                           value={dialCode}
                           onChange={(e) => setDialCode(e.target.value)}
                           className={`w-44 ${inputDefault} cursor-pointer appearance-none`}
@@ -1120,6 +1134,7 @@ export default function CheckoutPage() {
                           ))}
                         </select>
                         <input
+                          id="shipping-phone"
                           type="tel"
                           required
                           inputMode="numeric"
@@ -1139,8 +1154,9 @@ export default function CheckoutPage() {
                       </p>
                     </Field>
 
-                    <Field label="Country" req>
+                    <Field label="Country" req htmlFor="shipping-country">
                       <select
+                        id="shipping-country"
                         required
                         value={addr.country}
                         onChange={(e) =>
@@ -1161,8 +1177,9 @@ export default function CheckoutPage() {
                     </Field>
 
                     {addr.country === 'US' && (
-                      <Field label="State" req>
+                      <Field label="State" req htmlFor="shipping-state">
                         <select
+                          id="shipping-state"
                           required
                           value={addr.state}
                           onChange={(e) =>
@@ -1180,8 +1197,9 @@ export default function CheckoutPage() {
                       </Field>
                     )}
 
-                    <Field label="Street Address" req>
+                    <Field label="Street Address" req htmlFor="shipping-line1">
                       <input
+                        id="shipping-line1"
                         type="text"
                         required
                         value={addr.line1}
@@ -1194,8 +1212,9 @@ export default function CheckoutPage() {
                     </Field>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <Field label="City" req>
+                      <Field label="City" req htmlFor="shipping-city">
                         <input
+                          id="shipping-city"
                           type="text"
                           required
                           value={addr.city}
@@ -1206,8 +1225,9 @@ export default function CheckoutPage() {
                           className={inputDefault}
                         />
                       </Field>
-                      <Field label="ZIP / Postal" req>
+                      <Field label="ZIP / Postal" req htmlFor="shipping-zip">
                         <input
+                          id="shipping-zip"
                           type="text"
                           required
                           value={addr.zip}
@@ -1493,8 +1513,9 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="space-y-5">
-                    <Field label="Name on Card" req>
+                    <Field label="Name on Card" req htmlFor="card-name">
                       <input
+                        id="card-name"
                         type="text"
                         required
                         value={card.name}
@@ -1506,10 +1527,11 @@ export default function CheckoutPage() {
                       />
                     </Field>
 
-                    <Field label="Card Number" req>
+                    <Field label="Card Number" req htmlFor="card-number">
                       <div className="relative">
                         <i className="ri-bank-card-line text-[var(--color-gold)] text-sm absolute left-4 top-1/2 -translate-y-1/2" />
                         <input
+                          id="card-number"
                           type="text"
                           required
                           maxLength={19}
@@ -1526,8 +1548,9 @@ export default function CheckoutPage() {
                     </Field>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <Field label="Expiry (MM/YY)" req>
+                      <Field label="Expiry (MM/YY)" req htmlFor="card-expiry">
                         <input
+                          id="card-expiry"
                           type="text"
                           required
                           maxLength={5}
@@ -1542,8 +1565,9 @@ export default function CheckoutPage() {
                           className={`${inputDefault} font-mono tracking-wider`}
                         />
                       </Field>
-                      <Field label="CVV" req>
+                      <Field label="CVV" req htmlFor="card-cvv">
                         <input
+                          id="card-cvv"
                           type="text"
                           required
                           maxLength={4}

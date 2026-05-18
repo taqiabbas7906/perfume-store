@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { SearchResultsSkeleton } from '@/components/ui/Skeleton'
 
 interface AlgoliaHit {
@@ -82,7 +83,11 @@ export default function SearchBar() {
     <div ref={containerRef} className="relative flex-1 max-w-sm mx-4">
       {/* Input */}
       <div className="relative">
+        <label htmlFor="legacy-search" className="sr-only">
+          Search perfumes
+        </label>
         <input
+          id="legacy-search"
           ref={inputRef}
           type="search"
           value={query}
@@ -121,9 +126,15 @@ export default function SearchBar() {
                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
                     >
                       {/* Thumbnail */}
-                      <div className="w-10 h-10 rounded bg-gray-100 shrink-0 overflow-hidden">
+                      <div className="relative w-10 h-10 rounded bg-gray-100 shrink-0 overflow-hidden">
                         {hit.image ? (
-                          <img src={hit.image} alt={hit.name} className="w-full h-full object-cover" />
+                          <Image
+                            src={hit.image}
+                            alt={hit.name}
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">🧴</div>
                         )}

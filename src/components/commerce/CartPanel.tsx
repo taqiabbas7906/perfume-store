@@ -2,10 +2,11 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/utils/format'
 import { CartPanelSkeleton } from '@/components/ui/Skeleton'
+import CartLineItem from '@/components/cart/CartLineItem'
+import FreeShippingProgress from '@/components/cart/FreeShippingProgress'
 
 const FREE_SHIPPING_THRESHOLD = 75
 
@@ -49,11 +50,12 @@ export default function CartPanel() {
         onClick={closeCart}
       />
 
-      <div
+      <aside
         className={`fixed top-0 right-0 h-full w-full max-w-[420px] z-[100] bg-white flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-hidden={!isOpen}
+        aria-label="Shopping cart"
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-[var(--color-border-soft)]">
           <div className="flex items-center gap-3">
@@ -67,6 +69,7 @@ export default function CartPanel() {
             )}
           </div>
           <button
+            type="button"
             onClick={closeCart}
             className="w-8 h-8 flex items-center justify-center text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
             aria-label="Close cart"
@@ -92,6 +95,7 @@ export default function CartPanel() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={closeCart}
                 className="border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)] hover:text-white text-[10px] tracking-[0.25em] uppercase font-bold px-8 py-3 transition-all duration-300"
               >
@@ -100,91 +104,26 @@ export default function CartPanel() {
             </div>
           ) : (
             items.map((item) => (
-              <div
+              <CartLineItem
                 key={item.variantSku}
-                className="flex gap-4 border-b border-[var(--color-cream-400)] pb-5 last:border-0 group animate-fadeIn"
-              >
-                <div className="relative w-20 h-24 flex-shrink-0 bg-[var(--color-cream-500)] overflow-hidden">
-                  {item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      sizes="80px"
-                      className="object-cover object-top"
-                    />
-                  ) : null}
-                </div>
-                <div className="flex-1 min-w-0">
-                  {item.brand && (
-                    <p className="text-[9px] text-[var(--color-gold)] tracking-[0.3em] uppercase font-bold">
-                      {item.brand}
-                    </p>
-                  )}
-                  <h3 className="text-xs font-semibold text-[var(--color-ink)] mt-0.5 leading-snug truncate">
-                    {item.name}
-                  </h3>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {item.variantLabel}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center border border-[var(--color-border)]">
-                      <button
-                        onClick={() => updateQty(item.variantSku, item.quantity - 1)}
-                        className="w-7 h-7 flex items-center justify-center text-[var(--color-ink)] hover:text-[var(--color-gold)] text-xs transition-colors"
-                        aria-label="Decrease quantity"
-                      >
-                        <i className="ri-subtract-line" />
-                      </button>
-                      <span className="w-7 h-7 flex items-center justify-center text-xs font-semibold text-[var(--color-ink)]">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQty(item.variantSku, item.quantity + 1)}
-                        className="w-7 h-7 flex items-center justify-center text-[var(--color-ink)] hover:text-[var(--color-gold)] text-xs transition-colors"
-                        aria-label="Increase quantity"
-                      >
-                        <i className="ri-add-line" />
-                      </button>
-                    </div>
-                    <span className="text-sm font-bold text-[var(--color-ink)]">
-                      {formatPrice(item.price * item.quantity)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeItem(item.variantSku)}
-                  className="self-start w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  aria-label="Remove item"
-                >
-                  <i className="ri-delete-bin-line text-sm" />
-                </button>
-              </div>
+                item={item}
+                variant="panel"
+                onUpdateQty={updateQty}
+                onRemove={removeItem}
+              />
             ))
           )}
         </div>
 
         {items.length > 0 && (
           <div className="border-t border-[var(--color-border-soft)] px-6 py-5 bg-[var(--color-cream-50)]">
-            <div className="mb-4">
-              <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
-                <span className="tracking-wide">Free Shipping Progress</span>
-                <span className="font-semibold text-[var(--color-gold)]">
-                  {totalPrice >= FREE_SHIPPING_THRESHOLD
-                    ? 'Unlocked!'
-                    : `${formatPrice(FREE_SHIPPING_THRESHOLD - totalPrice)} away`}
-                </span>
-              </div>
-              <div className="h-1 bg-[var(--color-border-soft)] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[var(--color-gold)] rounded-full transition-all duration-500"
-                  style={{
-                    width: `${Math.min((totalPrice / FREE_SHIPPING_THRESHOLD) * 100, 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
+            <FreeShippingProgress
+              total={totalPrice}
+              threshold={FREE_SHIPPING_THRESHOLD}
+              label="Free Shipping Progress"
+              className="mb-4"
+              showUnlocked
+            />
 
             <div className="flex justify-between items-baseline mb-4">
               <span className="text-xs text-gray-500 tracking-widest uppercase">
@@ -209,6 +148,7 @@ export default function CartPanel() {
               </span>
             </Link>
             <button
+              type="button"
               onClick={closeCart}
               className="w-full text-center border border-[var(--color-ink)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.2em] uppercase font-semibold py-3 transition-all duration-300"
             >
@@ -216,7 +156,7 @@ export default function CartPanel() {
             </button>
           </div>
         )}
-      </div>
+      </aside>
     </>
   )
 }

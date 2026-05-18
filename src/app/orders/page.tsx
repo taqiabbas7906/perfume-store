@@ -60,15 +60,15 @@ export default function MyOrdersPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-10">
+      <main className="max-w-3xl mx-auto px-4 py-10">
         <PageHeaderSkeleton />
         <OrderListSkeleton />
-      </div>
+      </main>
     )
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
+    <main className="max-w-3xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
       {error && <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>}
@@ -106,6 +106,6 @@ export default function MyOrdersPage() {
           ))}
         </ul>
       )}
-    </div>
+    </main>
   )
 }

@@ -76,11 +76,11 @@ export default function CustomerOrderDetailPage() {
   }, [params?.id, user, authLoading, router])
 
   if (authLoading || loading) return <OrderDetailSkeleton />
-  if (error) return <div className="max-w-3xl mx-auto px-4 py-10 text-red-600">{error}</div>
+  if (error) return <main className="max-w-3xl mx-auto px-4 py-10 text-red-600">{error}</main>
   if (!order) return null
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
+    <main className="max-w-3xl mx-auto px-4 py-10">
       <Link href="/orders" className="text-sm text-blue-600 hover:underline">← All orders</Link>
       <div className="flex justify-between items-start mt-2 mb-6">
         <div>
@@ -152,6 +152,6 @@ export default function CustomerOrderDetailPage() {
           ))}
         </ol>
       </section>
-    </div>
+    </main>
   )
 }

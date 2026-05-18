@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -94,10 +95,10 @@ export default function OrderDetailPage() {
 
   if (error || !order) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
+      <main className="container mx-auto px-4 py-16 text-center">
         <p className="text-red-600 mb-4">{error || 'Order not found'}</p>
         <Link href="/account/orders" className="text-sm underline">← Back to orders</Link>
-      </div>
+      </main>
     )
   }
 
@@ -105,7 +106,7 @@ export default function OrderDetailPage() {
   const activeStep  = TIMELINE_STEPS.indexOf(order.status)
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <main className="container mx-auto px-4 py-8 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/account/orders" className="text-sm text-gray-500 hover:text-gray-700">← Orders</Link>
@@ -189,7 +190,14 @@ export default function OrderDetailPage() {
             {order.items.map((item, i) => (
               <div key={i} className="flex gap-3">
                 {item.image && (
-                  <img src={item.image} alt={item.name} className="w-12 h-12 object-cover rounded shrink-0" />
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    width={48}
+                    height={48}
+                    sizes="48px"
+                    className="w-12 h-12 object-cover rounded shrink-0"
+                  />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{item.name}</p>
@@ -257,6 +265,6 @@ export default function OrderDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </main>
   )
 }

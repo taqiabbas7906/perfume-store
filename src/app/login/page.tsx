@@ -83,7 +83,8 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    const frame = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   useEffect(() => {
@@ -288,11 +289,11 @@ export default function LoginPage() {
           <p className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold mb-3">
             Welcome to Inscentives
           </p>
-          <h2 className="font-serif text-5xl md:text-6xl font-light text-[var(--color-ink)] leading-[1.05] mb-4">
+          <p className="font-serif text-5xl md:text-6xl font-light text-[var(--color-ink)] leading-[1.05] mb-4">
             The art of
             <br />
             <span className="font-bold italic">rare fragrance</span>
-          </h2>
+          </p>
           <p className="text-[var(--color-ink-soft)] text-sm font-light tracking-wide leading-relaxed max-w-sm">
             Curated from the world&apos;s finest houses. Authentic scents,
             honest prices, always free shipping.
@@ -362,8 +363,11 @@ export default function LoginPage() {
 
               <form onSubmit={handleForgot} className="space-y-5">
                 <div>
-                  <label className={labelCls}>Email Address</label>
+                  <label htmlFor="forgot-email" className={labelCls}>
+                    Email Address
+                  </label>
                   <input
+                    id="forgot-email"
                     type="email"
                     required
                     placeholder="you@example.com"
@@ -496,8 +500,11 @@ export default function LoginPage() {
               <form onSubmit={handleEmailAuth} className="space-y-4">
                 {mode === 'register' && (
                   <div>
-                    <label className={labelCls}>Full Name</label>
+                    <label htmlFor="register-name" className={labelCls}>
+                      Full Name
+                    </label>
                     <input
+                      id="register-name"
                       type="text"
                       placeholder="Jane Smith"
                       value={name}
@@ -508,8 +515,11 @@ export default function LoginPage() {
                 )}
 
                 <div>
-                  <label className={labelCls}>Email Address</label>
+                  <label htmlFor="auth-email" className={labelCls}>
+                    Email Address
+                  </label>
                   <input
+                    id="auth-email"
                     type="email"
                     required
                     placeholder="you@example.com"
@@ -520,9 +530,12 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Password</label>
+                  <label htmlFor="auth-password" className={labelCls}>
+                    Password
+                  </label>
                   <div className="relative">
                     <input
+                      id="auth-password"
                       type={showPass ? 'text' : 'password'}
                       required
                       placeholder={
@@ -536,6 +549,7 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setShowPass((p) => !p)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tracking-widest uppercase text-gray-400 hover:text-[var(--color-gold)] transition-colors font-semibold"
+                      aria-label={showPass ? 'Hide password' : 'Show password'}
                     >
                       {showPass ? 'Hide' : 'Show'}
                     </button>
@@ -544,8 +558,11 @@ export default function LoginPage() {
 
                 {mode === 'register' && (
                   <div>
-                    <label className={labelCls}>Confirm Password</label>
+                    <label htmlFor="confirm-password" className={labelCls}>
+                      Confirm Password
+                    </label>
                     <input
+                      id="confirm-password"
                       type={showPass ? 'text' : 'password'}
                       required
                       placeholder="Repeat password"

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -165,7 +166,12 @@ export default function AnalyticsPage() {
     }
   }, [])
 
-  useEffect(() => { if (isAdmin) fetchAll(period) }, [isAdmin, period, fetchAll])
+  useEffect(() => {
+    if (!isAdmin) return
+    queueMicrotask(() => {
+      void fetchAll(period)
+    })
+  }, [isAdmin, period, fetchAll])
 
   if (!checked || (isAdmin && loading)) {
     return (
@@ -308,7 +314,14 @@ export default function AnalyticsPage() {
                     <div key={p._id} className="flex items-center gap-3">
                       <span className="text-xs font-bold text-gray-400 w-5 text-right">{i + 1}</span>
                       {p.image ? (
-                        <img src={p.image} alt={p.name} className="w-9 h-9 rounded-lg object-cover bg-gray-100 flex-shrink-0" />
+                        <Image
+                          src={p.image}
+                          alt={p.name}
+                          width={36}
+                          height={36}
+                          sizes="36px"
+                          className="w-9 h-9 rounded-lg object-cover bg-gray-100 flex-shrink-0"
+                        />
                       ) : (
                         <div className="w-9 h-9 rounded-lg bg-gray-100 flex-shrink-0" />
                       )}
@@ -387,7 +400,14 @@ export default function AnalyticsPage() {
                       {inventory.outOfStock.map(p => (
                         <div key={p._id} className="flex items-center gap-2">
                           {p.image ? (
-                            <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0" />
+                            <Image
+                              src={p.image}
+                              alt={p.name}
+                              width={32}
+                              height={32}
+                              sizes="32px"
+                              className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
+                            />
                           ) : (
                             <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
                           )}
@@ -409,7 +429,14 @@ export default function AnalyticsPage() {
                       {inventory.lowStock.map(p => (
                         <div key={p._id} className="flex items-center gap-2">
                           {p.image ? (
-                            <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0" />
+                            <Image
+                              src={p.image}
+                              alt={p.name}
+                              width={32}
+                              height={32}
+                              sizes="32px"
+                              className="w-8 h-8 rounded-lg object-cover bg-gray-100 shrink-0"
+                            />
                           ) : (
                             <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
                           )}

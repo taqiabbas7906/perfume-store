@@ -57,7 +57,10 @@ export default function Navbar() {
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
+          <nav
+            className="hidden md:flex items-center gap-8"
+            aria-label="Primary navigation"
+          >
             {navLinks.map((link) => {
               const isActive = link.isRoute ? pathname === link.href : false
               const className = `text-xs tracking-widest uppercase font-medium transition-all duration-200 cursor-pointer whitespace-nowrap relative group ${
@@ -88,6 +91,7 @@ export default function Navbar() {
 
           <div className="flex items-center gap-1">
             <button
+              type="button"
               onClick={openSearch}
               className="w-9 h-9 flex items-center justify-center cursor-pointer text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors rounded-full hover:bg-[var(--color-cream-300)]"
               aria-label="Search"
@@ -108,6 +112,7 @@ export default function Navbar() {
             </Link>
 
             <button
+              type="button"
               onClick={openCart}
               className="w-9 h-9 flex items-center justify-center cursor-pointer text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors rounded-full hover:bg-[var(--color-cream-300)] relative"
               aria-label="Shopping Cart"
@@ -121,9 +126,12 @@ export default function Navbar() {
             </button>
 
             <button
+              type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               className="md:hidden w-9 h-9 flex items-center justify-center cursor-pointer text-[var(--color-ink)] ml-1"
               aria-label="Toggle menu"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
             >
               <i
                 className={`text-xl transition-all duration-200 ${
@@ -134,7 +142,9 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div
+        <nav
+          id="mobile-navigation"
+          aria-label="Mobile navigation"
           className={`md:hidden bg-white border-t border-gray-100 overflow-hidden transition-all duration-300 ${
             menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
           }`}
@@ -172,7 +182,7 @@ export default function Navbar() {
               </Link>
             </div>
           </div>
-        </div>
+        </nav>
       </header>
     </>
   )

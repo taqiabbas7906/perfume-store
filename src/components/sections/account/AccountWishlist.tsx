@@ -71,31 +71,32 @@ export default function AccountWishlist() {
           {items.map(({ product }) => {
             const img = product.images?.[0]?.url
             return (
-              <div key={product._id} className="group bg-white relative">
-                <Link
-                  href={`/product/${product.slug}`}
-                  className="block relative overflow-hidden bg-[var(--color-cream-500)] aspect-[3/4]"
-                >
-                  {img && (
-                    <Image
-                      src={img}
-                      alt={product.name}
-                      fill
-                      sizes="(min-width: 1024px) 25vw, 50vw"
-                      className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                    />
-                  )}
+              <article key={product._id} className="group bg-white relative">
+                <div className="relative overflow-hidden bg-[var(--color-cream-500)] aspect-[3/4]">
+                  <Link
+                    href={`/product/${product.slug}`}
+                    className="absolute inset-0 block"
+                    aria-label={`View ${product.name}`}
+                  >
+                    {img && (
+                      <Image
+                        src={img}
+                        alt={product.images?.[0]?.alt || product.name}
+                        fill
+                        sizes="(min-width: 1024px) 25vw, 50vw"
+                        className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                      />
+                    )}
+                  </Link>
                   <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      remove(product._id)
-                    }}
+                    type="button"
+                    onClick={() => remove(product._id)}
                     className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center bg-white/80 hover:bg-white text-red-400 transition-all duration-200 opacity-0 group-hover:opacity-100"
                     aria-label="Remove from wishlist"
                   >
-                    <i className="ri-heart-fill text-sm" />
+                    <i className="ri-heart-fill text-sm" aria-hidden="true" />
                   </button>
-                </Link>
+                </div>
                 <div className="pt-3 pb-4 px-1">
                   {product.brand && (
                     <p className="text-[9px] text-[var(--color-gold)] tracking-[0.3em] uppercase font-bold">
@@ -111,13 +112,14 @@ export default function AccountWishlist() {
                     </p>
                   )}
                   <button
+                    type="button"
                     onClick={() => moveToCart(product._id, product.slug)}
                     className="mt-3 w-full bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[9px] tracking-widest uppercase font-bold py-2 transition-all duration-300"
                   >
                     Add to Cart
                   </button>
                 </div>
-              </div>
+              </article>
             )
           })}
         </div>

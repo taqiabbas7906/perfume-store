@@ -76,7 +76,7 @@ function TopBrandsSkeleton() {
 
 export default function HomePage() {
   return (
-    <>
+    <main>
       <Hero />
       <Suspense fallback={<CategoryStripSkeleton />}>
         <CategoryStrip />
@@ -92,6 +92,6 @@ export default function HomePage() {
       <AboutBanner />
       <Testimonials />
       <Newsletter />
-    </>
+    </main>
   )
 }

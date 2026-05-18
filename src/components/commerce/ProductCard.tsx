@@ -56,6 +56,7 @@ export default function ProductCard({
         : undefined)
   const outOfStock = !primaryVariant || primaryVariant.quantity < 1
   const wished = hasWish(product._id)
+  const productHref = `/product/${product.slug}`
 
   function handleAdd(e: React.MouseEvent) {
     e.stopPropagation()
@@ -95,13 +96,30 @@ export default function ProductCard({
   }
 
   return (
-    <div
+    <article
       className="group bg-white cursor-pointer relative"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={() => router.push(`/product/${product.slug}`)}
     >
       <div className="relative overflow-hidden bg-[var(--color-cream-500)] aspect-[3/4]">
+        <Link
+          href={productHref}
+          className="absolute inset-0 block"
+          aria-label={`View ${product.name}`}
+        >
+          {image && (
+            <Image
+              src={image}
+              alt={product.images?.[0]?.alt || product.name}
+              fill
+              sizes="(min-width: 1024px) 16vw, (min-width: 640px) 33vw, 50vw"
+              priority={priority}
+              className="object-cover object-top transition-transform duration-700"
+              style={{ transform: hovered ? 'scale(1.07)' : 'scale(1)' }}
+            />
+          )}
+        </Link>
+
         {effectiveBadge && (
           <span
             className={`absolute top-3 left-3 z-10 text-[9px] font-bold tracking-widest uppercase text-white px-2 py-0.5 ${
@@ -118,19 +136,8 @@ export default function ProductCard({
           </span>
         )}
 
-        {image && (
-          <Image
-            src={image}
-            alt={product.images?.[0]?.alt || product.name}
-            fill
-            sizes="(min-width: 1024px) 16vw, (min-width: 640px) 33vw, 50vw"
-            priority={priority}
-            className="object-cover object-top transition-transform duration-700"
-            style={{ transform: hovered ? 'scale(1.07)' : 'scale(1)' }}
-          />
-        )}
-
         <button
+          type="button"
           onClick={handleWishlist}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
           className={`absolute top-9 right-3 z-10 w-7 h-7 flex items-center justify-center transition-all duration-300 ${
@@ -143,22 +150,25 @@ export default function ProductCard({
                 ? 'ri-heart-fill text-red-500'
                 : 'ri-heart-line text-[var(--color-ink)]'
             } text-base`}
+            aria-hidden="true"
           />
         </button>
 
         <button
+          type="button"
           onClick={handleAdd}
           disabled={outOfStock}
+          aria-label={outOfStock ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
           className={`absolute bottom-0 left-0 right-0 bg-[var(--color-gold)] py-3 text-center text-white text-[10px] tracking-widest uppercase font-bold transition-all duration-350 disabled:opacity-70 ${
             hovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full'
           }`}
         >
-          <i className="ri-shopping-bag-line mr-1.5" />
+          <i className="ri-shopping-bag-line mr-1.5" aria-hidden="true" />
           {outOfStock ? 'Out of Stock' : 'Add to Cart'}
         </button>
       </div>
 
-      <Link href={`/product/${product.slug}`} className="block pt-3 pb-4 px-1">
+      <Link href={productHref} className="block pt-3 pb-4 px-1">
         <p className="text-[9px] text-[var(--color-gold)] tracking-[0.3em] uppercase font-bold">
           {product.brand}
         </p>
@@ -180,6 +190,7 @@ export default function ProductCard({
                   ? 'ri-star-fill text-[var(--color-gold)]'
                   : 'ri-star-line text-gray-300'
               }`}
+              aria-hidden="true"
             />
           ))}
           <span className="text-[9px] text-gray-400 ml-1">({reviews})</span>
@@ -196,6 +207,6 @@ export default function ProductCard({
           )}
         </div>
       </Link>
-    </div>
+    </article>
   )
 }

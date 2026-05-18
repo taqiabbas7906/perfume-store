@@ -42,9 +42,9 @@ export default function NewsletterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl border border-gray-200 p-8">
+        <section className="bg-white rounded-2xl border border-gray-200 p-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Newsletter</h1>
           <p className="text-sm text-gray-500 mb-6">
             Stay updated with new arrivals, exclusive offers, and perfume stories.
@@ -70,10 +70,14 @@ export default function NewsletterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label
+                htmlFor="newsletter-email"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
+              >
                 Email address
               </label>
               <input
+                id="newsletter-email"
                 type="email"
                 required
                 value={email}
@@ -111,8 +115,8 @@ export default function NewsletterPage() {
           <p className="text-xs text-gray-400 text-center mt-4">
             We respect your privacy. No spam, ever.
           </p>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import { authFetch } from '@/lib/api'
@@ -137,11 +138,6 @@ export default function NewProductPage() {
       .catch(() => router.push('/'))
       .finally(() => setChecked(true))
   }, [user, router])
-
-  /* ── auto-slug ── */
-  useEffect(() => {
-    if (!slugManual) setSlug(slugify(name))
-  }, [name, slugManual])
 
   /* ── image upload ── */
   const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -376,7 +372,11 @@ export default function NewProductPage() {
           <Card title="Basic information">
             <Field label="Product name" required>
               <input
-                type="text" value={name} onChange={e => setName(e.target.value)}
+                type="text" value={name} onChange={e => {
+                  const nextName = e.target.value
+                  setName(nextName)
+                  if (!slugManual) setSlug(slugify(nextName))
+                }}
                 required placeholder="Oud Royale Eau de Parfum" className={inp}
               />
             </Field>
@@ -450,8 +450,13 @@ export default function NewProductPage() {
                     </div>
                   ) : (
                     <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={img.url} alt={img.alt || 'product'} className="w-full h-full object-cover" />
+                      <Image
+                        src={img.url}
+                        alt={img.alt || 'product'}
+                        fill
+                        sizes="(min-width: 768px) 20vw, 33vw"
+                        className="object-cover"
+                      />
                       {img.isPrimary && (
                         <span className="absolute top-1 left-1 bg-black text-white text-[9px] px-1.5 py-0.5 rounded-full">
                           Primary

@@ -35,13 +35,9 @@ function AccountInner() {
   const searchParams = useSearchParams()
   const { user, loading } = useAuth()
   const requestedTab = (searchParams.get('tab') as TabId | null) ?? 'overview'
-  const [activeTab, setActiveTab] = useState<TabId>(requestedTab)
+  const activeTab = requestedTab
   const [profile, setProfile] = useState<MeUser | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
-
-  useEffect(() => {
-    setActiveTab(requestedTab)
-  }, [requestedTab])
 
   useEffect(() => {
     if (loading) return
@@ -50,7 +46,6 @@ function AccountInner() {
       return
     }
     let cancelled = false
-    setProfileLoading(true)
     smartFetch('/api/auth/me')
       .then((r) => r.json())
       .then((data) => {
@@ -64,7 +59,6 @@ function AccountInner() {
   }, [user, loading, router])
 
   function changeTab(id: TabId) {
-    setActiveTab(id)
     const params = new URLSearchParams(searchParams.toString())
     if (id === 'overview') params.delete('tab')
     else params.set('tab', id)
@@ -84,8 +78,8 @@ function AccountInner() {
     .toUpperCase()
 
   return (
-    <div className="bg-[var(--color-cream-600)] min-h-screen">
-      <div className="pt-32 pb-8 px-6 bg-white border-b border-[var(--color-border-soft)]">
+    <main className="bg-[var(--color-cream-600)] min-h-screen">
+      <header className="pt-32 pb-8 px-6 bg-white border-b border-[var(--color-border-soft)]">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-6 h-[1px] bg-[var(--color-gold)]" />
@@ -123,6 +117,7 @@ function AccountInner() {
               </div>
             </div>
             <button
+              type="button"
               onClick={logout}
               className="hidden sm:flex items-center gap-2 text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors border border-[var(--color-border)] px-4 py-2"
             >
@@ -131,14 +126,19 @@ function AccountInner() {
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="bg-white border-b border-[var(--color-border-soft)] px-6">
+      <nav
+        className="bg-white border-b border-[var(--color-border-soft)] px-6"
+        aria-label="Account sections"
+      >
         <div className="max-w-7xl mx-auto flex gap-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => changeTab(tab.id)}
+              aria-pressed={activeTab === tab.id}
               className={`flex items-center gap-2 px-5 py-4 text-[11px] tracking-widest uppercase font-semibold whitespace-nowrap transition-all duration-200 border-b-2 ${
                 activeTab === tab.id
                   ? 'border-[var(--color-gold)] text-[var(--color-gold)]'
@@ -150,9 +150,9 @@ function AccountInner() {
             </button>
           ))}
         </div>
-      </div>
+      </nav>
 
-      <div className="max-w-7xl mx-auto px-6 py-10">
+      <section className="max-w-7xl mx-auto px-6 py-10">
         <div className="transition-all duration-200">
           {activeTab === 'overview' && (
             <AccountOverview
@@ -169,8 +169,8 @@ function AccountInner() {
             />
           )}
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
 

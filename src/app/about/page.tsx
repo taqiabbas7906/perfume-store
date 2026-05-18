@@ -74,7 +74,7 @@ const team = [
 
 export default function AboutPage() {
   return (
-    <>
+    <main>
       <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
         <Image
           src="https://readdy.ai/api/search-image?query=luxury%20perfume%20boutique%20interior%20store%20beautiful%20bright%20white%20marble%20walls%20and%20floors%2C%20elegant%20glass%20perfume%20displays%2C%20warm%20golden%20accent%20lighting%2C%20high-end%20fragrance%20shop%20atmosphere%2C%20airy%20sophisticated%20retail%20space%2C%20crystal%20clear%20bottles%20on%20white%20shelves%2C%20minimalist%20luxury%20aesthetic%2C%20editorial%20photography%20quality&width=1600&height=900&seq=about-hero-1&orientation=landscape"
@@ -196,7 +196,7 @@ export default function AboutPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {values.map((v) => (
-              <div
+              <article
                 key={v.title}
                 className="bg-white p-8 group hover:-translate-y-1 transition-all duration-300"
               >
@@ -211,7 +211,7 @@ export default function AboutPage() {
                 <p className="text-sm text-gray-500 leading-relaxed font-light">
                   {v.desc}
                 </p>
-              </div>
+              </article>
             ))}
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function AboutPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {team.map((member) => (
-              <div key={member.name} className="group text-center">
+              <article key={member.name} className="group text-center">
                 <div className="relative overflow-hidden mb-5 aspect-[3/4]">
                   <Image
                     src={member.image}
@@ -251,7 +251,7 @@ export default function AboutPage() {
                 <p className="text-xs text-gray-500 leading-relaxed font-light max-w-[200px] mx-auto">
                   {member.bio}
                 </p>
-              </div>
+              </article>
             ))}
           </div>
         </div>
@@ -296,6 +296,6 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-    </>
+    </main>
   )
 }

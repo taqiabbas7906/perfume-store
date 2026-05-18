@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { authFetch } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
@@ -65,15 +66,15 @@ export default function OrderHistoryPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
+      <main className="container mx-auto px-4 py-8 max-w-3xl">
         <PageHeaderSkeleton />
         <OrderListSkeleton count={5} />
-      </div>
+      </main>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <main className="container mx-auto px-4 py-8 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/account" className="text-sm text-gray-500 hover:text-gray-700">← Account</Link>
         <h1 className="text-2xl font-bold">Order History</h1>
@@ -83,7 +84,7 @@ export default function OrderHistoryPage() {
 
       {orders.length === 0 && !error ? (
         <div className="text-center py-16">
-          <p className="text-gray-500 mb-4">You haven't placed any orders yet.</p>
+          <p className="text-gray-500 mb-4">You haven&apos;t placed any orders yet.</p>
           <Link href="/products" className="text-sm underline text-gray-700 hover:text-black">
             Browse products
           </Link>
@@ -118,7 +119,14 @@ export default function OrderHistoryPage() {
                 {order.items.slice(0, 4).map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
                     {item.image && (
-                      <img src={item.image} alt={item.name} className="w-6 h-6 object-cover rounded" />
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        width={24}
+                        height={24}
+                        sizes="24px"
+                        className="w-6 h-6 object-cover rounded"
+                      />
                     )}
                     <span>{item.name}</span>
                     <span className="text-gray-400">×{item.quantity}</span>
@@ -138,6 +146,6 @@ export default function OrderHistoryPage() {
           ))}
         </div>
       )}
-    </div>
+    </main>
   )
 }

@@ -74,7 +74,11 @@ export default function Newsletter() {
             onSubmit={handleSubmit}
             className="flex flex-col sm:flex-row gap-0 max-w-lg mx-auto"
           >
+            <label htmlFor="home-newsletter-email" className="sr-only">
+              Email address
+            </label>
             <input
+              id="home-newsletter-email"
               type="email"
               name="email"
               value={email}

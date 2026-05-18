@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSearch } from '@/context/SearchContext'
 import { formatPrice } from '@/lib/utils/format'
 import { SearchResultsSkeleton } from '@/components/ui/Skeleton'
@@ -61,7 +62,8 @@ export default function SearchOverlay() {
   const [recent, setRecent] = useState<string[]>([])
 
   useEffect(() => {
-    setRecent(readRecent())
+    const timer = window.setTimeout(() => setRecent(readRecent()), 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -88,11 +90,11 @@ export default function SearchOverlay() {
     if (!isOpen) return
     const term = query.trim()
     if (term.length < 2) {
-      setHits([])
-      return
+      const timer = window.setTimeout(() => setHits([]), 0)
+      return () => window.clearTimeout(timer)
     }
     const ac = new AbortController()
-    setLoading(true)
+    const loadingTimer = window.setTimeout(() => setLoading(true), 0)
     const timer = setTimeout(async () => {
       try {
         // Try Algolia-backed /api/search first, fall back to product list
@@ -121,6 +123,7 @@ export default function SearchOverlay() {
     }, 220)
     return () => {
       ac.abort()
+      clearTimeout(loadingTimer)
       clearTimeout(timer)
     }
   }, [query, isOpen])
@@ -154,6 +157,9 @@ export default function SearchOverlay() {
         className={`fixed top-0 left-0 right-0 z-[85] bg-white transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
+        role="dialog"
+        aria-modal={isOpen}
+        aria-label="Search"
       >
         <form
           onSubmit={handleSubmit}
@@ -162,7 +168,11 @@ export default function SearchOverlay() {
           <div className="w-8 h-8 flex items-center justify-center">
             <i className="ri-search-line text-2xl text-[var(--color-gold)]" />
           </div>
+          <label htmlFor="site-search" className="sr-only">
+            Search fragrances, brands, collections
+          </label>
           <input
+            id="site-search"
             ref={inputRef}
             type="text"
             value={query}
@@ -208,12 +218,12 @@ export default function SearchOverlay() {
                       const img = p.images?.[0]?.url ?? p.image ?? ''
                       const price = p.minPrice ?? p.price ?? 0
                       return (
-                        <button
+                        <Link
                           key={slug}
+                          href={`/product/${slug}`}
                           onClick={() => {
                             closeSearch()
                             setQuery('')
-                            router.push(`/product/${slug}`)
                           }}
                           className="flex gap-3 items-center p-2 hover:bg-[var(--color-cream-300)] transition-colors text-left rounded"
                         >
@@ -241,7 +251,7 @@ export default function SearchOverlay() {
                               {formatPrice(price)}
                             </p>
                           </div>
-                        </button>
+                        </Link>
                       )
                     })}
                   </div>

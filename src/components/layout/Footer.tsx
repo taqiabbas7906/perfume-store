@@ -69,10 +69,13 @@ export default function Footer() {
             </div>
           </div>
 
-          <div>
-            <h4 className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]">
+          <nav aria-labelledby="footer-information-heading">
+            <h2
+              id="footer-information-heading"
+              className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]"
+            >
               Information
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {information.map((item) => (
                 <li key={item.label}>
@@ -86,12 +89,15 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
-          <div>
-            <h4 className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]">
+          <nav aria-labelledby="footer-shop-heading">
+            <h2
+              id="footer-shop-heading"
+              className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]"
+            >
               Quick Shop
-            </h4>
+            </h2>
             <ul className="space-y-3">
               {quickShop.map((item) => (
                 <li key={item.label}>
@@ -105,12 +111,15 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </nav>
 
-          <div>
-            <h4 className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]">
+          <section aria-labelledby="footer-contact-heading">
+            <h2
+              id="footer-contact-heading"
+              className="text-[10px] tracking-[0.4em] uppercase font-bold mb-6 text-[var(--color-ink)]"
+            >
               Contact
-            </h4>
+            </h2>
             <ul className="space-y-4 mb-7">
               <li className="flex items-start gap-3">
                 <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -154,7 +163,7 @@ export default function Footer() {
                 </p>
               </div>
             </div>
-          </div>
+          </section>
         </div>
       </div>
 

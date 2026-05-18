@@ -135,10 +135,13 @@ export default async function ProductDetailPage({ params }: Params) {
   ]
 
   return (
-    <>
+    <main>
       <div className="h-[calc(2.5rem+5rem)]" />
 
-      <div className="border-b border-[var(--color-border-soft)] bg-[var(--color-cream-100)]">
+      <nav
+        className="border-b border-[var(--color-border-soft)] bg-[var(--color-cream-100)]"
+        aria-label="Breadcrumb"
+      >
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-2 flex-wrap">
           {breadcrumbs.map((crumb, i) => (
             <span key={`${crumb.label}-${i}`} className="flex items-center gap-2">
@@ -160,7 +163,7 @@ export default async function ProductDetailPage({ params }: Params) {
             </span>
           ))}
         </div>
-      </div>
+      </nav>
 
       <section className="max-w-7xl mx-auto px-6 py-10 lg:py-14">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
@@ -195,6 +198,6 @@ export default async function ProductDetailPage({ params }: Params) {
         category={product.category}
         productType={product.productType}
       />
-    </>
+    </main>
   )
 }

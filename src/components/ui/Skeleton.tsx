@@ -227,7 +227,7 @@ export function AccountOverviewSkeleton() {
 
 export function AccountShellSkeleton() {
   return (
-    <div className="bg-[var(--color-cream-600)] min-h-screen">
+    <main className="bg-[var(--color-cream-600)] min-h-screen">
       <div className="pt-32 pb-8 px-6 bg-white border-b border-[var(--color-border-soft)]">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
@@ -253,7 +253,7 @@ export function AccountShellSkeleton() {
       <div className="max-w-7xl mx-auto px-6 py-10">
         <AccountOverviewSkeleton />
       </div>
-    </div>
+    </main>
   )
 }
 
