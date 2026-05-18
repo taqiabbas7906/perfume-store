@@ -95,6 +95,197 @@ const DIAL_CODES = [
   { code: '+90', flag: '🇹🇷', name: 'Turkey' },
 ]
 
+const DIAL_COUNTRY_ISO: Record<string, string> = {
+  'United States': 'US',
+  Canada: 'CA',
+  Pakistan: 'PK',
+  'United Kingdom': 'GB',
+  India: 'IN',
+  UAE: 'AE',
+  'Saudi Arabia': 'SA',
+  Qatar: 'QA',
+  Kuwait: 'KW',
+  Germany: 'DE',
+  France: 'FR',
+  Italy: 'IT',
+  Spain: 'ES',
+  Netherlands: 'NL',
+  Russia: 'RU',
+  China: 'CN',
+  Japan: 'JP',
+  'South Korea': 'KR',
+  Singapore: 'SG',
+  Malaysia: 'MY',
+  Indonesia: 'ID',
+  Philippines: 'PH',
+  Bangladesh: 'BD',
+  'Sri Lanka': 'LK',
+  Nepal: 'NP',
+  Egypt: 'EG',
+  Nigeria: 'NG',
+  'South Africa': 'ZA',
+  Kenya: 'KE',
+  Brazil: 'BR',
+  Mexico: 'MX',
+  Argentina: 'AR',
+  Australia: 'AU',
+  'New Zealand': 'NZ',
+  Turkey: 'TR',
+}
+
+const PHONE_COUNTRIES = DIAL_CODES.map(({ code, name }) => ({
+  code,
+  name,
+  iso: DIAL_COUNTRY_ISO[name] ?? 'US',
+}))
+
+const DEFAULT_PHONE_COUNTRY = PHONE_COUNTRIES.find((d) => d.iso === 'US') ?? {
+  code: '+1',
+  name: 'United States',
+  iso: 'US',
+}
+
+type CardBrandId =
+  | 'visa'
+  | 'mastercard'
+  | 'amex'
+  | 'discover'
+  | 'diners'
+  | 'jcb'
+  | 'unionpay'
+
+interface CardBrand {
+  id: CardBrandId
+  label: string
+  short: string
+}
+
+const CARD_BRANDS: CardBrand[] = [
+  { id: 'visa', label: 'Visa', short: 'VISA' },
+  { id: 'mastercard', label: 'Mastercard', short: 'MC' },
+  { id: 'amex', label: 'American Express', short: 'AMEX' },
+  { id: 'discover', label: 'Discover', short: 'DISC' },
+  { id: 'diners', label: 'Diners Club', short: 'DINERS' },
+  { id: 'jcb', label: 'JCB', short: 'JCB' },
+  { id: 'unionpay', label: 'UnionPay', short: 'UP' },
+]
+
+const flagEmoji = (countryCode: string) => {
+  if (!/^[A-Z]{2}$/.test(countryCode)) return ''
+  return String.fromCodePoint(
+    ...countryCode
+      .toUpperCase()
+      .split('')
+      .map((char) => 127397 + char.charCodeAt(0)),
+  )
+}
+
+const phonePlaceholder = (countryCode: string) =>
+  countryCode === 'US' || countryCode === 'CA'
+    ? '555 123 4567'
+    : countryCode === 'GB'
+      ? '7400 123456'
+      : countryCode === 'PK'
+        ? '300 1234567'
+        : '300 1234567'
+
+const formatPhoneNumber = (value: string, countryCode: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 15)
+  if (countryCode === 'US' || countryCode === 'CA') {
+    return [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)]
+      .filter(Boolean)
+      .join(' ')
+  }
+  return [digits.slice(0, 3), digits.slice(3, 7), digits.slice(7)]
+    .filter(Boolean)
+    .join(' ')
+}
+
+const detectCardBrand = (digits: string): CardBrand | null => {
+  if (!digits) return null
+  if (/^4/.test(digits)) return CARD_BRANDS.find((b) => b.id === 'visa') ?? null
+  if (/^(5[1-5]|2[2-7])/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'mastercard') ?? null
+  }
+  if (/^3[47]/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'amex') ?? null
+  }
+  if (/^(6011|65|64[4-9]|622)/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'discover') ?? null
+  }
+  if (/^3(0[0-5]|[68])/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'diners') ?? null
+  }
+  if (/^(2131|1800|35)/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'jcb') ?? null
+  }
+  if (/^62/.test(digits)) {
+    return CARD_BRANDS.find((b) => b.id === 'unionpay') ?? null
+  }
+  return null
+}
+
+const cardDigitLimit = (brand: CardBrand | null) => {
+  if (brand?.id === 'amex') return 15
+  if (brand?.id === 'diners') return 14
+  return 19
+}
+
+const cardGroups = (brand: CardBrand | null) => {
+  if (brand?.id === 'amex') return [4, 6, 5]
+  if (brand?.id === 'diners') return [4, 6, 4]
+  return [4, 4, 4, 4, 3]
+}
+
+const groupDigits = (digits: string, groups: number[]) => {
+  const out: string[] = []
+  let offset = 0
+  for (const size of groups) {
+    const part = digits.slice(offset, offset + size)
+    if (!part) break
+    out.push(part)
+    offset += size
+  }
+  return out.join(' ')
+}
+
+const formatCardNumber = (value: string) => {
+  const rawDigits = value.replace(/\D/g, '')
+  const brand = detectCardBrand(rawDigits)
+  const digits = rawDigits.slice(0, cardDigitLimit(brand))
+  return groupDigits(digits, cardGroups(brand))
+}
+
+function CardBrandLogo({
+  brand,
+  active = false,
+}: {
+  brand: CardBrand
+  active?: boolean
+}) {
+  const base =
+    'inline-flex h-7 min-w-12 items-center justify-center gap-1 border px-2 text-[8px] font-extrabold tracking-widest'
+  const tone = active
+    ? 'border-[var(--color-ink)] bg-[var(--color-ink)] text-white'
+    : 'border-[var(--color-gold-soft)] bg-white text-[var(--color-gold-deep)]'
+
+  return (
+    <span
+      className={`${base} ${tone}`}
+      aria-label={brand.label}
+      title={brand.label}
+    >
+      {brand.id === 'mastercard' && (
+        <span className="relative inline-block h-3 w-5" aria-hidden="true">
+          <span className="absolute left-0 top-0 h-3 w-3 rounded-full bg-red-500/80" />
+          <span className="absolute right-0 top-0 h-3 w-3 rounded-full bg-amber-400/80" />
+        </span>
+      )}
+      <span>{brand.short}</span>
+    </span>
+  )
+}
+
 const fmt = (n: number) => `$${n.toFixed(2)}`
 
 const inputBase =
@@ -651,7 +842,7 @@ export default function CheckoutPage() {
     state: '',
     zip: '',
   })
-  const [dialCode, setDialCode] = useState('+1')
+  const [phoneCountry, setPhoneCountry] = useState(DEFAULT_PHONE_COUNTRY.iso)
   const [phoneLocal, setPhoneLocal] = useState('')
 
   const [rates, setRates] = useState<RatesResult | null>(null)
@@ -664,6 +855,8 @@ export default function CheckoutPage() {
   const [applyingVoucher, setApplyingVoucher] = useState(false)
 
   const [card, setCard] = useState({ name: '', number: '', expiry: '', cvv: '' })
+  const selectedDial =
+    PHONE_COUNTRIES.find((d) => d.iso === phoneCountry) ?? DEFAULT_PHONE_COUNTRY
 
   const fetchCart = useCallback(
     async (params?: { voucherCode?: string; removeVoucher?: string }) => {
@@ -783,7 +976,7 @@ export default function CheckoutPage() {
     await fetchCart({ removeVoucher: code })
   }
 
-  const fullPhone = dialCode + phoneLocal.replace(/[\s\-().]/g, '')
+  const fullPhone = `${selectedDial.code}${phoneLocal.replace(/\D/g, '')}`
 
   const goDelivery = (e: React.FormEvent) => {
     e.preventDefault()
@@ -800,7 +993,14 @@ export default function CheckoutPage() {
       setError('Please select your state')
       return
     }
-    const strippedLocal = phoneLocal.replace(/[\s\-().]/g, '')
+    const strippedLocal = phoneLocal.replace(/\D/g, '')
+    if (
+      (selectedDial.iso === 'US' || selectedDial.iso === 'CA') &&
+      strippedLocal.length !== 10
+    ) {
+      setError('Please enter a valid 10-digit phone number')
+      return
+    }
     if (!strippedLocal || !/^\d{5,15}$/.test(strippedLocal)) {
       setError(
         'Please enter a valid local phone number (5–15 digits, e.g. 3001234567)',
@@ -977,6 +1177,13 @@ export default function CheckoutPage() {
     ? 0
     : (selectedShipping?.price ?? 0)
   const grandTotal = cart.total + shippingCost + taxAmount
+  const cardDigits = card.number.replace(/\D/g, '')
+  const activeCardBrand = detectCardBrand(cardDigits)
+  const cardNumberMaxLength = groupDigits(
+    '9'.repeat(cardDigitLimit(activeCardBrand)),
+    cardGroups(activeCardBrand),
+  ).length
+  const cvvMaxLength = activeCardBrand?.id === 'amex' ? 4 : 3
 
   if (success) {
     return (
@@ -1120,32 +1327,47 @@ export default function CheckoutPage() {
 
                     <Field label="Phone Number" req htmlFor="shipping-phone">
                       <div className="flex gap-2">
-                        <select
-                          id="shipping-dial-code"
-                          aria-label="Country code"
-                          value={dialCode}
-                          onChange={(e) => setDialCode(e.target.value)}
-                          className={`w-44 ${inputDefault} cursor-pointer appearance-none`}
-                        >
-                          {DIAL_CODES.map((d, i) => (
-                            <option key={`${d.code}-${i}`} value={d.code}>
-                              {d.flag} {d.name} ({d.code})
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative w-44 flex-shrink-0">
+                          <span
+                            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base"
+                            aria-hidden="true"
+                          >
+                            {flagEmoji(selectedDial.iso)}
+                          </span>
+                          <select
+                            id="shipping-dial-code"
+                            aria-label={`Country code, ${selectedDial.name} ${selectedDial.code}`}
+                            value={phoneCountry}
+                            onChange={(e) => {
+                              const nextCountry = e.target.value
+                              setPhoneCountry(nextCountry)
+                              setPhoneLocal((value) =>
+                                formatPhoneNumber(value, nextCountry),
+                              )
+                            }}
+                            className={`w-full ${inputDefault} pl-10 pr-8 cursor-pointer appearance-none`}
+                          >
+                            {PHONE_COUNTRIES.map((d) => (
+                              <option key={`${d.iso}-${d.code}`} value={d.iso}>
+                                {d.name} ({d.code})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                         <input
                           id="shipping-phone"
                           type="tel"
                           required
-                          inputMode="numeric"
+                          inputMode="tel"
+                          autoComplete="tel-national"
                           value={phoneLocal}
                           onChange={(e) =>
                             setPhoneLocal(
-                              e.target.value.replace(/[^\d\s\-().]/g, ''),
+                              formatPhoneNumber(e.target.value, selectedDial.iso),
                             )
                           }
-                          maxLength={15}
-                          placeholder="300 1234567"
+                          maxLength={24}
+                          placeholder={phonePlaceholder(selectedDial.iso)}
                           className={`flex-1 ${inputDefault}`}
                         />
                       </div>
@@ -1159,18 +1381,28 @@ export default function CheckoutPage() {
                         id="shipping-country"
                         required
                         value={addr.country}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const nextCountry = e.target.value
                           setAddr({
                             ...addr,
-                            country: e.target.value,
+                            country: nextCountry,
                             state: '',
                           })
-                        }
+                          const matchingDial = PHONE_COUNTRIES.find(
+                            (d) => d.iso === nextCountry,
+                          )
+                          if (matchingDial) {
+                            setPhoneCountry(matchingDial.iso)
+                            setPhoneLocal((value) =>
+                              formatPhoneNumber(value, matchingDial.iso),
+                            )
+                          }
+                        }}
                         className={`${inputDefault} cursor-pointer appearance-none`}
                       >
                         {ALL_COUNTRIES.map((c) => (
                           <option key={c.code} value={c.code}>
-                            {c.name}
+                            {flagEmoji(c.code)} {c.name}
                           </option>
                         ))}
                       </select>
@@ -1502,13 +1734,12 @@ export default function CheckoutPage() {
                     <p className="text-[10px] text-gray-400 tracking-wide mr-2 whitespace-nowrap">
                       We accept:
                     </p>
-                    {['VISA', 'MC', 'AMEX', 'DISC'].map((c) => (
-                      <span
-                        key={c}
-                        className="border border-[var(--color-gold-soft)] bg-white text-[8px] text-[var(--color-gold-deep)] font-extrabold tracking-widest px-2 py-1"
-                      >
-                        {c}
-                      </span>
+                    {CARD_BRANDS.slice(0, 4).map((brand) => (
+                      <CardBrandLogo
+                        key={brand.id}
+                        brand={brand}
+                        active={activeCardBrand?.id === brand.id}
+                      />
                     ))}
                   </div>
 
@@ -1534,16 +1765,39 @@ export default function CheckoutPage() {
                           id="card-number"
                           type="text"
                           required
-                          maxLength={19}
+                          inputMode="numeric"
+                          autoComplete="cc-number"
+                          maxLength={cardNumberMaxLength}
                           value={card.number}
                           onChange={(e) => {
-                            let v = e.target.value.replace(/\D/g, '')
-                            v = v.match(/.{1,4}/g)?.join(' ') || v
-                            setCard({ ...card, number: v })
+                            const nextNumber = formatCardNumber(e.target.value)
+                            const nextBrand = detectCardBrand(
+                              nextNumber.replace(/\D/g, ''),
+                            )
+                            const nextCvvMax = nextBrand?.id === 'amex' ? 4 : 3
+                            setCard({
+                              ...card,
+                              number: nextNumber,
+                              cvv: card.cvv.slice(0, nextCvvMax),
+                            })
                           }}
                           placeholder="4111 1111 1111 1111"
-                          className={`${inputDefault} pl-11 font-mono tracking-wider`}
+                          className={`${inputDefault} pl-11 pr-24 font-mono tracking-wider`}
                         />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {activeCardBrand ? (
+                            <CardBrandLogo brand={activeCardBrand} active />
+                          ) : (
+                            <span className="border border-[var(--color-border)] bg-white text-[8px] text-gray-300 font-extrabold tracking-widest px-2 py-1">
+                              CARD
+                            </span>
+                          )}
+                        </div>
+                        <span className="sr-only" aria-live="polite">
+                          {activeCardBrand
+                            ? `Card type: ${activeCardBrand.label}`
+                            : 'Card type not detected yet'}
+                        </span>
                       </div>
                     </Field>
 
@@ -1553,6 +1807,8 @@ export default function CheckoutPage() {
                           id="card-expiry"
                           type="text"
                           required
+                          inputMode="numeric"
+                          autoComplete="cc-exp"
                           maxLength={5}
                           value={card.expiry}
                           onChange={(e) => {
@@ -1570,12 +1826,16 @@ export default function CheckoutPage() {
                           id="card-cvv"
                           type="text"
                           required
-                          maxLength={4}
+                          inputMode="numeric"
+                          autoComplete="cc-csc"
+                          maxLength={cvvMaxLength}
                           value={card.cvv}
                           onChange={(e) =>
                             setCard({
                               ...card,
-                              cvv: e.target.value.replace(/\D/g, ''),
+                              cvv: e.target.value
+                                .replace(/\D/g, '')
+                                .slice(0, cvvMaxLength),
                             })
                           }
                           placeholder="123"
