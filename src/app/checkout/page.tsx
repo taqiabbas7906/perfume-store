@@ -1730,8 +1730,8 @@ export default function CheckoutPage() {
                     Square sandbox · test card 4111 1111 1111 1111
                   </p>
 
-                  <div className="flex items-center gap-2 mb-6">
-                    <p className="text-[10px] text-gray-400 tracking-wide mr-2 whitespace-nowrap">
+                  <div className="flex flex-wrap items-center gap-2 mb-6">
+                    <p className="text-[10px] text-gray-400 tracking-wide sm:mr-2 whitespace-nowrap">
                       We accept:
                     </p>
                     {CARD_BRANDS.slice(0, 4).map((brand) => (
@@ -1844,7 +1844,7 @@ export default function CheckoutPage() {
                       </Field>
                     </div>
 
-                    <div className="flex items-center gap-6 border border-[var(--color-border)] bg-[var(--color-cream-50)] px-5 py-4">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6 border border-[var(--color-border)] bg-[var(--color-cream-50)] px-5 py-4">
                       {[
                         { icon: 'ri-lock-2-line', label: 'SSL Secured' },
                         { icon: 'ri-shield-check-line', label: 'PCI Compliant' },
@@ -1875,11 +1875,11 @@ export default function CheckoutPage() {
                   </p>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="button"
                     onClick={() => setStep(2)}
-                    className={btnGhost}
+                    className={`w-full sm:w-auto justify-center ${btnGhost}`}
                   >
                     <i className="ri-arrow-left-line" />
                     Back
@@ -1887,7 +1887,7 @@ export default function CheckoutPage() {
                   <button
                     type="submit"
                     disabled={processing || cartSyncing}
-                    className={`flex-1 ${btnGold}`}
+                    className={`w-full sm:flex-1 min-w-0 ${btnGold}`}
                   >
                     {processing ? (
                       <>

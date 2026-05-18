@@ -140,8 +140,10 @@ export default function ProductCard({
           type="button"
           onClick={handleWishlist}
           aria-label={wished ? 'Remove from wishlist' : 'Add to wishlist'}
-          className={`absolute top-9 right-3 z-10 w-7 h-7 flex items-center justify-center transition-all duration-300 ${
-            wished ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          className={`absolute top-9 right-3 z-10 w-7 h-7 flex items-center justify-center rounded-full transition-all duration-300 ${
+            wished
+              ? 'opacity-100 bg-white/90 shadow-sm'
+              : 'opacity-0 bg-white/80 group-hover:opacity-100'
           }`}
         >
           <i

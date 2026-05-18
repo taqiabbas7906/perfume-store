@@ -1,16 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { useSearch } from '@/context/SearchContext'
 
+interface BrandOption {
+  _id: string
+  name: string
+  slug?: string
+}
+
 const navLinks = [
   { label: 'Home', href: '/', isRoute: true },
   { label: 'Shop', href: '/shop', isRoute: true },
-  { label: 'Brands', href: '/#brands', isRoute: false },
-  { label: 'Collections', href: '/#collections', isRoute: false },
+  { label: 'Brands', href: '/shop', isRoute: true, kind: 'brands' as const },
+  { label: 'Collections', href: '/collections', isRoute: true },
   { label: 'About Us', href: '/about', isRoute: true },
   { label: 'Reviews', href: '/#reviews', isRoute: false },
 ]
@@ -18,6 +24,11 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [brandsDropdownOpen, setBrandsDropdownOpen] = useState(false)
+  const [mobileBrandsOpen, setMobileBrandsOpen] = useState(false)
+  const [brands, setBrands] = useState<BrandOption[]>([])
+  const [brandsLoaded, setBrandsLoaded] = useState(false)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { openCart, totalItems } = useCart()
   const { openSearch } = useSearch()
   const pathname = usePathname()
@@ -28,8 +39,66 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Lazy-fetch brands the first time the user opens the dropdown.
+  useEffect(() => {
+    if (!brandsDropdownOpen && !mobileBrandsOpen) return
+    if (brandsLoaded) return
+    let cancelled = false
+    fetch('/api/brands')
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.success) return
+        setBrands(
+          (data.brands ?? []).map(
+            (b: { _id: string; name: string; slug?: string }) => ({
+              _id: String(b._id),
+              name: b.name,
+              slug: b.slug,
+            }),
+          ),
+        )
+        setBrandsLoaded(true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [brandsDropdownOpen, mobileBrandsOpen, brandsLoaded])
+
+  // Close dropdown when route changes.
+  useEffect(() => {
+    setBrandsDropdownOpen(false)
+    setMobileBrandsOpen(false)
+    setMenuOpen(false)
+  }, [pathname])
+
+  // Close on Escape.
+  useEffect(() => {
+    if (!brandsDropdownOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setBrandsDropdownOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [brandsDropdownOpen])
+
   const isHome = pathname === '/'
   const showSolid = scrolled || !isHome
+
+  const openBrands = () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setBrandsDropdownOpen(true)
+  }
+  const scheduleCloseBrands = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = setTimeout(() => {
+      setBrandsDropdownOpen(false)
+      closeTimerRef.current = null
+    }, 120)
+  }
 
   return (
     <>
@@ -62,8 +131,15 @@ export default function Navbar() {
             aria-label="Primary navigation"
           >
             {navLinks.map((link) => {
-              const isActive = link.isRoute ? pathname === link.href : false
-              const className = `text-xs tracking-widest uppercase font-medium transition-all duration-200 cursor-pointer whitespace-nowrap relative group ${
+              // Brands shares the /shop href but isn't the "current page";
+              // suppress the active underline for it so only "Shop" lights up.
+              const isActive =
+                link.kind === 'brands'
+                  ? false
+                  : link.isRoute
+                    ? pathname === link.href
+                    : false
+              const baseCls = `text-xs tracking-widest uppercase font-medium transition-all duration-200 cursor-pointer whitespace-nowrap relative group ${
                 isActive
                   ? 'text-[var(--color-gold)]'
                   : 'text-[var(--color-ink)] hover:text-[var(--color-gold)]'
@@ -75,13 +151,44 @@ export default function Navbar() {
                   }`}
                 />
               )
+
+              if (link.kind === 'brands') {
+                return (
+                  <div
+                    key={link.label}
+                    className="relative"
+                    onMouseEnter={openBrands}
+                    onMouseLeave={scheduleCloseBrands}
+                  >
+                    <Link
+                      href="/shop"
+                      className={`${baseCls} inline-flex items-center gap-1`}
+                      aria-haspopup="true"
+                      aria-expanded={brandsDropdownOpen}
+                    >
+                      {link.label}
+                      <i
+                        className={`ri-arrow-down-s-line text-sm transition-transform duration-200 ${
+                          brandsDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                      {underline}
+                    </Link>
+
+                    {brandsDropdownOpen && (
+                      <BrandsDropdown brands={brands} loaded={brandsLoaded} />
+                    )}
+                  </div>
+                )
+              }
+
               return link.isRoute ? (
-                <Link key={link.label} href={link.href} className={className}>
+                <Link key={link.label} href={link.href} className={baseCls}>
                   {link.label}
                   {underline}
                 </Link>
               ) : (
-                <a key={link.label} href={link.href} className={className}>
+                <a key={link.label} href={link.href} className={baseCls}>
                   {link.label}
                   {underline}
                 </a>
@@ -146,12 +253,65 @@ export default function Navbar() {
           id="mobile-navigation"
           aria-label="Mobile navigation"
           className={`md:hidden bg-white border-t border-gray-100 overflow-hidden transition-all duration-300 ${
-            menuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            menuOpen
+              ? 'max-h-[80vh] opacity-100 overflow-y-auto'
+              : 'max-h-0 opacity-0'
           }`}
         >
           <div className="px-6 py-4 flex flex-col gap-4">
-            {navLinks.map((link) =>
-              link.isRoute ? (
+            {navLinks.map((link) => {
+              if (link.kind === 'brands') {
+                return (
+                  <div key={link.label}>
+                    <button
+                      type="button"
+                      onClick={() => setMobileBrandsOpen((v) => !v)}
+                      className="w-full flex items-center justify-between text-xs tracking-widest uppercase font-medium text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
+                      aria-expanded={mobileBrandsOpen}
+                    >
+                      <span>{link.label}</span>
+                      <i
+                        className={`ri-arrow-down-s-line text-sm transition-transform duration-200 ${
+                          mobileBrandsOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                    {mobileBrandsOpen && (
+                      <div className="mt-3 pl-3 border-l border-[var(--color-border-soft)] flex flex-col gap-2.5 max-h-64 overflow-y-auto">
+                        <Link
+                          href="/shop"
+                          onClick={() => setMenuOpen(false)}
+                          className="text-[11px] tracking-widest uppercase font-semibold text-[var(--color-gold)] hover:text-[var(--color-ink)] transition-colors"
+                        >
+                          All Brands
+                        </Link>
+                        {!brandsLoaded && (
+                          <p className="text-[10px] text-gray-400 tracking-wide">
+                            Loading…
+                          </p>
+                        )}
+                        {brandsLoaded && brands.length === 0 && (
+                          <p className="text-[10px] text-gray-400 tracking-wide">
+                            No brands yet
+                          </p>
+                        )}
+                        {brands.map((b) => (
+                          <Link
+                            key={b._id}
+                            href={`/shop?brand=${encodeURIComponent(b.name)}`}
+                            onClick={() => setMenuOpen(false)}
+                            className="text-[11px] tracking-wide text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
+                          >
+                            {b.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              return link.isRoute ? (
                 <Link
                   key={link.label}
                   href={link.href}
@@ -169,8 +329,8 @@ export default function Navbar() {
                 >
                   {link.label}
                 </a>
-              ),
-            )}
+              )
+            })}
             <div className="border-t border-[var(--color-border-soft)] pt-4">
               <Link
                 href="/account"
@@ -185,5 +345,55 @@ export default function Navbar() {
         </nav>
       </header>
     </>
+  )
+}
+
+function BrandsDropdown({
+  brands,
+  loaded,
+}: {
+  brands: BrandOption[]
+  loaded: boolean
+}) {
+  return (
+    <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 animate-fadeIn">
+      <div className="w-[min(640px,90vw)] bg-white border border-[var(--color-border-soft)] shadow-lg">
+        <div className="px-5 py-4 border-b border-[var(--color-border-soft)] flex items-center justify-between gap-4">
+          <p className="text-[10px] tracking-[0.4em] uppercase font-bold text-[var(--color-gold)]">
+            Shop By Brand
+          </p>
+          <Link
+            href="/shop"
+            className="text-[10px] tracking-[0.25em] uppercase font-semibold text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors whitespace-nowrap"
+          >
+            All Brands →
+          </Link>
+        </div>
+        <div className="p-5">
+          {!loaded ? (
+            <p className="text-xs text-gray-400 tracking-wide">
+              Loading brands…
+            </p>
+          ) : brands.length === 0 ? (
+            <p className="text-xs text-gray-400 tracking-wide">
+              No brands available yet.
+            </p>
+          ) : (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+              {brands.map((b) => (
+                <li key={b._id}>
+                  <Link
+                    href={`/shop?brand=${encodeURIComponent(b.name)}`}
+                    className="block text-xs tracking-wide text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors py-1.5 truncate"
+                  >
+                    {b.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

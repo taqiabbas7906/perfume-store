@@ -358,6 +358,11 @@ export const reviewSchema = z.object({
   comment: z.string().min(10).max(500).trim(),
 })
 
+export const reviewUpdateSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().min(10).max(500).trim(),
+})
+
 export const newsletterSchema = z.object({ email: emailSchema })
 
 export const updateProfileSchema = z

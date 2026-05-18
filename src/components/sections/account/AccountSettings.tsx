@@ -1,7 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { smartFetch } from '@/lib/api'
+import {
+  normalizeNewsletterEmail,
+  publishNewsletterStatus,
+  readStoredNewsletterStatus,
+  subscribeToNewsletterStatus,
+} from '@/lib/newsletterStatus'
 
 interface SettingsProfile {
   _id: string
@@ -23,13 +29,66 @@ const labelCls =
   'block text-[10px] tracking-widest uppercase font-semibold text-gray-400 mb-1.5'
 
 export default function AccountSettings({ profile, onProfileUpdate }: Props) {
-  const [name, setName] = useState(profile?.name ?? '')
-  const [phone, setPhone] = useState(profile?.phone ?? '')
+  const accountEmail = profile?.email ?? ''
+  const profileName =
+    profile?.name?.trim() ||
+    (profile?.email ? profile.email.split('@')[0] : '')
+  const [name, setName] = useState(profileName)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notifications, setNotifications] = useState(true)
-  const [newsletterOptIn, setNewsletterOptIn] = useState(true)
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false)
+  const [newsletterChecking, setNewsletterChecking] = useState(false)
+  const [newsletterPending, setNewsletterPending] = useState(false)
+  const [newsletterMessage, setNewsletterMessage] = useState<string | null>(null)
+  const [newsletterError, setNewsletterError] = useState<string | null>(null)
+
+  const refreshNewsletterStatus = useCallback(async (email: string) => {
+    const normalized = normalizeNewsletterEmail(email)
+    if (!normalized) {
+      setNewsletterOptIn(false)
+      return
+    }
+
+    const stored = readStoredNewsletterStatus(normalized)
+    if (stored !== null) setNewsletterOptIn(stored)
+
+    setNewsletterChecking(true)
+    setNewsletterError(null)
+    try {
+      const res = await smartFetch(
+        `/api/newsletter/status?email=${encodeURIComponent(normalized)}`,
+      )
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        const nextSubscribed = Boolean(data.subscribed)
+        setNewsletterOptIn(nextSubscribed)
+        publishNewsletterStatus(normalized, nextSubscribed)
+      }
+    } catch {
+      if (stored === null) setNewsletterOptIn(false)
+    } finally {
+      setNewsletterChecking(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setName(profileName)
+      setNewsletterMessage(null)
+      setNewsletterError(null)
+      void refreshNewsletterStatus(accountEmail)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [accountEmail, profileName, refreshNewsletterStatus])
+
+  useEffect(() => {
+    return subscribeToNewsletterStatus((detail) => {
+      if (detail.email === normalizeNewsletterEmail(accountEmail)) {
+        setNewsletterOptIn(detail.subscribed)
+      }
+    })
+  }, [accountEmail])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -39,7 +98,7 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
     try {
       const res = await smartFetch('/api/auth/me', {
         method: 'PUT',
-        body: JSON.stringify({ name, phone }),
+        body: JSON.stringify({ name }),
       })
       const data = await res.json()
       if (!res.ok || !data?.success) {
@@ -53,6 +112,42 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
       setError('Network error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleNewsletterToggle(next: boolean) {
+    const email = profile?.email?.trim()
+    if (!email) {
+      setNewsletterError('Your account email is required for newsletter updates')
+      return
+    }
+
+    setNewsletterPending(true)
+    setNewsletterError(null)
+    setNewsletterMessage(null)
+
+    try {
+      const res = await smartFetch(
+        next ? '/api/newsletter/subscribe' : '/api/newsletter/unsubscribe',
+        {
+          method: 'POST',
+          body: JSON.stringify({ email }),
+        },
+      )
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        setNewsletterError(data?.error || 'Failed to update newsletter')
+        return
+      }
+
+      setNewsletterOptIn(next)
+      publishNewsletterStatus(email, next)
+      setNewsletterMessage(next ? 'Newsletter subscribed' : 'Newsletter unsubscribed')
+      setTimeout(() => setNewsletterMessage(null), 2500)
+    } catch {
+      setNewsletterError('Network error')
+    } finally {
+      setNewsletterPending(false)
     }
   }
 
@@ -89,19 +184,6 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
                 className="w-full border border-[var(--color-border-soft)] bg-[var(--color-cream-50)] px-3 py-2.5 text-sm text-gray-500"
               />
             </div>
-            <div>
-              <label htmlFor="account-phone" className={labelCls}>
-                Phone Number
-              </label>
-              <input
-                id="account-phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 123-4567"
-                className={inputCls}
-              />
-            </div>
           </div>
         </div>
 
@@ -112,29 +194,28 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
           <div className="space-y-4">
             {[
               {
-                key: 'notifications' as const,
-                label: 'Order notifications',
-                desc: 'Receive updates about your orders via email',
-                value: notifications,
-                setter: setNotifications,
-              },
-              {
                 key: 'newsletter' as const,
                 label: 'Newsletter',
                 desc: 'Get the latest fragrance releases and exclusive offers',
                 value: newsletterOptIn,
-                setter: setNewsletterOptIn,
+                disabled: newsletterChecking || newsletterPending || !profile?.email,
+                onChange: (checked: boolean) => {
+                  void handleNewsletterToggle(checked)
+                },
               },
             ].map((pref) => (
               <label
                 key={pref.key}
-                className="flex items-start gap-4 cursor-pointer group"
+                className={`flex items-start gap-4 group ${
+                  pref.disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+                }`}
               >
                 <div className="relative mt-0.5">
                   <input
                     type="checkbox"
                     checked={pref.value}
-                    onChange={(e) => pref.setter(e.target.checked)}
+                    disabled={pref.disabled}
+                    onChange={(e) => pref.onChange(e.target.checked)}
                     className="sr-only"
                   />
                   <div
@@ -153,11 +234,25 @@ export default function AccountSettings({ profile, onProfileUpdate }: Props) {
                     {pref.label}
                   </p>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    {pref.desc}
+                    {pref.key === 'newsletter' && newsletterChecking
+                      ? 'Checking newsletter preference...'
+                      : pref.key === 'newsletter' && newsletterPending
+                        ? 'Updating newsletter preference...'
+                        : pref.desc}
                   </p>
                 </div>
               </label>
             ))}
+            {newsletterMessage && (
+              <p className="text-xs text-emerald-600 font-semibold">
+                {newsletterMessage}
+              </p>
+            )}
+            {newsletterError && (
+              <p className="text-xs text-red-500">
+                {newsletterError}
+              </p>
+            )}
           </div>
         </div>
 

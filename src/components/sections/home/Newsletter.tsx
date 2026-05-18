@@ -1,29 +1,118 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
+import {
+  normalizeNewsletterEmail,
+  publishNewsletterStatus,
+  readStoredNewsletterStatus,
+  subscribeToNewsletterStatus,
+} from '@/lib/newsletterStatus'
 
-type Status = 'idle' | 'loading' | 'success' | 'error'
+type Status = 'idle' | 'loading' | 'error'
 
 export default function Newsletter() {
+  const { user, loading: authLoading } = useAuth()
   const [status, setStatus] = useState<Status>('idle')
   const [email, setEmail] = useState('')
+  const [subscribed, setSubscribed] = useState(false)
+  const [checking, setChecking] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const accountEmail = user?.email ?? ''
+
+  const refreshSubscription = useCallback(async (targetEmail: string) => {
+    const normalized = normalizeNewsletterEmail(targetEmail)
+    if (!normalized) {
+      setSubscribed(false)
+      return
+    }
+
+    const stored = readStoredNewsletterStatus(normalized)
+    if (stored !== null) setSubscribed(stored)
+
+    setChecking(true)
+    try {
+      const res = await fetch(
+        `/api/newsletter/status?email=${encodeURIComponent(normalized)}`,
+      )
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        const nextSubscribed = Boolean(data.subscribed)
+        setSubscribed(nextSubscribed)
+        publishNewsletterStatus(normalized, nextSubscribed)
+      }
+    } catch {
+      /* leave local state as-is */
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+    const timer = window.setTimeout(() => {
+      if (accountEmail) {
+        setEmail(accountEmail)
+        void refreshSubscription(accountEmail)
+      } else {
+        setSubscribed(false)
+      }
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [accountEmail, authLoading, refreshSubscription])
+
+  useEffect(() => {
+    return subscribeToNewsletterStatus((detail) => {
+      const activeEmail = normalizeNewsletterEmail(accountEmail || email)
+      if (detail.email === activeEmail) setSubscribed(detail.subscribed)
+    })
+  }, [accountEmail, email])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!email) return
+    const targetEmail = normalizeNewsletterEmail(accountEmail || email)
+    if (!targetEmail) return
     setStatus('loading')
     setErrorMessage('')
     try {
       const res = await fetch('/api/newsletter/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: targetEmail }),
       })
       const data = await res.json().catch(() => null)
       if (res.ok && data?.success) {
-        setStatus('success')
-        setEmail('')
+        setStatus('idle')
+        setSubscribed(true)
+        setEmail(targetEmail)
+        publishNewsletterStatus(targetEmail, true)
+      } else {
+        setStatus('error')
+        setErrorMessage(data?.error || 'Something went wrong')
+      }
+    } catch {
+      setStatus('error')
+      setErrorMessage('Network error')
+    }
+  }
+
+  const handleUnsubscribe = async () => {
+    const targetEmail = normalizeNewsletterEmail(accountEmail || email)
+    if (!targetEmail) return
+    setStatus('loading')
+    setErrorMessage('')
+    try {
+      const res = await fetch('/api/newsletter/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        setStatus('idle')
+        setSubscribed(false)
+        setEmail(targetEmail)
+        publishNewsletterStatus(targetEmail, false)
       } else {
         setStatus('error')
         setErrorMessage(data?.error || 'Something went wrong')
@@ -60,14 +149,22 @@ export default function Newsletter() {
           Be the first to know about exclusive offers, new arrivals, and fragrance drops.
         </p>
 
-        {status === 'success' ? (
+        {subscribed ? (
           <div className="flex flex-col items-center gap-3">
             <div className="w-14 h-14 flex items-center justify-center border border-[var(--color-gold)] bg-[var(--color-cream-300)]">
               <i className="ri-check-line text-[var(--color-gold)] text-2xl" />
             </div>
             <p className="text-[var(--color-ink)] font-light text-sm tracking-wide">
-              You&apos;re on the list! Watch your inbox.
+              Already subscribed with {accountEmail || email}.
             </p>
+            <button
+              type="button"
+              onClick={handleUnsubscribe}
+              disabled={status === 'loading'}
+              className="text-[11px] tracking-widest uppercase font-bold text-[var(--color-gold)] hover:text-[var(--color-ink)] transition-colors disabled:opacity-60"
+            >
+              {status === 'loading' ? 'Unsubscribing...' : 'Want to unsubscribe?'}
+            </button>
           </div>
         ) : (
           <form
@@ -81,18 +178,23 @@ export default function Newsletter() {
               id="home-newsletter-email"
               type="email"
               name="email"
-              value={email}
+              value={accountEmail || email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address"
+              disabled={Boolean(accountEmail) || status === 'loading'}
               required
-              className="flex-1 bg-white border border-[var(--color-border)] sm:border-r-0 text-[var(--color-ink)] placeholder-gray-400 px-5 py-4 text-sm focus:outline-none focus:border-[var(--color-gold)] transition-colors"
+              className="flex-1 bg-white border border-[var(--color-border)] sm:border-r-0 text-[var(--color-ink)] placeholder-gray-400 px-5 py-4 text-sm focus:outline-none focus:border-[var(--color-gold)] transition-colors disabled:bg-[var(--color-cream-50)] disabled:text-gray-500"
             />
             <button
               type="submit"
-              disabled={status === 'loading'}
+              disabled={status === 'loading' || checking}
               className="bg-[var(--color-gold)] hover:bg-[var(--color-gold-dark)] text-white text-xs tracking-widest uppercase font-bold px-8 py-4 transition-colors whitespace-nowrap disabled:opacity-60 border border-[var(--color-gold)]"
             >
-              {status === 'loading' ? 'Subscribing...' : 'Subscribe'}
+              {status === 'loading'
+                ? 'Subscribing...'
+                : checking
+                  ? 'Checking...'
+                  : 'Subscribe'}
             </button>
           </form>
         )}
