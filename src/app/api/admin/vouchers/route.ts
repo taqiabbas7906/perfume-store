@@ -30,7 +30,30 @@ const createVoucherSchema = z.object({
 
 const updateVoucherSchema = createVoucherSchema.partial().extend({
   voucherId: z.string(),
+  maxDiscountAmount: z.number().min(0).nullable().optional(),
+  usageLimit: z.number().min(1).nullable().optional(),
+  perUserLimit: z.number().min(1).nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
+  startsAt: z.string().nullable().optional(),
 })
+
+function toOptionalDate(value: string | null | undefined) {
+  if (value === null) return null
+  if (!value) return undefined
+  return new Date(value)
+}
+
+function isDuplicateVoucherError(err: unknown) {
+  if (err instanceof Error && err.message === 'Voucher code already exists') {
+    return true
+  }
+  return (
+    !!err &&
+    typeof err === 'object' &&
+    'code' in err &&
+    err.code === 11000
+  )
+}
 
 export async function GET(req: NextRequest) {
   const limited = await ordersRateLimit(req)
@@ -81,6 +104,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, voucher }, { status: 201 })
   } catch (err) {
+    if (isDuplicateVoucherError(err)) {
+      return apiError(409, { error: 'Voucher code already exists' })
+    }
     logRouteError('POST /api/admin/vouchers', err)
     return apiError(500, { error: 'Internal server error' })
   }
@@ -110,8 +136,8 @@ export async function PUT(req: NextRequest) {
     const voucher = await updateVoucher({
       voucherId,
       ...data,
-      expiresAt: data.expiresAt ? new Date(data.expiresAt) : undefined,
-      startsAt: data.startsAt ? new Date(data.startsAt) : undefined,
+      expiresAt: toOptionalDate(data.expiresAt),
+      startsAt: toOptionalDate(data.startsAt),
     })
 
     if (!voucher) {
@@ -120,6 +146,9 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ success: true, voucher })
   } catch (err) {
+    if (isDuplicateVoucherError(err)) {
+      return apiError(409, { error: 'Voucher code already exists' })
+    }
     logRouteError('PUT /api/admin/vouchers', err)
     return apiError(500, { error: 'Internal server error' })
   }

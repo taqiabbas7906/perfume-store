@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Order from '@/models/Order'
+import Product from '@/models/Product'
 import User from '@/models/User'
 import { REVENUE_STATUSES } from '@/lib/constants'
 
@@ -42,32 +43,45 @@ export async function GET(req: NextRequest) {
     const period = req.nextUrl.searchParams.get('period') ?? '30d'
     const { now, start, prevStart, prevEnd } = periodDates(period)
 
-    const [currRevAgg, prevRevAgg, currOrderAgg, prevOrderAgg, currUsers, prevUsers, statusAgg] =
-      await Promise.all([
-        // Current period revenue
-        Order.aggregate([
-          { $match: { status: { $in: REVENUE_STATUSES }, createdAt: { $gte: start, $lte: now } } },
-          { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
-        ]),
-        // Prev period revenue
-        Order.aggregate([
-          { $match: { status: { $in: REVENUE_STATUSES }, createdAt: { $gte: prevStart, $lt: prevEnd } } },
-          { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
-        ]),
-        // Current period all orders count
-        Order.countDocuments({ createdAt: { $gte: start, $lte: now } }),
-        // Prev period all orders count
-        Order.countDocuments({ createdAt: { $gte: prevStart, $lt: prevEnd } }),
-        // New users in current period
-        User.countDocuments({ createdAt: { $gte: start, $lte: now }, role: 'user' }),
-        // New users in prev period
-        User.countDocuments({ createdAt: { $gte: prevStart, $lt: prevEnd }, role: 'user' }),
-        // Orders by status in current period
-        Order.aggregate([
-          { $match: { createdAt: { $gte: start, $lte: now } } },
-          { $group: { _id: '$status', count: { $sum: 1 } } },
-        ]),
-      ])
+    const [
+      currRevAgg,
+      prevRevAgg,
+      currOrderAgg,
+      prevOrderAgg,
+      currUsers,
+      prevUsers,
+      statusAgg,
+      totalCustomers,
+      totalProducts,
+    ] = await Promise.all([
+      // Current period revenue
+      Order.aggregate([
+        { $match: { status: { $in: REVENUE_STATUSES }, createdAt: { $gte: start, $lte: now } } },
+        { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
+      ]),
+      // Prev period revenue
+      Order.aggregate([
+        { $match: { status: { $in: REVENUE_STATUSES }, createdAt: { $gte: prevStart, $lt: prevEnd } } },
+        { $group: { _id: null, revenue: { $sum: '$totalAmount' }, orders: { $sum: 1 } } },
+      ]),
+      // Current period all orders count
+      Order.countDocuments({ createdAt: { $gte: start, $lte: now } }),
+      // Prev period all orders count
+      Order.countDocuments({ createdAt: { $gte: prevStart, $lt: prevEnd } }),
+      // New users in current period
+      User.countDocuments({ createdAt: { $gte: start, $lte: now }, role: 'user' }),
+      // New users in prev period
+      User.countDocuments({ createdAt: { $gte: prevStart, $lt: prevEnd }, role: 'user' }),
+      // Orders by status in current period
+      Order.aggregate([
+        { $match: { createdAt: { $gte: start, $lte: now } } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+      // Lifetime customer count (for the dashboard stat card)
+      User.countDocuments({ role: 'user' }),
+      // Active product catalog size (for the dashboard stat card)
+      Product.countDocuments({ active: true }),
+    ])
 
     const currRev    = currRevAgg[0]?.revenue ?? 0
     const prevRev    = prevRevAgg[0]?.revenue ?? 0
@@ -103,6 +117,10 @@ export async function GET(req: NextRequest) {
         current:  currUsers,
         previous: prevUsers,
         change:   pct(currUsers, prevUsers),
+      },
+      totals: {
+        customers: totalCustomers,
+        products:  totalProducts,
       },
     })
   } catch (err) {

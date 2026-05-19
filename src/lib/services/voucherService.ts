@@ -2,8 +2,7 @@ import { Types, ClientSession } from 'mongoose'
 import Voucher from '@/models/Voucher'
 import VoucherUsage from '@/models/VoucherUsage'
 import Order from '@/models/Order'
-import Product from '@/models/Product'
-import type { IVoucher, ICartItem } from '@/types'
+import type { IVoucher } from '@/types'
 import { logger } from '@/lib/logger'
 import crypto from 'crypto'
 
@@ -338,23 +337,54 @@ export async function createVoucher(input: CreateVoucherInput): Promise<IVoucher
 /* UPDATE VOUCHER */
 /* ───────────────────────────────────────────── */
 
-export interface UpdateVoucherInput extends Partial<CreateVoucherInput> {
+export interface UpdateVoucherInput {
   voucherId: string
+  code?: string
+  type?: IVoucher['type']
+  value?: number
+  minOrderAmount?: number
+  maxDiscountAmount?: number | null
+  usageLimit?: number | null
+  perUserLimit?: number | null
+  expiresAt?: Date | null
+  startsAt?: Date | null
+  active?: boolean
+  stackable?: boolean
+  productIds?: string[]
+  categoryIds?: string[]
+  customerIds?: string[]
+  firstOrderOnly?: boolean
 }
 
 export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher | null> {
   const { voucherId, ...data } = input
 
-  const updateData: any = {}
+  const updateData: Record<string, unknown> = {}
+  const unsetData: Record<string, ''> = {}
   if (data.code) updateData.code = data.code.trim().toUpperCase()
   if (data.type !== undefined) updateData.type = data.type
   if (data.value !== undefined) updateData.value = data.value
   if (data.minOrderAmount !== undefined) updateData.minOrderAmount = data.minOrderAmount
-  if (data.maxDiscountAmount !== undefined) updateData.maxDiscountAmount = data.maxDiscountAmount
-  if (data.usageLimit !== undefined) updateData.usageLimit = data.usageLimit
-  if (data.perUserLimit !== undefined) updateData.perUserLimit = data.perUserLimit
-  if (data.expiresAt !== undefined) updateData.expiresAt = data.expiresAt
-  if (data.startsAt !== undefined) updateData.startsAt = data.startsAt
+  if (data.maxDiscountAmount !== undefined) {
+    if (data.maxDiscountAmount === null) unsetData.maxDiscountAmount = ''
+    else updateData.maxDiscountAmount = data.maxDiscountAmount
+  }
+  if (data.usageLimit !== undefined) {
+    if (data.usageLimit === null) unsetData.usageLimit = ''
+    else updateData.usageLimit = data.usageLimit
+  }
+  if (data.perUserLimit !== undefined) {
+    if (data.perUserLimit === null) unsetData.perUserLimit = ''
+    else updateData.perUserLimit = data.perUserLimit
+  }
+  if (data.expiresAt !== undefined) {
+    if (data.expiresAt === null) unsetData.expiresAt = ''
+    else updateData.expiresAt = data.expiresAt
+  }
+  if (data.startsAt !== undefined) {
+    if (data.startsAt === null) unsetData.startsAt = ''
+    else updateData.startsAt = data.startsAt
+  }
   if (data.active !== undefined) updateData.active = data.active
   if (data.stackable !== undefined) updateData.stackable = data.stackable
   if (data.productIds) updateData.productIds = data.productIds.map((id) => new Types.ObjectId(id))
@@ -362,9 +392,17 @@ export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher
   if (data.customerIds) updateData.customerIds = data.customerIds.map((id) => new Types.ObjectId(id))
   if (data.firstOrderOnly !== undefined) updateData.firstOrderOnly = data.firstOrderOnly
 
+  const update: Record<string, Record<string, unknown>> = {}
+  if (Object.keys(updateData).length > 0) update.$set = updateData
+  if (Object.keys(unsetData).length > 0) update.$unset = unsetData
+
+  if (Object.keys(update).length === 0) {
+    return Voucher.findById(voucherId).lean<IVoucher>()
+  }
+
   const voucher = await Voucher.findByIdAndUpdate(
     voucherId,
-    { $set: updateData },
+    update,
     { returnDocument: 'after' }
   ).lean<IVoucher>()
 

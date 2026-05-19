@@ -149,26 +149,6 @@ export default function AccountOverview({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6">
-          <h3 className="text-sm font-semibold text-[var(--color-ink)] mb-4 tracking-wide">
-            Loyalty Points
-          </h3>
-          <div className="font-serif text-4xl font-light text-[var(--color-gold)] mb-1">
-            —
-          </div>
-          <p className="text-[10px] text-gray-400 tracking-widest uppercase mb-4">
-            Coming Soon
-          </p>
-          <div className="h-1.5 bg-[var(--color-border-soft)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[var(--color-gold)] rounded-full"
-              style={{ width: '0%' }}
-            />
-          </div>
-          <p className="text-[10px] text-gray-400 mt-2">
-            Earn points on every order once our loyalty program launches.
-          </p>
-        </div>
 
         <div className="bg-white p-6">
           <h3 className="text-sm font-semibold text-[var(--color-ink)] mb-4 tracking-wide">

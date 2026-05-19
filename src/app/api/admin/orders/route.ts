@@ -7,6 +7,17 @@ import { apiError, logRouteError } from '@/lib/apiError'
 import { validateData } from '@/lib/validate'
 import { adminOrderListQuerySchema } from '@/lib/validators'
 import { escapeRegex } from '@/lib/utils/regex'
+import type { OrderStatus } from '@/types'
+
+const ORDER_STATUSES: OrderStatus[] = [
+  'pending',
+  'paid',
+  'failed',
+  'shipped',
+  'delivered',
+  'cancelled',
+  'refunded',
+]
 
 /**
  * GET /api/admin/orders
@@ -35,34 +46,44 @@ export async function GET(req: NextRequest) {
 
     const { status, country, startDate, endDate, q, page, limit } = validation.data
 
-    const filter: Record<string, unknown> = {}
-
-    if (status) filter.status = status
+    const baseFilter: Record<string, unknown> = {}
 
     if (country) {
-      filter['shippingAddress.country'] = { $regex: `^${escapeRegex(country)}$`, $options: 'i' }
+      baseFilter['shippingAddress.country'] = { $regex: `^${escapeRegex(country)}$`, $options: 'i' }
     }
 
     if (startDate || endDate) {
       const range: Record<string, Date> = {}
       if (startDate) range.$gte = new Date(startDate)
       if (endDate)   range.$lte = new Date(endDate)
-      filter.createdAt = range
+      baseFilter.createdAt = range
     }
 
     if (q) {
       const safe = escapeRegex(q)
-      filter.$or = [
+      baseFilter.$or = [
         { guestEmail:     { $regex: safe, $options: 'i' } },
         { trackingNumber: { $regex: safe, $options: 'i' } },
         { 'shippingAddress.name':  { $regex: safe, $options: 'i' } },
         { 'shippingAddress.phone': { $regex: safe, $options: 'i' } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $toString: '$_id' },
+              regex: safe,
+              options: 'i',
+            },
+          },
+        },
       ]
     }
 
+    const filter: Record<string, unknown> = { ...baseFilter }
+    if (status) filter.status = status
+
     const skip = (page - 1) * limit
 
-    const [orders, total] = await Promise.all([
+    const [orders, total, statusAgg] = await Promise.all([
       Order.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -71,11 +92,24 @@ export async function GET(req: NextRequest) {
         .populate('user', 'name email')
         .lean(),
       Order.countDocuments(filter),
+      Order.aggregate<{ _id: OrderStatus; count: number }>([
+        { $match: baseFilter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
     ])
+
+    const statusCounts = ORDER_STATUSES.reduce(
+      (acc, nextStatus) => {
+        acc[nextStatus] = statusAgg.find((row) => row._id === nextStatus)?.count ?? 0
+        return acc
+      },
+      {} as Record<OrderStatus, number>,
+    )
 
     return NextResponse.json({
       success: true,
       orders,
+      statusCounts,
       pagination: {
         page,
         limit,

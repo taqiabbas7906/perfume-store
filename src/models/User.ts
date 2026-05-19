@@ -34,6 +34,25 @@ const UserSchema = new Schema<IUser>(
       default: 'user',
       index: true,
     },
+    adminRole: {
+      type: String,
+      enum: ['super_admin', 'manager', 'support'],
+    },
+    permissions: [
+      {
+        type: String,
+        enum: [
+          'all',
+          'products',
+          'orders',
+          'reviews',
+          'vouchers',
+          'analytics',
+          'users',
+          'search-sync',
+        ],
+      },
+    ],
     phone: {
       type: String,
       trim: true,

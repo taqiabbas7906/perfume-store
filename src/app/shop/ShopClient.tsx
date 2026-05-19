@@ -55,6 +55,9 @@ function ShopClientInner() {
   // "eau de parfum", not audience, so we use the tag filter for it.
   const audience = searchParams.get('audience') ?? ''
   const brand = searchParams.get('brand') ?? ''
+  // `type` maps to the product's productType ("perfume" / "lipstick" / etc).
+  // The Beauty card on the homepage uses this to land on cosmetics only.
+  const type = searchParams.get('type') ?? ''
   const sort = searchParams.get('sort') ?? 'newest'
   const search = searchParams.get('search') ?? ''
   const minPrice = Number(searchParams.get('minPrice') ?? 0)
@@ -77,13 +80,14 @@ function ShopClientInner() {
     qs.set('page', String(page || 1))
     if (audience) qs.set('tag', audience)
     if (brand) qs.set('brand', brand)
+    if (type) qs.set('productType', type)
     if (search) qs.set('search', search)
     if (minPrice > 0) qs.set('minPrice', String(minPrice))
     if (maxPrice > 0 && maxPrice < DEFAULT_MAX) {
       qs.set('maxPrice', String(maxPrice))
     }
     return qs.toString()
-  }, [audience, brand, maxPrice, minPrice, page, search, sort])
+  }, [audience, brand, maxPrice, minPrice, page, search, sort, type])
 
   const products = productState.products
   const pagination = productState.pagination
@@ -159,12 +163,13 @@ function ShopClientInner() {
       Boolean(
         audience ||
           brand ||
+          type ||
           search ||
           sort !== 'newest' ||
           minPrice > 0 ||
           (maxPrice > 0 && maxPrice < DEFAULT_MAX),
       ),
-    [audience, brand, search, sort, minPrice, maxPrice],
+    [audience, brand, type, search, sort, minPrice, maxPrice],
   )
 
   const filterProps = {

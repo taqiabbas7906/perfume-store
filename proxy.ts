@@ -56,11 +56,25 @@ export async function proxy(request: NextRequest) {
   }
 
   // ---------------------------------------------------
-  // 3. Forward request
+  // 3. Forward request with hardening headers on the response
   // ---------------------------------------------------
-  return NextResponse.next({
+  const response = NextResponse.next({
     request: { headers },
   })
+
+  // Conservative security headers — work across the whole app and don't
+  // need any per-route tuning. Skip CSP for now (the app loads Square's
+  // CDN, Remixicon CSS, and Cloudinary images so a strict CSP needs to be
+  // built carefully).
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=()',
+  )
+
+  return response
 }
 
 /**

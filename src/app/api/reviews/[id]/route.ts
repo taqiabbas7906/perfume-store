@@ -32,7 +32,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     const review = await Review.findById(id)
       .populate('user', 'name email')
-      .populate('product', 'name slug')
+      .populate('product', 'name slug brand images ratingAverage ratingCount')
+      .populate('order', 'status totalAmount createdAt')
       .lean<IReview>()
 
     if (!review) return apiError(404, { error: 'Review not found' })

@@ -85,7 +85,9 @@ export default function HomePage() {
         <BestSellers />
       </Suspense>
       <PromoBanner />
-      <ScentSpotlight />
+      <Suspense fallback={null}>
+        <ScentSpotlight />
+      </Suspense>
       <Suspense fallback={<TopBrandsSkeleton />}>
         <TopBrands />
       </Suspense>

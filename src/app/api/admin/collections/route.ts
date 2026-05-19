@@ -30,11 +30,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const populate = searchParams.get('populate') === 'true'
 
-    let query = Collection.find({}).sort({ sortOrder: 1, name: 1 })
-    if (populate) {
-      query = query.populate('products', 'name slug images minPrice active') as any
-    }
-    const collections = await query.lean()
+    const baseQuery = Collection.find({}).sort({ sortOrder: 1, name: 1 })
+    const collections = await (populate
+      ? baseQuery.populate('products', 'name slug images minPrice active')
+      : baseQuery
+    ).lean()
     return NextResponse.json({ success: true, collections })
   } catch (err) {
     logRouteError('GET /api/admin/collections', err)
@@ -59,12 +59,16 @@ export async function POST(req: NextRequest) {
     const exists = await Collection.exists({ slug: parsed.data.slug })
     if (exists) return apiError(409, { error: 'Collection slug already exists' })
 
-    const data = {
-      ...parsed.data,
-      products: parsed.data.products.map(id => new mongoose.Types.ObjectId(id)),
+    // Strip nulls (zod nullable → Mongoose String) and cast product ids.
+    const cleaned = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== null),
+    )
+    const data: Record<string, unknown> = {
+      ...cleaned,
+      products: parsed.data.products.map((id) => new mongoose.Types.ObjectId(id)),
     }
 
-    const collection = await Collection.create(data as any)
+    const collection = await Collection.create(data)
     return NextResponse.json({ success: true, collection }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/collections', err)

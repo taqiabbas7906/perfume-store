@@ -1,90 +1,105 @@
 import Link from 'next/link'
 import Image from 'next/image'
 
-interface Tile {
+export const dynamic = 'force-dynamic'
+
+/**
+ * Fixed four-card audience filter. Each card deep-links into /shop with the
+ * filter pre-applied:
+ *
+ *   - Men / Women / Unisex map to the `audience` query param, which the shop
+ *     converts into a `tag` filter on /api/products (matches the `men` /
+ *     `women` / `unisex` tag stored on each product).
+ *   - Beauty maps to `type=lipstick`. The shop reads `type` and forwards it
+ *     to `/api/products` as `productType`, surfacing every cosmetics product.
+ */
+interface AudienceTile {
   label: string
   icon: string
   image: string
-  count: string
   href: string
+  /** Filter params used to fetch the live product count for this tile. */
+  countQuery: string
 }
 
-const fallback: Tile[] = [
+const AUDIENCES: AudienceTile[] = [
   {
     label: "Women's Perfumes",
     icon: 'ri-seedling-line',
     image:
-      'https://readdy.ai/api/search-image?query=womens%20luxury%20perfume%20bottles%20feminine%20floral%20arrangement%2C%20soft%20pink%20and%20rose%20gold%20tones%2C%20elegant%20glass%20flacons%20on%20white%20marble%2C%20delicate%20and%20refined%20beauty%20product%20photography%2C%20bright%20airy%20light%20background&width=320&height=220&seq=cat1&orientation=landscape',
-    count: '240+ Scents',
-    href: '/shop?category=women',
+      'https://images.unsplash.com/photo-1541643600914-78b084683601?w=640&h=440&fit=crop',
+    href: '/shop?audience=women',
+    countQuery: 'tag=women',
   },
   {
     label: "Men's Colognes",
     icon: 'ri-contrast-drop-line',
     image:
-      'https://readdy.ai/api/search-image?query=mens%20luxury%20cologne%20bottles%20warm%20masculine%20aesthetic%2C%20warm%20tan%20and%20leather%20tones%2C%20strong%20bold%20fragrance%20bottles%20on%20warm%20beige%20stone%20surface%2C%20sophisticated%20premium%20photography%2C%20bright%20warm%20light&width=320&height=220&seq=cat2&orientation=landscape',
-    count: '180+ Scents',
-    href: '/shop?category=men',
+      'https://images.unsplash.com/photo-1523293188086-b1b6d4f53bf1?w=640&h=440&fit=crop',
+    href: '/shop?audience=men',
+    countQuery: 'tag=men',
   },
   {
-    label: 'Niche & Artisan',
+    label: 'Unisex Fragrances',
+    icon: 'ri-genderless-line',
+    image:
+      'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=640&h=440&fit=crop',
+    href: '/shop?audience=unisex',
+    countQuery: 'tag=unisex',
+  },
+  {
+    label: 'Beauty',
     icon: 'ri-magic-line',
     image:
-      'https://readdy.ai/api/search-image?query=niche%20artisan%20perfume%20bottles%20collection%20unique%20unusual%20designs%2C%20bright%20editorial%20light%2C%20rare%20exclusive%20fragrance%20flacons%20on%20cream%20marble%2C%20elegant%20cinematic%20soft%20lighting%2C%20warm%20white%20background&width=320&height=220&seq=cat3&orientation=landscape',
-    count: '120+ Scents',
-    href: '/shop?category=niche',
-  },
-  {
-    label: 'Gift Sets',
-    icon: 'ri-gift-line',
-    image:
-      'https://readdy.ai/api/search-image?query=luxury%20perfume%20gift%20set%20box%2C%20elegant%20packaging%20with%20ribbon%2C%20multiple%20miniature%20fragrance%20bottles%20in%20premium%20gift%20box%2C%20bright%20warm%20golden%20lighting%2C%20premium%20holiday%20gifting%20photography%2C%20white%20background&width=320&height=220&seq=cat4&orientation=landscape',
-    count: '60+ Sets',
-    href: '/shop?category=gift-sets',
+      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=640&h=440&fit=crop',
+    href: '/shop?type=lipstick',
+    countQuery: 'productType=lipstick',
   },
 ]
 
-const ICON_BY_SLUG: Record<string, string> = {
-  women: 'ri-seedling-line',
-  womens: 'ri-seedling-line',
-  men: 'ri-contrast-drop-line',
-  mens: 'ri-contrast-drop-line',
-  niche: 'ri-magic-line',
-  gifts: 'ri-gift-line',
-  'gift-sets': 'ri-gift-line',
+interface CountResponse {
+  success?: boolean
+  pagination?: { total?: number }
 }
 
-interface ApiCategory {
-  _id: string
-  name: string
-  slug: string
-  image?: string
-}
-
-async function fetchCategories(): Promise<Tile[]> {
+async function fetchCount(query: string): Promise<number> {
   try {
-    const base = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const res = await fetch(`${base}/api/categories`, {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'http://localhost:3000'
+    const res = await fetch(`${base}/api/products?${query}&limit=1`, {
       next: { revalidate: 300 },
     })
-    if (!res.ok) return fallback
-    const data = await res.json()
-    const cats: ApiCategory[] = data?.categories ?? []
-    if (cats.length === 0) return fallback
-    return cats.slice(0, 4).map((c, i) => ({
-      label: c.name,
-      icon: ICON_BY_SLUG[c.slug] ?? fallback[i % fallback.length].icon,
-      image: c.image || fallback[i % fallback.length].image,
-      count: '',
-      href: `/shop?category=${encodeURIComponent(c.slug)}`,
-    }))
+    if (!res.ok) return 0
+    const data = (await res.json()) as CountResponse
+    return data?.pagination?.total ?? 0
   } catch {
-    return fallback
+    return 0
   }
 }
 
+function formatCount(n: number): string {
+  if (n <= 0) return ''
+  if (n >= 100) return `${Math.floor(n / 10) * 10}+ Scents`
+  return `${n} Scent${n === 1 ? '' : 's'}`
+}
+
+interface Tile extends AudienceTile {
+  count: number
+}
+
 export default async function CategoryStrip() {
-  const items = await fetchCategories()
+  // Run all four count queries in parallel so the section paints in roughly
+  // the time of the slowest single query, not the sum.
+  const counts = await Promise.all(
+    AUDIENCES.map((tile) => fetchCount(tile.countQuery)),
+  )
+
+  const items: Tile[] = AUDIENCES.map((tile, i) => ({
+    ...tile,
+    count: counts[i],
+  }))
 
   return (
     <section className="py-16 px-6 bg-white">
@@ -112,7 +127,7 @@ export default async function CategoryStrip() {
                   alt={cat.label}
                   fill
                   sizes="(min-width: 1024px) 25vw, 50vw"
-                  className="object-cover object-top transition-transform duration-700 group-hover:scale-108"
+                  className="object-cover object-center transition-transform duration-700 group-hover:scale-108"
                 />
               </div>
               <div className="p-4 bg-white">
@@ -121,9 +136,9 @@ export default async function CategoryStrip() {
                     <h3 className="text-[var(--color-ink)] text-sm font-semibold tracking-wide leading-tight">
                       {cat.label}
                     </h3>
-                    {cat.count && (
+                    {cat.count > 0 && (
                       <p className="text-[var(--color-gold)] text-[10px] tracking-widest uppercase mt-1 font-semibold">
-                        {cat.count}
+                        {formatCount(cat.count)}
                       </p>
                     )}
                   </div>

@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
+import { rateLimit } from '@/lib/rateLimit'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Product from '@/models/Product'
+
+interface VariantShape {
+  discountedPrice?: number
+  originalPrice?: number
+  quantity?: number
+}
 
 /**
  * POST /api/admin/migrate/backfill-prices
@@ -10,22 +17,27 @@ import Product from '@/models/Product'
  * that has variants but is missing these computed fields.
  */
 export async function POST(req: NextRequest) {
+  const limited = await rateLimit(req)
+  if (limited) return limited
+
   try {
     await connectDB()
     const admin = await getAuthAdmin(req)
     if (!admin) return apiError(403, { error: 'Forbidden' })
 
-    // Find all products (not just broken ones — safe to recompute all)
-    const products = await Product.find({}).select('variants minPrice maxPrice totalStock')
+    const products = await Product.find({}).select(
+      'variants minPrice maxPrice totalStock',
+    )
 
     let updated = 0
     for (const p of products) {
-      if (!p.variants?.length) continue
+      const variants = (p.variants ?? []) as VariantShape[]
+      if (variants.length === 0) continue
 
-      const prices = p.variants.map((v: any) => v.discountedPrice ?? v.originalPrice ?? 0)
-      const minPrice  = Math.min(...prices)
-      const maxPrice  = Math.max(...prices)
-      const totalStock = p.variants.reduce((s: number, v: any) => s + (v.quantity ?? 0), 0)
+      const prices = variants.map((v) => v.discountedPrice ?? v.originalPrice ?? 0)
+      const minPrice = Math.min(...prices)
+      const maxPrice = Math.max(...prices)
+      const totalStock = variants.reduce((s, v) => s + (v.quantity ?? 0), 0)
 
       const needsUpdate =
         p.minPrice !== minPrice ||
@@ -33,7 +45,10 @@ export async function POST(req: NextRequest) {
         p.totalStock !== totalStock
 
       if (needsUpdate) {
-        await Product.updateOne({ _id: p._id }, { $set: { minPrice, maxPrice, totalStock } })
+        await Product.updateOne(
+          { _id: p._id },
+          { $set: { minPrice, maxPrice, totalStock } },
+        )
         updated++
       }
     }

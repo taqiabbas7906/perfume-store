@@ -169,6 +169,20 @@ const nextConfig = {
 
   productionBrowserSourceMaps: false,
 
+  async redirects() {
+    return [
+      // /admin lands on the dashboard. Doing this at the framework level
+      // avoids triggering React's render-time perf trace on a server
+      // component that throws NEXT_REDIRECT immediately (Next 16 dev mode
+      // logs that as a negative-timestamp warning).
+      {
+        source: '/admin',
+        destination: '/admin/dashboard',
+        permanent: false,
+      },
+    ]
+  },
+
   async headers() {
     return [
       {

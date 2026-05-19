@@ -11,6 +11,17 @@ export interface IUser {
   firebaseUid: string
   hasPassword: boolean
   role: 'user' | 'admin'
+  adminRole?: 'super_admin' | 'manager' | 'support'
+  permissions?: (
+    | 'all'
+    | 'products'
+    | 'orders'
+    | 'reviews'
+    | 'vouchers'
+    | 'analytics'
+    | 'users'
+    | 'search-sync'
+  )[]
   phone?: string
   emailVerified?: Date
   active: boolean
@@ -333,4 +344,24 @@ export interface INewsletter {
   email: string
   subscribedAt: Date
   active: boolean
+}
+
+export type NewsletterCampaignAudience = 'all' | 'active' | 'customers' | 'vip'
+export type NewsletterCampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent'
+
+export interface INewsletterCampaign {
+  _id: Types.ObjectId
+  subject: string
+  previewText: string
+  content: string
+  audience: NewsletterCampaignAudience
+  status: NewsletterCampaignStatus
+  sentAt?: Date
+  scheduledAt?: Date
+  sentCount: number
+  openCount: number
+  clickCount: number
+  createdBy?: Types.ObjectId
+  createdAt: Date
+  updatedAt: Date
 }

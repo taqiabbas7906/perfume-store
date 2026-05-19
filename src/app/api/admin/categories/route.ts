@@ -51,7 +51,11 @@ export async function POST(req: NextRequest) {
     const exists = await Category.exists({ slug: parsed.data.slug })
     if (exists) return apiError(409, { error: 'Category slug already exists' })
 
-    const category = await Category.create(parsed.data as any)
+    // Strip nulls (zod nullable → Mongoose String) before insert.
+    const data = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== null),
+    )
+    const category = await Category.create(data)
     return NextResponse.json({ success: true, category }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/categories', err)

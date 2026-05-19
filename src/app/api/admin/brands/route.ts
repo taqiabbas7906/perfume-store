@@ -4,6 +4,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Brand from '@/models/Brand'
+import Product from '@/models/Product'
 import { z } from 'zod'
 
 const brandSchema = z.object({
@@ -25,8 +26,23 @@ export async function GET(req: NextRequest) {
     await connectDB()
     const admin = await getAuthAdmin(req)
     if (!admin) return apiError(403, { error: 'Forbidden' })
+
     const brands = await Brand.find({}).sort({ sortOrder: 1, name: 1 }).lean()
-    return NextResponse.json({ success: true, brands })
+
+    // Attach productCount per brand. Products store brand as a free-form string,
+    // so we group by lowercased brand name and merge into the response.
+    const counts = await Product.aggregate<{ _id: string; count: number }>([
+      { $match: { brand: { $type: 'string', $ne: '' } } },
+      { $group: { _id: { $toLower: '$brand' }, count: { $sum: 1 } } },
+    ])
+    const countByLower = new Map(counts.map((c) => [c._id, c.count]))
+
+    const brandsWithCount = brands.map((b) => ({
+      ...b,
+      productCount: countByLower.get(b.name.toLowerCase()) ?? 0,
+    }))
+
+    return NextResponse.json({ success: true, brands: brandsWithCount })
   } catch (err) {
     logRouteError('GET /api/admin/brands', err)
     return apiError(500, { error: 'Internal server error' })
@@ -50,7 +66,13 @@ export async function POST(req: NextRequest) {
     const exists = await Brand.exists({ $or: [{ slug: parsed.data.slug }, { name: parsed.data.name }] })
     if (exists) return apiError(409, { error: 'Brand name or slug already exists' })
 
-    const brand = await Brand.create(parsed.data as any)
+    // zod allows `.nullable()` fields (e.g. logo/website) but the Mongoose
+    // schema is `String`. Drop null entries so the cast lines up with the
+    // document shape Mongoose expects.
+    const data = Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== null),
+    )
+    const brand = await Brand.create(data)
     return NextResponse.json({ success: true, brand }, { status: 201 })
   } catch (err) {
     logRouteError('POST /api/admin/brands', err)

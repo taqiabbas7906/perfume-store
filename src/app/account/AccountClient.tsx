@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
 import { smartFetch } from '@/lib/api'
@@ -116,14 +117,25 @@ function AccountInner() {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="hidden sm:flex items-center gap-2 text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors border border-[var(--color-border)] px-4 py-2"
-            >
-              <i className="ri-logout-box-line" />
-              Sign out
-            </button>
+            <div className="flex items-center gap-2">
+              {profile?.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 text-[10px] tracking-widest uppercase font-semibold bg-[var(--color-ink)] text-white hover:bg-[var(--color-gold)] transition-colors border border-[var(--color-ink)] px-4 py-2 whitespace-nowrap"
+                >
+                  <i className="ri-shield-user-line" />
+                  Admin Panel
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={logout}
+                className="hidden sm:flex items-center gap-2 text-[10px] tracking-widest uppercase font-semibold text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors border border-[var(--color-border)] px-4 py-2"
+              >
+                <i className="ri-logout-box-line" />
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
       </header>

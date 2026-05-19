@@ -39,6 +39,7 @@
   "exclude": [
     "node_modules",
     "sample frontend",
+    "sample frontend 2",
     "loadtest",
     ".next"
   ]

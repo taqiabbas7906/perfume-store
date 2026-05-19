@@ -426,19 +426,50 @@ export const wishlistMoveToCartSchema = z.object({
 /* ─────────────────────────────────────────────────────────────
  * Admin — user management
  * ───────────────────────────────────────────────────────────── */
+const adminPermissionSchema = z.enum([
+  'all',
+  'products',
+  'orders',
+  'reviews',
+  'vouchers',
+  'analytics',
+  'users',
+  'search-sync',
+])
+
+const adminRoleSchema = z.enum(['super_admin', 'manager', 'support'])
+
 export const adminUserListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(10000).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   q: z.string().trim().max(120).optional(),
   role: z.enum(['user', 'admin']).optional(),
+  adminRole: adminRoleSchema.optional(),
   active: z.enum(['true', 'false']).optional(),
+})
+
+export const adminUserCreateSchema = z.object({
+  email: emailSchema,
+  name: z.string().min(2).max(100).trim(),
+  adminRole: adminRoleSchema.default('support'),
+  permissions: z.array(adminPermissionSchema).default([]),
+  active: z.boolean().default(true),
 })
 
 export const adminUserPatchSchema = z
   .object({
+    name: z.string().min(2).max(100).trim().optional(),
     role: z.enum(['user', 'admin']).optional(),
+    adminRole: adminRoleSchema.optional(),
+    permissions: z.array(adminPermissionSchema).optional(),
     active: z.boolean().optional(),
   })
-  .refine((d) => d.role !== undefined || d.active !== undefined, {
+  .refine((d) =>
+    d.name !== undefined ||
+    d.role !== undefined ||
+    d.adminRole !== undefined ||
+    d.permissions !== undefined ||
+    d.active !== undefined,
+  {
     message: 'At least one field is required',
   })
