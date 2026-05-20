@@ -296,6 +296,7 @@ export interface CreateVoucherInput {
   expiresAt?: Date
   startsAt?: Date
   active?: boolean
+  featured?: boolean
   stackable?: boolean
   productIds?: string[]
   categoryIds?: string[]
@@ -322,6 +323,7 @@ export async function createVoucher(input: CreateVoucherInput): Promise<IVoucher
     expiresAt: input.expiresAt,
     startsAt: input.startsAt,
     active: input.active ?? true,
+    featured: input.featured ?? false,
     stackable: input.stackable ?? false,
     productIds: input.productIds?.map((id) => new Types.ObjectId(id)),
     categoryIds: input.categoryIds,
@@ -349,6 +351,7 @@ export interface UpdateVoucherInput {
   expiresAt?: Date | null
   startsAt?: Date | null
   active?: boolean
+  featured?: boolean
   stackable?: boolean
   productIds?: string[]
   categoryIds?: string[]
@@ -386,6 +389,7 @@ export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher
     else updateData.startsAt = data.startsAt
   }
   if (data.active !== undefined) updateData.active = data.active
+  if (data.featured !== undefined) updateData.featured = data.featured
   if (data.stackable !== undefined) updateData.stackable = data.stackable
   if (data.productIds) updateData.productIds = data.productIds.map((id) => new Types.ObjectId(id))
   if (data.categoryIds) updateData.categoryIds = data.categoryIds
@@ -403,7 +407,7 @@ export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher
   const voucher = await Voucher.findByIdAndUpdate(
     voucherId,
     update,
-    { returnDocument: 'after' }
+    { new: true, returnDocument: 'after', runValidators: true }
   ).lean<IVoucher>()
 
   if (voucher) {

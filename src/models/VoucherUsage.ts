@@ -47,9 +47,18 @@ VoucherUsageSchema.index({ guestEmail: 1 })
 VoucherUsageSchema.index({ voucherId: 1, userId: 1 })
 VoucherUsageSchema.index({ voucherId: 1, guestEmail: 1 })
 VoucherUsageSchema.index({ voucherId: 1, guestIp: 1 }, { sparse: true })
-VoucherUsageSchema.index({ orderId: 1 }, { unique: true, sparse: true })
+VoucherUsageSchema.index({ orderId: 1 }, { sparse: true })
+VoucherUsageSchema.index(
+  { voucherId: 1, orderId: 1 },
+  { unique: true, sparse: true }
+)
+
+if (process.env.NODE_ENV !== 'production' && mongoose.models.VoucherUsage) {
+  mongoose.deleteModel('VoucherUsage')
+}
 
 const VoucherUsage: Model<IVoucherUsage> =
-  mongoose.models.VoucherUsage || mongoose.model<IVoucherUsage>('VoucherUsage', VoucherUsageSchema)
+  (mongoose.models.VoucherUsage as Model<IVoucherUsage>) ||
+  mongoose.model<IVoucherUsage>('VoucherUsage', VoucherUsageSchema)
 
 export default VoucherUsage

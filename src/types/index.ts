@@ -285,6 +285,7 @@ export interface IVoucher {
   expiresAt?: Date
   startsAt?: Date
   active: boolean
+  featured: boolean
   stackable: boolean
   productIds?: Types.ObjectId[]
   categoryIds?: string[]

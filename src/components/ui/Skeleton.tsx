@@ -205,8 +205,8 @@ export function OrderDetailSkeleton() {
 export function AccountOverviewSkeleton() {
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="bg-white p-6 flex items-center gap-4">
             <Skeleton className="h-10 w-10 flex-shrink-0" />
             <div className="space-y-2 flex-1">

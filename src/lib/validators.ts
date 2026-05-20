@@ -344,6 +344,7 @@ export const voucherSchema = z.object({
   expiresAt: z.string().datetime('Invalid date format').optional(),
   startsAt: z.string().datetime('Invalid date format').optional(),
   active: z.boolean().default(true),
+  featured: z.boolean().default(false),
   stackable: z.boolean().default(false),
   productIds: z.array(z.string()).optional(),
   categoryIds: z.array(z.string()).optional(),

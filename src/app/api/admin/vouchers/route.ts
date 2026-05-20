@@ -14,18 +14,19 @@ const createVoucherSchema = z.object({
   code: z.string().optional(),
   type: z.enum(['percentage', 'fixed', 'free_shipping']),
   value: z.number().min(0),
-  minOrderAmount: z.number().min(0).optional().default(0),
+  minOrderAmount: z.number().min(0).optional(),
   maxDiscountAmount: z.number().min(0).optional(),
   usageLimit: z.number().min(1).optional(),
   perUserLimit: z.number().min(1).optional(),
   expiresAt: z.string().optional(),
   startsAt: z.string().optional(),
-  active: z.boolean().optional().default(true),
-  stackable: z.boolean().optional().default(false),
+  active: z.boolean().optional(),
+  featured: z.boolean().optional(),
+  stackable: z.boolean().optional(),
   productIds: z.array(z.string()).optional(),
   categoryIds: z.array(z.string()).optional(),
   customerIds: z.array(z.string()).optional(),
-  firstOrderOnly: z.boolean().optional().default(false),
+  firstOrderOnly: z.boolean().optional(),
 })
 
 const updateVoucherSchema = createVoucherSchema.partial().extend({

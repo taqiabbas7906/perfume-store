@@ -17,11 +17,19 @@ interface OrderItem {
 interface Order {
   _id: string
   status: string
-  total: number
+  /** Mongo Order docs store the final order total under `totalAmount` — the
+   *  older `total` alias is kept here for forward-compat. Always read via
+   *  `orderTotal(order)`. */
+  totalAmount?: number
+  total?: number
   subtotal?: number
   items: OrderItem[]
   createdAt: string
   tracking?: { carrier?: string; number?: string }
+}
+
+function orderTotal(o: Order): number {
+  return o.totalAmount ?? o.total ?? 0
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -92,25 +100,23 @@ export default function AccountOrders() {
               <div key={o._id}>
                 <button
                   onClick={() => setExpanded(isOpen ? null : o._id)}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-[var(--color-cream-50)] transition-colors text-left"
+                  className="w-full flex items-center justify-between gap-3 px-4 sm:px-6 py-4 hover:bg-[var(--color-cream-50)] transition-colors text-left"
                 >
-                  <div className="flex items-center gap-5">
-                    <div>
-                      <p className="text-xs font-bold text-[var(--color-ink)]">
-                        #{shortId}
-                      </p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        {formatDate(o.createdAt)} · {o.items.length} item
-                        {o.items.length === 1 ? '' : 's'}
-                      </p>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-[var(--color-ink)] truncate">
+                      #{shortId}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      {formatDate(o.createdAt)} · {o.items.length} item
+                      {o.items.length === 1 ? '' : 's'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-5">
-                    <span className="text-sm font-bold text-[var(--color-ink)] hidden sm:block">
-                      {formatPrice(o.total)}
+                  <div className="flex items-center gap-2.5 sm:gap-5 shrink-0">
+                    <span className="text-xs sm:text-sm font-bold text-[var(--color-ink)] whitespace-nowrap">
+                      {formatPrice(orderTotal(o))}
                     </span>
                     <span
-                      className={`text-[10px] font-semibold px-2.5 py-1 tracking-wide rounded-sm capitalize ${
+                      className={`text-[10px] font-semibold px-2 sm:px-2.5 py-1 tracking-wide rounded-sm capitalize whitespace-nowrap ${
                         STATUS_COLORS[o.status] ?? 'text-gray-500 bg-gray-50'
                       }`}
                     >

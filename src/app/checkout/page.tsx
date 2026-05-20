@@ -293,12 +293,16 @@ const inputBase =
 const inputDefault = `${inputBase} border-[var(--color-border)]`
 const labelCls =
   'block text-[10px] tracking-[0.3em] uppercase font-bold text-[var(--color-ink)] mb-2'
+/* Letter-spacing is dialled back on mobile so wide labels (e.g. "Continue
+ * to Payment") fit inside the row without forcing horizontal scroll on a
+ * 360 px viewport. `whitespace-nowrap` is dropped too — the text now wraps
+ * if a label is unusually long instead of pushing past the viewport edge. */
 const btnDark =
-  'bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[11px] tracking-[0.3em] uppercase font-bold py-4 transition-all duration-300 whitespace-nowrap flex items-center justify-center gap-3 disabled:opacity-60'
+  'bg-[var(--color-ink)] hover:bg-[var(--color-gold)] text-white text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.3em] uppercase font-bold py-4 px-4 transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-60 text-center leading-tight'
 const btnGold =
-  'bg-[var(--color-gold)] hover:bg-[var(--color-gold-dark)] text-white text-[11px] tracking-[0.3em] uppercase font-bold py-4 transition-all duration-300 whitespace-nowrap flex items-center justify-center gap-3 disabled:opacity-60'
+  'bg-[var(--color-gold)] hover:bg-[var(--color-gold-dark)] text-white text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.3em] uppercase font-bold py-4 px-4 transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-60 text-center leading-tight'
 const btnGhost =
-  'border border-[var(--color-border)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[11px] tracking-[0.2em] uppercase font-bold px-6 py-4 transition-all duration-300 whitespace-nowrap flex items-center gap-2'
+  'border border-[var(--color-border)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[10px] sm:text-[11px] tracking-[0.15em] sm:tracking-[0.2em] uppercase font-bold px-4 sm:px-6 py-4 transition-all duration-300 flex items-center justify-center gap-2'
 
 /* ─── Luxury step indicator ─── */
 function Steps({ step }: { step: number }) {
@@ -430,7 +434,11 @@ function Summary({
           </span>
         </div>
 
-        <div className="space-y-4 max-h-64 overflow-y-auto mb-6 pr-1">
+        {/* `overflow-y-auto` collapses overflow-x onto the scroll container
+            too, which was clipping the qty badge that sits at `-top-1.5`
+            outside the image. Adding pt-2/pr-2 gives the badge room and
+            keeps it visible on every row. */}
+        <div className="space-y-4 max-h-64 overflow-y-auto mb-6 pt-2 pr-2">
           {cart.items.map((item) => (
             <div key={item.variantSku} className="flex gap-3">
               <div className="relative flex-shrink-0">
@@ -445,7 +453,7 @@ function Summary({
                     />
                   )}
                 </div>
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--color-gold)] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[var(--color-gold)] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ring-2 ring-[var(--color-cream-50)]">
                   {item.quantity}
                 </span>
               </div>
@@ -1646,11 +1654,11 @@ export default function CheckoutPage() {
                   </p>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className={btnGhost}
+                    className={`w-full sm:w-auto ${btnGhost}`}
                   >
                     <i className="ri-arrow-left-line" />
                     Back
@@ -1658,7 +1666,7 @@ export default function CheckoutPage() {
                   <button
                     type="submit"
                     disabled={ratesLoading || !rates || cartSyncing}
-                    className={`flex-1 ${btnDark}`}
+                    className={`w-full sm:flex-1 min-w-0 ${btnDark}`}
                   >
                     {cartSyncing ? (
                       <>

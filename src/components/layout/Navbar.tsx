@@ -67,9 +67,12 @@ export default function Navbar() {
 
   // Close dropdown when route changes.
   useEffect(() => {
-    setBrandsDropdownOpen(false)
-    setMobileBrandsOpen(false)
-    setMenuOpen(false)
+    const timer = window.setTimeout(() => {
+      setBrandsDropdownOpen(false)
+      setMobileBrandsOpen(false)
+      setMenuOpen(false)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [pathname])
 
   // Close on Escape.
@@ -331,16 +334,6 @@ export default function Navbar() {
                 </a>
               )
             })}
-            <div className="border-t border-[var(--color-border-soft)] pt-4">
-              <Link
-                href="/account"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2 text-xs tracking-widest uppercase font-medium text-[var(--color-ink)] hover:text-[var(--color-gold)] transition-colors"
-              >
-                <i className="ri-user-line" />
-                My Account
-              </Link>
-            </div>
           </div>
         </nav>
       </header>

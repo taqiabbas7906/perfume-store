@@ -20,25 +20,14 @@ interface ApiResponse {
 }
 
 const layoutClasses = [
-  'md:col-span-2 md:row-span-2',
+  'col-span-2 row-span-2 md:col-span-2 md:row-span-2',
   '',
   '',
   '',
   '',
-  'md:col-span-2',
+  'col-span-2 md:col-span-2',
   '',
-  '',
-]
-
-const heights = [
-  'h-[300px] md:h-full',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
-  'h-[180px] md:h-[220px]',
+  'col-span-2 md:col-span-2',
 ]
 
 const fallbackImages = [
@@ -97,24 +86,28 @@ export default async function TopBrands() {
         </div>
 
         <div
-          className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-3 gap-3"
-          style={{ gridAutoRows: 'minmax(120px, auto)' }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 auto-rows-[150px] sm:auto-rows-[180px] md:auto-rows-[220px]"
         >
           {brands.slice(0, 8).map((brand, index) => {
             const image = brand.logo || fallbackImages[index % fallbackImages.length]
+            const isWide = index === 0 || index === 5 || index === 7
 
             return (
               <Link
                 key={brand._id}
                 href={`/shop?brand=${encodeURIComponent(brand.name)}`}
-                className={`relative group overflow-hidden cursor-pointer ${layoutClasses[index] ?? ''}`}
+                className={`relative block group overflow-hidden cursor-pointer min-h-0 ${layoutClasses[index] ?? ''}`}
               >
-                <div className={`relative w-full ${heights[index] ?? heights[1]}`}>
+                <div className="absolute inset-0">
                   <Image
                     src={image}
                     alt={brand.name}
                     fill
-                    sizes="(min-width: 768px) 25vw, 50vw"
+                    sizes={
+                      isWide
+                        ? '(min-width: 768px) 50vw, 100vw'
+                        : '(min-width: 768px) 25vw, 50vw'
+                    }
                     className="object-cover object-center transition-transform duration-700 group-hover:scale-110"
                   />
 

@@ -1,6 +1,7 @@
 import { Types, ClientSession } from 'mongoose'
 import Cart from '@/models/Cart'
 import Product from '@/models/Product'
+import Voucher from '@/models/Voucher'
 import type { ICart, IProduct } from '@/types'
 import type { CartErrorCode } from '@/types/commerce'
 import { validateVoucher } from '@/lib/services/voucherService'
@@ -385,8 +386,20 @@ export async function addVoucherToCart(args: {
     return { ok: true, cart }
   }
 
-  if (!validation.voucher.stackable && cart.vouchers && cart.vouchers.length > 0) {
+  const cartVouchers = cart.vouchers ?? []
+  if (!validation.voucher.stackable && cartVouchers.length > 0) {
     return { ok: false, code: 'NOT_STACKABLE', message: 'Voucher cannot be stacked with other vouchers' }
+  }
+
+  if (validation.voucher.stackable && cartVouchers.length > 0) {
+    const blockingVoucher = await Voucher.exists({
+      _id: { $in: cartVouchers.map((v) => v.voucherId) },
+      stackable: false,
+    })
+
+    if (blockingVoucher) {
+      return { ok: false, code: 'NOT_STACKABLE', message: 'An existing voucher cannot be stacked' }
+    }
   }
 
   const updatedCart = await Cart.findOneAndUpdate(

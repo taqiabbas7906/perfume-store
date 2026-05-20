@@ -17,6 +17,7 @@ interface AdminVoucher {
   expiresAt?: string
   startsAt?: string
   active: boolean
+  featured: boolean
   stackable: boolean
   firstOrderOnly: boolean
   createdAt?: string
@@ -30,6 +31,9 @@ interface VoucherFormState {
   startsAt: string
   expiresAt: string
   usageLimit: string
+  perUserLimit: string
+  featured: boolean
+  stackable: boolean
 }
 
 interface SaveVoucherPayload {
@@ -40,7 +44,10 @@ interface SaveVoucherPayload {
   startsAt?: string | null
   expiresAt?: string | null
   usageLimit?: number | null
+  perUserLimit?: number | null
   active: boolean
+  featured: boolean
+  stackable: boolean
 }
 
 const emptyForm: VoucherFormState = {
@@ -50,6 +57,9 @@ const emptyForm: VoucherFormState = {
   startsAt: '',
   expiresAt: '',
   usageLimit: '',
+  perUserLimit: '',
+  featured: false,
+  stackable: false,
 }
 
 const voucherTypeLabels: Record<VoucherType, string> = {
@@ -112,6 +122,9 @@ function voucherToForm(voucher: AdminVoucher): VoucherFormState {
     startsAt: toInputDate(voucher.startsAt),
     expiresAt: toInputDate(voucher.expiresAt),
     usageLimit: voucher.usageLimit ? String(voucher.usageLimit) : '',
+    perUserLimit: voucher.perUserLimit ? String(voucher.perUserLimit) : '',
+    featured: Boolean(voucher.featured),
+    stackable: Boolean(voucher.stackable),
   }
 }
 
@@ -126,12 +139,12 @@ function usagePercent(voucher: AdminVoucher) {
   return Math.min(100, (voucher.usedCount / voucher.usageLimit) * 100)
 }
 
-function parseOptionalPositiveInt(value: string) {
+function parseOptionalPositiveInt(value: string, label: string) {
   const trimmed = value.trim()
   if (!trimmed) return undefined
   const parsed = Number.parseInt(trimmed, 10)
   if (!Number.isFinite(parsed) || parsed < 1) {
-    throw new Error('Usage limit must be at least 1')
+    throw new Error(`${label} must be at least 1`)
   }
   return parsed
 }
@@ -145,6 +158,7 @@ export default function VouchersPanel() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState<AdminVoucher | null>(null)
 
   const loadVouchers = useCallback(async (showSpinner = true) => {
     if (showSpinner) setLoading(true)
@@ -221,6 +235,33 @@ export default function VouchersPanel() {
     }
   }
 
+  async function deleteVoucher(voucher: AdminVoucher) {
+    markBusy(voucher._id, true)
+    setError('')
+    try {
+      const res = await authFetch(`/api/admin/vouchers/${voucher._id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete voucher')
+      }
+      const updatedVoucher = data.voucher as AdminVoucher
+      setVoucherList((prev) =>
+        prev.map((candidate) =>
+          candidate._id === updatedVoucher._id ? updatedVoucher : candidate,
+        ),
+      )
+      setConfirmDelete(null)
+      void loadVouchers(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete voucher')
+    } finally {
+      markBusy(voucher._id, false)
+    }
+  }
+
+
   function handleEdit(voucher: AdminVoucher) {
     setEditingVoucher(voucher)
     setForm(voucherToForm(voucher))
@@ -252,7 +293,11 @@ export default function VouchersPanel() {
         throw new Error('Valid from must be before valid until')
       }
 
-      const usageLimit = parseOptionalPositiveInt(form.usageLimit)
+      const usageLimit = parseOptionalPositiveInt(form.usageLimit, 'Usage limit')
+      const perUserLimit = parseOptionalPositiveInt(
+        form.perUserLimit,
+        'Uses per user',
+      )
       const payload: SaveVoucherPayload = {
         ...(editingVoucher ? { voucherId: editingVoucher._id } : {}),
         code: form.code.trim() || undefined,
@@ -269,7 +314,10 @@ export default function VouchersPanel() {
             ? null
             : undefined,
         usageLimit: usageLimit ?? (editingVoucher ? null : undefined),
+        perUserLimit: perUserLimit ?? (editingVoucher ? null : undefined),
         active: editingVoucher?.active ?? true,
+        featured: form.featured,
+        stackable: form.stackable,
       }
 
       const res = await authFetch('/api/admin/vouchers', {
@@ -304,7 +352,7 @@ export default function VouchersPanel() {
     (voucher) => voucher.active && !isExpired(voucher),
   ).length
   const totalUsed = voucherList.reduce((sum, voucher) => sum + voucher.usedCount, 0)
-  const expiredVouchers = voucherList.filter(isExpired).length
+  const featuredVouchers = voucherList.filter((voucher) => voucher.featured).length
 
   return (
     <div>
@@ -351,10 +399,10 @@ export default function VouchersPanel() {
         </div>
         <div className="bg-white rounded-lg border border-paper-200 p-4 text-center">
           <p className="text-xl font-serif font-semibold text-charcoal-900">
-            {expiredVouchers}
+            {featuredVouchers}
           </p>
           <p className="text-[10px] uppercase tracking-wider text-charcoal-500 mt-0.5">
-            Expired
+            Featured
           </p>
         </div>
       </div>
@@ -382,13 +430,15 @@ export default function VouchersPanel() {
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Usage</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Valid Until</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Featured</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Stackable</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-charcoal-600">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center">
+                  <td colSpan={9} className="px-4 py-12 text-center">
                     <span className="inline-flex items-center gap-2 text-sm text-charcoal-500">
                       <i className="ri-loader-4-line animate-spin" />
                       Loading vouchers...
@@ -427,6 +477,11 @@ export default function VouchersPanel() {
                             style={{ width: `${usagePercent(voucher)}%` }}
                           />
                         </div>
+                        {voucher.perUserLimit && (
+                          <div className="text-[10px] text-charcoal-400 mt-1">
+                            {voucher.perUserLimit} / user
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-charcoal-600">
                         {formatDate(voucher.expiresAt)}
@@ -444,15 +499,52 @@ export default function VouchersPanel() {
                           {busy ? 'Saving...' : voucher.active ? 'Active' : 'Inactive'}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleEdit(voucher)}
-                          className="text-charcoal-500 hover:text-gold-600 transition-colors"
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded font-medium ${
+                            voucher.featured
+                              ? 'bg-gold-50 text-gold-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
                         >
-                          <span className="w-5 h-5 flex items-center justify-center">
-                            <i className="ri-edit-line" />
-                          </span>
-                        </button>
+                          {voucher.featured ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-[10px] uppercase tracking-wider px-2.5 py-1 rounded font-medium ${
+                            voucher.stackable
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {voucher.stackable ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(voucher)}
+                            className="text-charcoal-500 hover:text-gold-600 transition-colors"
+                            title="Edit voucher"
+                            aria-label={`Edit ${voucher.code}`}
+                          >
+                            <span className="w-5 h-5 flex items-center justify-center">
+                              <i className="ri-edit-line" />
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(voucher)}
+                            disabled={busy || !voucher.active}
+                            className="text-charcoal-500 hover:text-red-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={voucher.active ? 'Delete voucher' : 'Already inactive'}
+                            aria-label={`Delete ${voucher.code}`}
+                          >
+                            <span className="w-5 h-5 flex items-center justify-center">
+                              <i className="ri-delete-bin-line" />
+                            </span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -577,20 +669,81 @@ export default function VouchersPanel() {
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-charcoal-700 block mb-1.5">
-                    Usage Limit
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-charcoal-700 block mb-1.5">
+                      Usage Limit
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.usageLimit}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          usageLimit: e.target.value,
+                        }))
+                      }
+                      placeholder="Unlimited"
+                      className="w-full bg-paper-50 border border-paper-300 px-3 py-2 text-sm text-charcoal-900 rounded focus:outline-none focus:border-gold-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-charcoal-700 block mb-1.5">
+                      Uses Per User
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.perUserLimit}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          perUserLimit: e.target.value,
+                        }))
+                      }
+                      placeholder="Unlimited"
+                      className="w-full bg-paper-50 border border-paper-300 px-3 py-2 text-sm text-charcoal-900 rounded focus:outline-none focus:border-gold-400"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-start gap-3 rounded border border-paper-200 bg-paper-50 p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.featured}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          featured: e.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 h-4 w-4 accent-gold-600"
+                    />
+                    <span>
+                      <span className="block text-xs font-medium text-charcoal-800">
+                        Feature on account overview
+                      </span>
+                    </span>
                   </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={form.usageLimit}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, usageLimit: e.target.value }))
-                    }
-                    placeholder="Unlimited"
-                    className="w-full bg-paper-50 border border-paper-300 px-3 py-2 text-sm text-charcoal-900 rounded focus:outline-none focus:border-gold-400"
-                  />
+                  <label className="flex items-start gap-3 rounded border border-paper-200 bg-paper-50 p-3">
+                    <input
+                      type="checkbox"
+                      checked={form.stackable}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          stackable: e.target.checked,
+                        }))
+                      }
+                      className="mt-0.5 h-4 w-4 accent-gold-600"
+                    />
+                    <span>
+                      <span className="block text-xs font-medium text-charcoal-800">
+                        Stackable
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-3 p-5 border-t border-paper-200">
@@ -611,6 +764,41 @@ export default function VouchersPanel() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm">
+            <div className="p-5">
+              <h3 className="font-serif text-lg font-medium text-charcoal-900 mb-2">
+                Delete voucher?
+              </h3>
+              <p className="text-sm text-charcoal-600">
+                <span className="font-medium">{confirmDelete.code}</span> will be
+                deactivated and hidden from customer voucher surfaces. You can
+                re-activate it later from this list.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-paper-200">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="text-sm text-charcoal-600 hover:text-charcoal-900 px-4 py-2 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteVoucher(confirmDelete)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="bg-red-600 text-white text-xs uppercase tracking-wider px-5 py-2.5 hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {busyIds.has(confirmDelete._id) ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

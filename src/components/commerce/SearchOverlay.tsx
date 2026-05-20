@@ -20,7 +20,7 @@ interface SearchHit {
   image?: string
 }
 
-const TRENDING = [
+const TRENDING_SEARCHES = [
   'Creed Aventus',
   'Le Labo Santal 33',
   'Tom Ford',
@@ -60,6 +60,7 @@ export default function SearchOverlay() {
   const [hits, setHits] = useState<SearchHit[]>([])
   const [loading, setLoading] = useState(false)
   const [recent, setRecent] = useState<string[]>([])
+  const [trendingProducts, setTrendingProducts] = useState<SearchHit[]>([])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setRecent(readRecent()), 0)
@@ -77,6 +78,20 @@ export default function SearchOverlay() {
       document.body.style.overflow = ''
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || trendingProducts.length > 0) return
+    const ac = new AbortController()
+    fetch('/api/products/top-selling?limit=6', { signal: ac.signal })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.products)) {
+          setTrendingProducts(data.products)
+        }
+      })
+      .catch(() => {})
+    return () => ac.abort()
+  }, [isOpen, trendingProducts.length])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -296,21 +311,71 @@ export default function SearchOverlay() {
                   </ul>
                 </div>
               )}
-              <div>
+              <div className={recent.length > 0 ? '' : 'sm:col-span-2'}>
                 <p className="text-[9px] text-[var(--color-gold)] tracking-[0.4em] uppercase font-semibold mb-3">
                   Trending
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {TRENDING.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setQuery(s)}
-                      className="border border-[var(--color-border)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[11px] tracking-wide px-3 py-1.5 transition-all duration-200 whitespace-nowrap"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                {trendingProducts.length > 0 ? (
+                  <div
+                    className={`grid gap-3 ${
+                      recent.length > 0 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'
+                    }`}
+                  >
+                    {trendingProducts.map((p) => {
+                      const slug = p.slug ?? p.objectID ?? p._id
+                      const img = p.images?.[0]?.url ?? p.image ?? ''
+                      const price = p.minPrice ?? p.price ?? 0
+                      return (
+                        <Link
+                          key={slug}
+                          href={`/product/${slug}`}
+                          onClick={() => {
+                            closeSearch()
+                            setQuery('')
+                          }}
+                          className="flex gap-3 items-center p-2 hover:bg-[var(--color-cream-300)] transition-colors text-left rounded"
+                        >
+                          <div className="relative w-12 h-14 flex-shrink-0 bg-[var(--color-cream-500)] overflow-hidden">
+                            {img && (
+                              <Image
+                                src={img}
+                                alt={p.name}
+                                fill
+                                sizes="48px"
+                                className="object-cover object-top"
+                              />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            {p.brand && (
+                              <p className="text-[8px] text-[var(--color-gold)] tracking-widest uppercase font-bold">
+                                {p.brand}
+                              </p>
+                            )}
+                            <p className="text-xs font-semibold text-[var(--color-ink)] leading-snug line-clamp-2">
+                              {p.name}
+                            </p>
+                            <p className="text-xs font-bold text-[var(--color-ink)] mt-0.5">
+                              {formatPrice(price)}
+                            </p>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {TRENDING_SEARCHES.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setQuery(s)}
+                        className="border border-[var(--color-border)] text-[var(--color-ink)] hover:border-[var(--color-gold)] hover:text-[var(--color-gold)] text-[11px] tracking-wide px-3 py-1.5 transition-all duration-200 whitespace-nowrap"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

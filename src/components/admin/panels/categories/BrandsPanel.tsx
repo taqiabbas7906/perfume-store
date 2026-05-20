@@ -34,6 +34,7 @@ export default function BrandsPanel({
 }: Props) {
   const [search, setSearch] = useState('')
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState<AdminBrand | null>(null)
 
   const filtered = useMemo(
     () =>
@@ -67,6 +68,25 @@ export default function BrandsPanel({
       await onRefresh()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to update brand')
+    } finally {
+      markBusy(brand._id, false)
+    }
+  }
+
+  async function deleteBrand(brand: AdminBrand) {
+    markBusy(brand._id, true)
+    try {
+      const res = await authFetch(`/api/admin/brands/${brand._id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete brand')
+      }
+      setConfirmDelete(null)
+      await onRefresh()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to delete brand')
     } finally {
       markBusy(brand._id, false)
     }
@@ -162,6 +182,16 @@ export default function BrandsPanel({
                         >
                           <i className="ri-pencil-line" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDelete(brand)}
+                          disabled={busy}
+                          title="Delete brand"
+                          aria-label={`Delete ${brand.name}`}
+                          className="w-7 h-7 rounded border border-paper-200 text-charcoal-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center disabled:opacity-50"
+                        >
+                          <i className="ri-delete-bin-line" />
+                        </button>
                       </div>
                     </div>
                     {(brand.country || brand.website) && (
@@ -207,6 +237,38 @@ export default function BrandsPanel({
             </div>
           )}
         </>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm">
+            <div className="p-5">
+              <h3 className="font-serif text-lg font-medium text-charcoal-900 mb-2">
+                Delete brand?
+              </h3>
+              <p className="text-sm text-charcoal-600">
+                <span className="font-medium">{confirmDelete.name}</span> will be
+                permanently removed from the brands list.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-paper-200">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="text-sm text-charcoal-600 hover:text-charcoal-900 px-4 py-2 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void deleteBrand(confirmDelete)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="bg-red-600 text-white text-xs uppercase tracking-wider px-5 py-2.5 hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {busyIds.has(confirmDelete._id) ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

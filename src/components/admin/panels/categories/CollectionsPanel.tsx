@@ -64,6 +64,7 @@ export default function CollectionsPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+  const [confirmDelete, setConfirmDelete] = useState<AdminCollection | null>(null)
 
   /* Product picker (server-side search) */
   const [addSearch, setAddSearch] = useState('')
@@ -123,6 +124,26 @@ export default function CollectionsPanel({
       onError(err instanceof Error ? err.message : 'Failed to update collection')
     } finally {
       markBusy(c._id, false)
+    }
+  }
+
+  async function deleteCollection(collection: AdminCollection) {
+    markBusy(collection._id, true)
+    try {
+      const res = await authFetch(`/api/admin/collections/${collection._id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to delete collection')
+      }
+      setConfirmDelete(null)
+      if (selectedId === collection._id) setSelectedId(null)
+      await onRefresh()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to delete collection')
+    } finally {
+      markBusy(collection._id, false)
     }
   }
 
@@ -311,6 +332,19 @@ export default function CollectionsPanel({
                         >
                           <i className="ri-pencil-line" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setConfirmDelete(collection)
+                          }}
+                          disabled={busy}
+                          title="Delete collection"
+                          aria-label={`Delete ${collection.name}`}
+                          className="w-7 h-7 rounded border border-paper-200 text-charcoal-500 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors flex items-center justify-center disabled:opacity-50"
+                        >
+                          <i className="ri-delete-bin-line" />
+                        </button>
                       </div>
                     </div>
                     {collection.description && (
@@ -402,6 +436,15 @@ export default function CollectionsPanel({
                     <i className="ri-add-line" />
                   </span>
                   Add Products
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(selected)}
+                  className="border border-red-200 text-red-600 text-xs uppercase tracking-wider px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <span className="w-4 h-4 flex items-center justify-center">
+                    <i className="ri-delete-bin-line" />
+                  </span>
+                  Delete
                 </button>
                 <button
                   onClick={() => setSelectedId(null)}
@@ -565,6 +608,38 @@ export default function CollectionsPanel({
                 {adding
                   ? 'Adding…'
                   : `Add ${picked.size} Product${picked.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg w-full max-w-sm">
+            <div className="p-5">
+              <h3 className="font-serif text-lg font-medium text-charcoal-900 mb-2">
+                Delete collection?
+              </h3>
+              <p className="text-sm text-charcoal-600">
+                <span className="font-medium">{confirmDelete.name}</span> will be
+                permanently removed from the collections list.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-paper-200">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="text-sm text-charcoal-600 hover:text-charcoal-900 px-4 py-2 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void deleteCollection(confirmDelete)}
+                disabled={busyIds.has(confirmDelete._id)}
+                className="bg-red-600 text-white text-xs uppercase tracking-wider px-5 py-2.5 hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {busyIds.has(confirmDelete._id) ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

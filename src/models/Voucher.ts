@@ -59,6 +59,12 @@ const VoucherSchema = new Schema<IVoucher>(
       default: true,
       index: true,
     },
+    featured: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
     stackable: {
       type: Boolean,
       required: true,
@@ -90,11 +96,17 @@ const VoucherSchema = new Schema<IVoucher>(
 )
 
 VoucherSchema.index({ active: 1, expiresAt: 1 })
+VoucherSchema.index({ active: 1, featured: 1, expiresAt: 1 })
 VoucherSchema.index({ productIds: 1 })
 VoucherSchema.index({ customerIds: 1 })
 VoucherSchema.index({ categoryIds: 1 })
 
+if (process.env.NODE_ENV !== 'production' && mongoose.models.Voucher) {
+  mongoose.deleteModel('Voucher')
+}
+
 const Voucher: Model<IVoucher> =
-  mongoose.models.Voucher || mongoose.model<IVoucher>('Voucher', VoucherSchema)
+  (mongoose.models.Voucher as Model<IVoucher>) ||
+  mongoose.model<IVoucher>('Voucher', VoucherSchema)
 
 export default Voucher

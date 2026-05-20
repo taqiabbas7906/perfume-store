@@ -260,7 +260,7 @@ export default function LoginPage() {
       {/* ── Visual Panel ── */}
       <div className="relative hidden lg:flex flex-col justify-end p-12 overflow-hidden">
         <Image
-          src="https://readdy.ai/api/search-image?query=luxury%20perfume%20bottles%20collection%20bright%20white%20marble%20surface%2C%20soft%20cream%20linen%20fabric%2C%20golden%20warm%20daylight%2C%20crystal%20glass%20fragrance%20flacons%20elegantly%20arranged%2C%20editorial%20product%20photography%2C%20premium%20perfumery%20aesthetic%2C%20ivory%20and%20champagne%20tones%2C%20minimal%20refined%20composition&width=900&height=1200&seq=login-visual&orientation=portrait"
+          src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=900&h=1200&fit=crop&q=80"
           alt="Inscentives Perfume"
           fill
           priority
@@ -422,16 +422,27 @@ export default function LoginPage() {
                 </button>
               </p>
 
-              {/* Social auth */}
+              {/* Social auth — on mobile we show only the brand glyphs at a
+                  larger, fully tappable size; on sm+ widths the labels
+                  appear next to them. The previous 3-column row was so
+                  cramped on phones that the Facebook word-mark wrapped
+                  underneath its icon and hid it visually. */}
               <div className="grid grid-cols-3 gap-2.5 mb-6">
                 <button
                   type="button"
                   onClick={() => handleSocialAuth('google')}
                   disabled={authLoading}
-                  className="flex items-center justify-center gap-2 px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 min-h-[48px] px-2 sm:px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Continue with Google"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="shrink-0 sm:w-[14px] sm:h-[14px]"
+                    aria-hidden="true"
+                  >
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -449,31 +460,50 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Google
+                  <span className="hidden sm:inline">Google</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSocialAuth('facebook')}
                   disabled={authLoading}
-                  className="flex items-center justify-center gap-2 px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 min-h-[48px] px-2 sm:px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Continue with Facebook"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#1877F2">
-                    <path d="M24 12.073C24 5.446 18.627 0 12 0S0 5.446 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    className="shrink-0 sm:w-[14px] sm:h-[14px]"
+                    aria-hidden="true"
+                  >
+                    {/* Explicit fill on the path (not the svg root) so the
+                        button's hover `currentColor` shift can't accidentally
+                        re-paint the Facebook glyph. */}
+                    <path
+                      fill="#1877F2"
+                      d="M24 12.073C24 5.446 18.627 0 12 0S0 5.446 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.874v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"
+                    />
                   </svg>
-                  Facebook
+                  <span className="hidden sm:inline">Facebook</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSocialAuth('apple')}
                   disabled={authLoading}
-                  className="flex items-center justify-center gap-2 px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 min-h-[48px] px-2 sm:px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label="Continue with Apple"
                 >
-                  <svg width="13" height="14" viewBox="0 0 814 1000" fill="currentColor">
-                    <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 395.7 0 320 0 248.1C0 109.5 79.5 36 156.7 36c78.8 0 127.9 52 166.3 52 36.8 0 94.7-55.2 180.7-55.2 28.5 0 130.9 2.6 198.3 99.2zM554.1 27.4c33.1-39.9 56.9-95.7 56.9-151.6 0-8.1-.6-16.3-2-23.4-53.9 2-117.4 35.8-155.8 80.7-30.5 34.9-56.9 90.8-56.9 147.4 0 9 1.3 18 2 20.7 3.2.6 8.4 1.3 13.6 1.3 48.7 0 109.3-32.4 142.2-75.1z" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="shrink-0 sm:w-[14px] sm:h-[14px]"
+                    aria-hidden="true"
+                  >
+                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
                   </svg>
-                  Apple
+                  <span className="hidden sm:inline">Apple</span>
                 </button>
               </div>
 
