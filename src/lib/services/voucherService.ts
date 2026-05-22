@@ -407,7 +407,7 @@ export async function updateVoucher(input: UpdateVoucherInput): Promise<IVoucher
   const voucher = await Voucher.findByIdAndUpdate(
     voucherId,
     update,
-    { new: true, returnDocument: 'after', runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).lean<IVoucher>()
 
   if (voucher) {

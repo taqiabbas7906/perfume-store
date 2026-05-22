@@ -73,8 +73,8 @@ export async function getSettings(): Promise<ISettings> {
         homepage: { tagline: '' },
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   ).lean<ISettings>()
-  // findOneAndUpdate with upsert + new always returns the doc.
+  // findOneAndUpdate with upsert + returnDocument:'after' always returns the doc.
   return doc!
 }

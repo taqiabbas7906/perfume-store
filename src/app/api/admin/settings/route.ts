@@ -92,7 +92,7 @@ export async function PATCH(req: NextRequest) {
     const doc = await Settings.findOneAndUpdate(
       { key: SETTINGS_SINGLETON_KEY },
       { $set: update, $setOnInsert: { key: SETTINGS_SINGLETON_KEY } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean()
 
     return NextResponse.json({

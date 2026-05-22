@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Types } from 'mongoose'
+import { Types, type PipelineStage } from 'mongoose'
 import { connectDB } from '@/lib/db'
 import { rateLimit } from '@/lib/rateLimit'
 import { apiError, logRouteError } from '@/lib/apiError'
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       ]
     }
 
-    const pipeline: Record<string, unknown>[] = [{ $match: baseFilter }]
+    const pipeline: PipelineStage[] = [{ $match: baseFilter }]
 
     if (user) {
       pipeline.push(
