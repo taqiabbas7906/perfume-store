@@ -410,15 +410,43 @@ function getTaxNote(countryCode: string): string | undefined {
 }
 
 /* ═══════════════════════ MAIN EXPORT ════════════════════════ */
+import { calculateDistanceShipping } from '@/lib/distanceShipping'
+
 export interface WorldRateInput {
   country: string    // ISO-2
   state?: string     // required when country === 'US'
   subtotal: number
+  /**
+   * Customer's postal/ZIP code. When present we geocode it via
+   * Zippopotam.us and compute shipping from the actual great-circle
+   * distance to the warehouse. Without it we fall back to the
+   * zone-based table.
+   */
+  postalCode?: string | null
+}
+
+/**
+ * Apply the same free-shipping threshold to a distance-based options list
+ * that the zone calculator applies — keeps "Free Standard" behaviour
+ * consistent regardless of which path produced the rates.
+ */
+function applyFreeThreshold(
+  options: ShippingOption[],
+  subtotal: number,
+  freeThreshold: number | null,
+): ShippingOption[] {
+  if (freeThreshold === null || subtotal < freeThreshold) return options
+  return options.map((opt, i) =>
+    i === 0
+      ? { ...opt, id: 'free', label: `Free ${opt.label}`, price: 0 }
+      : opt,
+  )
 }
 
 export async function getWorldRates(input: WorldRateInput): Promise<WorldRateResult> {
   const country = input.country.toUpperCase()
   const subtotal = input.subtotal
+  const postalCode = input.postalCode ?? null
 
   /* ── US: state-level tax + domestic shipping ── */
   if (country === 'US') {
@@ -426,7 +454,27 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
     const taxRate = US_STATE_TAX[state] ?? 0
     const taxAmount = Math.round(subtotal * taxRate * 100) / 100
     const stateName = US_STATE_NAMES[state] ?? state
-    const { options, freeThreshold } = buildShipping('domestic', subtotal)
+
+    // Try distance-based shipping first; fall back to the zone table.
+    const distance = await calculateDistanceShipping({ country, postalCode })
+    let shipping: ShippingOption[]
+    let freeThreshold: number | null
+    let shippingSource: 'live' | 'fallback'
+    if (distance && distance.source === 'live') {
+      shipping = applyFreeThreshold(
+        distance.options,
+        subtotal,
+        ZONE_CONFIG.domestic.freeThreshold,
+      )
+      freeThreshold = ZONE_CONFIG.domestic.freeThreshold
+      shippingSource = 'live'
+    } else {
+      const zoned = buildShipping('domestic', subtotal)
+      shipping = zoned.options
+      freeThreshold = zoned.freeThreshold
+      shippingSource = 'fallback'
+    }
+
     return {
       country,
       countryName: 'United States',
@@ -437,20 +485,33 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
         amount: taxAmount,
         note: taxRate === 0 ? 'No state sales tax' : undefined,
       },
-      shipping: options,
+      shipping,
       freeShippingThreshold: freeThreshold,
-      rateSource: 'fallback',
+      rateSource: shippingSource === 'live' ? 'live' : 'fallback',
     }
   }
 
   /* ── International ── */
-  const [meta, vatData] = await Promise.all([
+  const [meta, vatData, distance] = await Promise.all([
     fetchCountryMeta(country),
     fetchVatRate(country),
+    calculateDistanceShipping({ country, postalCode }),
   ])
 
-  const zone: Zone = COUNTRY_ZONE_OVERRIDE[country] ?? regionToZone(meta.region, meta.subregion)
-  const { options, freeThreshold } = buildShipping(zone, subtotal)
+  const zone: Zone =
+    COUNTRY_ZONE_OVERRIDE[country] ?? regionToZone(meta.region, meta.subregion)
+  const zoneCfg = ZONE_CONFIG[zone]
+
+  let shipping: ShippingOption[]
+  let shippingSource: 'live' | 'fallback'
+  if (distance && distance.source === 'live') {
+    shipping = applyFreeThreshold(distance.options, subtotal, zoneCfg.freeThreshold)
+    shippingSource = 'live'
+  } else {
+    shipping = buildShipping(zone, subtotal).options
+    shippingSource = 'fallback'
+  }
+
   const taxAmount = Math.round(subtotal * vatData.rate * 100) / 100
   const taxLabel = getTaxLabel(country, meta.region)
   const taxNote  = getTaxNote(country)
@@ -465,9 +526,10 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
       amount: taxAmount,
       ...(taxNote ? { note: taxNote } : {}),
     },
-    shipping: options,
-    freeShippingThreshold: freeThreshold,
-    rateSource: vatData.source === 'live' ? 'live' : 'fallback',
+    shipping,
+    freeShippingThreshold: zoneCfg.freeThreshold,
+    rateSource:
+      vatData.source === 'live' && shippingSource === 'live' ? 'live' : 'fallback',
   }
 }
 

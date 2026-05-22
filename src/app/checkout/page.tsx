@@ -903,7 +903,12 @@ export default function CheckoutPage() {
   }, [user?.email, authLoading, fetchCart])
 
   const fetchRates = useCallback(
-    async (country: string, state: string, subtotal: number) => {
+    async (
+      country: string,
+      state: string,
+      subtotal: number,
+      postalCode?: string,
+    ) => {
       if (!country) return
       if (country === 'US' && !state) return
       setRatesLoading(true)
@@ -915,6 +920,12 @@ export default function CheckoutPage() {
             country,
             state: country === 'US' ? state : undefined,
             subtotal,
+            // Pass the ZIP when present so the server can price by
+            // actual distance via Zippopotam.us. Empty/missing ZIP is
+            // valid — the server falls back to the country centroid.
+            ...(postalCode && postalCode.trim().length >= 2
+              ? { postalCode: postalCode.trim() }
+              : {}),
           }),
         })
         const data = await res.json()
@@ -937,13 +948,13 @@ export default function CheckoutPage() {
     if (!cart) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(
-      () => fetchRates(addr.country, addr.state, cart.subtotal),
+      () => fetchRates(addr.country, addr.state, cart.subtotal, addr.zip),
       500,
     )
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [addr.country, addr.state, cart, fetchRates])
+  }, [addr.country, addr.state, addr.zip, cart, fetchRates])
 
   const taxRate = rates?.tax.rate ?? 0
   const taxAmount = cart
