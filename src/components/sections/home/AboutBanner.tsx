@@ -1,13 +1,19 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { useStoreSettings } from '@/lib/useStoreSettings'
 
-const trust = [
+const baseTrust = [
   { icon: 'ri-shield-check-line', text: 'BBB Accredited Business' },
   { icon: 'ri-store-line', text: 'Independent Fragrance Retailer' },
-  { icon: 'ri-truck-line', text: 'Always Fast & Free Shipping' },
 ]
+const freeTrust = { icon: 'ri-truck-line', text: 'Always Fast & Free Shipping' }
 
 export default function AboutBanner() {
+  const { settings } = useStoreSettings()
+  const trust = settings.freeDelivery.enabled ? [...baseTrust, freeTrust] : baseTrust
+
   return (
     <section id="about" className="bg-[var(--color-cream-500)] py-20 px-6">
       <div className="max-w-6xl mx-auto">

@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 import { authFetch } from '@/lib/api'
 import FreeDeliverySettingsCard from './FreeDeliverySettingsCard'
+import HomepageSettingsCard from './HomepageSettingsCard'
 
 /* ─── types ───────────────────────────────────────── */
 
@@ -539,6 +540,7 @@ export default function DashboardPanel() {
       {/* Store-wide configuration */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <FreeDeliverySettingsCard />
+        <HomepageSettingsCard />
       </div>
 
       {/* Bottom row */}

@@ -34,7 +34,22 @@ export async function GET(req: NextRequest) {
     if (q.productType) filter.productType = q.productType
     if (q.category) filter.category = q.category.toLowerCase()
     if (q.brand) filter.brand = new RegExp(`^${escapeRegex(q.brand)}$`, 'i')
-    if (q.tag) filter.tags = q.tag.toLowerCase()
+    if (q.tag) {
+      const lowerTag = q.tag.toLowerCase()
+      // For audience filters (men/women/unisex) the storefront uses the
+      // same `tag` query param, but admin-created perfumes store the value
+      // under `attributes.gender` rather than the `tags` array. Match
+      // either so both data shapes work.
+      if (lowerTag === 'men' || lowerTag === 'women' || lowerTag === 'unisex') {
+        const audienceClause = {
+          $or: [{ tags: lowerTag }, { 'attributes.gender': lowerTag }],
+        }
+        const existing = (filter.$and as object[] | undefined) ?? []
+        filter.$and = [...existing, audienceClause]
+      } else {
+        filter.tags = lowerTag
+      }
+    }
     if (q.featured === 'true') filter.featured = true
     if (q.inStock === 'true') filter.totalStock = { $gt: 0 }
     if (q.isLimitedEdition === 'true') filter.isLimitedEdition = true

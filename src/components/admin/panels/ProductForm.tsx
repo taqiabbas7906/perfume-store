@@ -169,9 +169,25 @@ export default function ProductForm({ initial }: ProductFormProps) {
   const [pfGender, setPfGender] = useState(
     typeof attrs.gender === 'string' ? attrs.gender : '',
   )
-  const [pfLong, setPfLong] = useState(
-    typeof attrs.longevity === 'string' ? attrs.longevity : '',
-  )
+  const [pfLong, setPfLong] = useState(() => {
+    // Longevity is stored as hours (number). Old products may still hold the
+    // qualitative strings 'low'/'moderate'/'long'/'eternal' — map those to
+    // a sensible hour value so admins see a starting point rather than a
+    // blank field.
+    const raw = attrs.longevity
+    if (typeof raw === 'number') return String(raw)
+    if (typeof raw === 'string') {
+      if (/^\d+(\.\d+)?$/.test(raw)) return raw
+      const legacy: Record<string, string> = {
+        low: '2',
+        moderate: '4',
+        long: '8',
+        eternal: '12',
+      }
+      return legacy[raw.toLowerCase()] ?? ''
+    }
+    return ''
+  })
   const [pfSill, setPfSill] = useState(
     typeof attrs.sillage === 'string' ? attrs.sillage : '',
   )
@@ -337,7 +353,10 @@ export default function ProductForm({ initial }: ProductFormProps) {
       const a: Record<string, unknown> = {}
       if (pfConc) a.concentration = pfConc
       if (pfGender) a.gender = pfGender
-      if (pfLong) a.longevity = pfLong
+      if (pfLong) {
+        const hours = parseFloat(pfLong)
+        if (Number.isFinite(hours) && hours > 0) a.longevity = hours
+      }
       if (pfSill) a.sillage = pfSill
       if (pfYear) a.yearLaunched = parseInt(pfYear, 10)
       const splitNotes = (s: string) =>
@@ -840,19 +859,17 @@ export default function ProductForm({ initial }: ProductFormProps) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Longevity">
-                  <select
+                <Field label="Longevity (Hr)">
+                  <input
+                    type="number"
+                    min="0"
+                    max="48"
+                    step="0.5"
                     value={pfLong}
                     onChange={(e) => setPfLong(e.target.value)}
+                    placeholder="8"
                     className={inp}
-                  >
-                    <option value="">— none —</option>
-                    {['low', 'moderate', 'long', 'eternal'].map((l) => (
-                      <option key={l} value={l}>
-                        {l[0].toUpperCase() + l.slice(1)}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </Field>
                 <Field label="Sillage">
                   <select

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useStoreSettings } from '@/lib/useStoreSettings'
 
 export interface TestimonialItem {
   id: string
@@ -14,13 +15,13 @@ export interface TestimonialItem {
   product: string
 }
 
-const trust = [
+const baseTrust = [
   { icon: 'ri-verified-badge-line', label: '100% Authentic' },
-  { icon: 'ri-truck-line', label: 'Free Shipping' },
   { icon: 'ri-lock-password-line', label: 'Secure Checkout' },
   { icon: 'ri-refresh-line', label: 'Easy Returns' },
   { icon: 'ri-customer-service-2-line', label: 'Expert Support' },
 ]
+const freeTrust = { icon: 'ri-truck-line', label: 'Free Shipping' }
 
 const PER_PAGE = 3
 
@@ -36,6 +37,12 @@ export default function TestimonialsClient({
   const [page, setPage] = useState(0)
   const totalPages = Math.max(1, Math.ceil(reviews.length / PER_PAGE))
   const visible = reviews.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE)
+  const { settings } = useStoreSettings()
+  // Slot the Free Shipping badge in between Authentic and Secure Checkout so
+  // the badge row keeps its original visual rhythm when the toggle is on.
+  const trust = settings.freeDelivery.enabled
+    ? [baseTrust[0], freeTrust, ...baseTrust.slice(1)]
+    : baseTrust
 
   const formattedCount = count >= 1000 ? `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K+` : count.toString()
 

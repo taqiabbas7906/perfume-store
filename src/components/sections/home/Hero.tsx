@@ -1,8 +1,37 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useStoreSettings } from '@/lib/useStoreSettings'
+import { smartFetch } from '@/lib/api'
+import { Skeleton } from '@/components/ui/Skeleton'
+
+interface FeaturedVoucher {
+  _id: string
+  code: string
+  type: 'percentage' | 'fixed' | 'free_shipping'
+  value: number
+  minOrderAmount: number
+  maxDiscountAmount?: number
+  expiresAt?: string
+}
+
+function fallbackCopy(text: string) {
+  if (typeof document === 'undefined') return false
+  const t = document.createElement('textarea')
+  t.value = text
+  t.setAttribute('readonly', '')
+  t.style.position = 'fixed'
+  t.style.left = '-9999px'
+  document.body.appendChild(t)
+  t.select()
+  try {
+    return document.execCommand('copy')
+  } finally {
+    document.body.removeChild(t)
+  }
+}
 
 const slides = [
   {
@@ -31,7 +60,7 @@ const slides = [
     eyebrow: 'Designer Pricing — Unmatched',
     headline: 'Authentic Scents,',
     headline2: 'Honest Prices',
-    sub: '100% genuine. Always free shipping. No compromises.',
+    sub: '100% genuine. Honest prices. No compromises.',
     cta: 'Shop Designer',
     ctaSecondary: 'See All Brands',
   },
@@ -40,6 +69,58 @@ const slides = [
 export default function Hero() {
   const [current, setCurrent] = useState(0)
   const [animating, setAnimating] = useState(false)
+  const { settings } = useStoreSettings()
+  const freeDeliveryOn = settings.freeDelivery.enabled
+  const [voucher, setVoucher] = useState<FeaturedVoucher | null>(null)
+  const [voucherLoading, setVoucherLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    smartFetch('/api/vouchers/featured')
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return
+        setVoucher(data?.success && data.voucher ? data.voucher : null)
+      })
+      .catch(() => {
+        if (!cancelled) setVoucher(null)
+      })
+      .finally(() => {
+        if (!cancelled) setVoucherLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+    }
+  }, [])
+
+  async function copyCode(code: string) {
+    let ok = false
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code)
+        ok = true
+      } else {
+        ok = fallbackCopy(code)
+      }
+    } catch {
+      ok = fallbackCopy(code)
+    }
+    if (!ok) return
+    setCopied(true)
+    if (copyTimerRef.current) window.clearTimeout(copyTimerRef.current)
+    copyTimerRef.current = window.setTimeout(() => {
+      setCopied(false)
+      copyTimerRef.current = null
+    }, 1800)
+  }
 
   const goTo = useCallback(
     (idx: number) => {
@@ -145,26 +226,74 @@ export default function Hero() {
         </div>
       </div>
 
-      <div className="absolute top-1/2 right-8 md:right-20 -translate-y-1/2 hidden md:flex flex-col items-center border border-[var(--color-gold-soft)] bg-white p-7 gap-1">
-        <span className="text-[9px] tracking-[0.4em] uppercase text-[var(--color-gold-deep)] font-medium">
-          Exclusive Offer
-        </span>
-        <span className="text-5xl font-bold text-[var(--color-gold)] leading-none">5%</span>
-        <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-ink)]">
-          OFF
-        </span>
-        <span className="text-[9px] tracking-widest uppercase font-light text-[var(--color-gold-deep)] mt-1">
-          Your Order
-        </span>
-        <div className="border border-[var(--color-gold-soft)] mt-3 py-1.5 px-4 w-full text-center bg-[var(--color-cream-300)]">
-          <span className="text-[11px] font-bold tracking-[0.3em] text-[var(--color-gold)]">
-            FRAGSALE
-          </span>
+      {voucherLoading && (
+        <div
+          aria-hidden="true"
+          className="absolute top-1/2 right-8 md:right-20 -translate-y-1/2 hidden md:flex flex-col items-center border border-[var(--color-gold-soft)] bg-white p-7 gap-2 w-[180px]"
+        >
+          <Skeleton className="h-2 w-20" />
+          <Skeleton className="h-10 w-16 mt-1" />
+          <Skeleton className="h-2 w-10" />
+          <Skeleton className="h-2 w-16 mt-1" />
+          <Skeleton className="h-7 w-full mt-2" />
         </div>
-        <span className="text-[9px] mt-2 text-[var(--color-ink-muted)] tracking-wider">
-          + Free Shipping
-        </span>
-      </div>
+      )}
+
+      {!voucherLoading && voucher && (
+        <button
+          type="button"
+          onClick={() => void copyCode(voucher.code)}
+          aria-label={`Copy voucher code ${voucher.code}`}
+          className="absolute top-1/2 right-8 md:right-20 -translate-y-1/2 hidden md:flex flex-col items-center border border-[var(--color-gold-soft)] bg-white p-7 gap-1 cursor-pointer transition-colors hover:border-[var(--color-gold)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-gold)] focus-visible:ring-offset-2"
+        >
+          <span className="text-[9px] tracking-[0.4em] uppercase text-[var(--color-gold-deep)] font-medium">
+            Exclusive Offer
+          </span>
+          {voucher.type === 'free_shipping' ? (
+            <>
+              <span className="text-3xl font-bold text-[var(--color-gold)] leading-none mt-1">
+                Free
+              </span>
+              <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-ink)] mt-1">
+                Shipping
+              </span>
+            </>
+          ) : voucher.type === 'percentage' ? (
+            <>
+              <span className="text-5xl font-bold text-[var(--color-gold)] leading-none">
+                {voucher.value}%
+              </span>
+              <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-ink)]">
+                OFF
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-5xl font-bold text-[var(--color-gold)] leading-none">
+                ${voucher.value}
+              </span>
+              <span className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-ink)]">
+                OFF
+              </span>
+            </>
+          )}
+          <span className="text-[9px] tracking-widest uppercase font-light text-[var(--color-gold-deep)] mt-1">
+            {voucher.minOrderAmount > 0
+              ? `Min $${voucher.minOrderAmount}`
+              : 'Your Order'}
+          </span>
+          <div className="border border-[var(--color-gold-soft)] mt-3 py-1.5 px-4 w-full text-center bg-[var(--color-cream-300)]">
+            <span className="text-[11px] font-bold tracking-[0.3em] text-[var(--color-gold)]">
+              {copied ? 'COPIED' : voucher.code}
+            </span>
+          </div>
+          {freeDeliveryOn && voucher.type !== 'free_shipping' && (
+            <span className="text-[9px] mt-2 text-[var(--color-ink-muted)] tracking-wider">
+              + Free Shipping
+            </span>
+          )}
+        </button>
+      )}
 
       <div className="absolute bottom-10 left-8 md:left-20 lg:left-32 flex items-center gap-6">
         <div className="flex gap-2">

@@ -4,6 +4,11 @@ import { rateLimit } from '@/lib/rateLimit'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { getSettings } from '@/models/Settings'
 
+// Never cache — admin changes to the tagline / free-delivery toggle must be
+// visible on the storefront on the very next request.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/settings
  *
@@ -24,6 +29,9 @@ export async function GET(req: NextRequest) {
         freeDelivery: {
           enabled: !!s.freeDelivery?.enabled,
           threshold: s.freeDelivery?.threshold ?? 0,
+        },
+        homepage: {
+          tagline: s.homepage?.tagline ?? '',
         },
       },
     })

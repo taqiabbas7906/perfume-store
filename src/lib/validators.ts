@@ -96,7 +96,15 @@ export const perfumeAttributesSchema = z.object({
     .optional(),
   concentration: z.enum(['EDT', 'EDP', 'Parfum', 'EDC', 'Extrait']).optional(),
   gender: z.enum(['men', 'women', 'unisex']).optional(),
-  longevity: z.enum(['low', 'moderate', 'long', 'eternal']).optional(),
+  // Longevity is expressed in hours. We still accept the legacy
+  // qualitative strings ('low'/'moderate'/'long'/'eternal') for older
+  // products that haven't been re-saved through the admin form yet.
+  longevity: z
+    .union([
+      z.number().positive().max(48),
+      z.enum(['low', 'moderate', 'long', 'eternal']),
+    ])
+    .optional(),
   sillage: z.enum(['soft', 'moderate', 'strong', 'enormous']).optional(),
   yearLaunched: z.number().int().min(1800).max(new Date().getFullYear() + 1).optional(),
   perfumer: z.array(z.string().min(1).max(100)).max(10).optional(),

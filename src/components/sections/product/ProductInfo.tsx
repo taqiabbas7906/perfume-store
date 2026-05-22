@@ -93,10 +93,24 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const attr = (k: string) => (typeof attrs[k] === 'string' ? (attrs[k] as string) : '')
   const tagline = attr('tagline')
 
+  // Longevity is now stored as hours (number). Old products may still hold
+  // qualitative strings — show those as-is so they remain readable.
+  const longevityValue = (() => {
+    const raw = attrs.longevity
+    if (typeof raw === 'number' && raw > 0) {
+      return `${raw % 1 === 0 ? raw : raw.toFixed(1)} Hr`
+    }
+    if (typeof raw === 'string') {
+      if (/^\d+(\.\d+)?$/.test(raw)) return `${raw} Hr`
+      return raw
+    }
+    return ''
+  })()
+
   const fragranceSpecs = isFragrance
     ? [
         { label: 'Concentration', value: attr('concentration'), icon: 'ri-drop-line' },
-        { label: 'Longevity', value: attr('longevity'), icon: 'ri-time-line' },
+        { label: 'Longevity', value: longevityValue, icon: 'ri-time-line' },
         { label: 'Sillage', value: attr('sillage'), icon: 'ri-blur-off-line' },
         { label: 'Season', value: attr('season'), icon: 'ri-sun-line' },
         { label: 'Gender', value: attr('gender'), icon: 'ri-user-3-line' },
@@ -338,7 +352,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
                 <p className="text-[9px] text-gray-400 tracking-wide uppercase">
                   {s.label}
                 </p>
-                <p className="text-xs font-medium text-[var(--color-ink)]">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-ink)]">
                   {s.value}
                 </p>
               </div>

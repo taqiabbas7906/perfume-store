@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { authFetch } from '@/lib/api'
+import { clearStoreSettingsCache } from '@/lib/useStoreSettings'
 
 interface SettingsResponse {
   success?: boolean
@@ -71,6 +72,7 @@ export default function FreeDeliverySettingsCard() {
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to save settings')
       }
+      clearStoreSettingsCache()
       setSavedFlash(true)
       window.setTimeout(() => setSavedFlash(false), 2000)
     } catch (err) {

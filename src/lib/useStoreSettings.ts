@@ -5,10 +5,12 @@ import type { FreeDeliverySettings } from '@/lib/freeDelivery'
 
 export interface StoreSettings {
   freeDelivery: FreeDeliverySettings
+  homepage: { tagline: string }
 }
 
 const DEFAULT_SETTINGS: StoreSettings = {
   freeDelivery: { enabled: false, threshold: 0 },
+  homepage: { tagline: '' },
 }
 
 /**
@@ -21,7 +23,10 @@ const TTL_MS = 60_000
 
 interface SettingsResponse {
   success?: boolean
-  settings?: { freeDelivery?: { enabled?: boolean; threshold?: number } }
+  settings?: {
+    freeDelivery?: { enabled?: boolean; threshold?: number }
+    homepage?: { tagline?: string }
+  }
 }
 
 export function clearStoreSettingsCache() {
@@ -57,10 +62,14 @@ export function useStoreSettings(): {
         .then((data) => {
           if (cancelled) return
           const fd = data?.settings?.freeDelivery
+          const hp = data?.settings?.homepage
           const parsed: StoreSettings = {
             freeDelivery: {
               enabled: !!fd?.enabled,
               threshold: typeof fd?.threshold === 'number' ? fd.threshold : 0,
+            },
+            homepage: {
+              tagline: typeof hp?.tagline === 'string' ? hp.tagline : '',
             },
           }
           cache = { ts: Date.now(), data: parsed }

@@ -1,20 +1,33 @@
+'use client'
+
 import Image from 'next/image'
 import Link from 'next/link'
+import { useStoreSettings } from '@/lib/useStoreSettings'
 
-const stats = [
+const baseStats = [
   { value: '500+', label: 'Brands Available' },
   { value: '10K+', label: 'Happy Customers' },
   { value: 'BBB', label: 'Accredited Business' },
-  { value: 'Free', label: 'Fast Shipping Always' },
 ]
+const freeStat = { value: 'Free', label: 'Fast Shipping Always' }
 
-const trust = [
+const baseTrust = [
   { icon: 'ri-verified-badge-line', text: '100% Authentic' },
-  { icon: 'ri-truck-line', text: 'Free Shipping' },
   { icon: 'ri-shield-check-line', text: 'BBB Accredited' },
 ]
+const freeTrust = { icon: 'ri-truck-line', text: 'Free Shipping' }
 
 export default function PromoBanner() {
+  const { settings } = useStoreSettings()
+  const freeOn = settings.freeDelivery.enabled
+  // Keep the bottom stats row at 4 items so the grid layout doesn't collapse —
+  // swap the "Free Shipping" tile for an authenticity tile when free delivery
+  // is off.
+  const stats = freeOn
+    ? [...baseStats, freeStat]
+    : [...baseStats, { value: '100%', label: 'Authentic Guarantee' }]
+  const trust = freeOn ? [baseTrust[0], freeTrust, baseTrust[1]] : baseTrust
+
   return (
     <section className="relative w-full overflow-hidden">
       <div className="flex flex-col lg:flex-row min-h-[420px] md:min-h-[500px]">

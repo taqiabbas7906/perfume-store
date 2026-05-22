@@ -26,6 +26,16 @@ export interface ISettings {
     threshold: number
   }
 
+  /**
+   * Homepage configuration. `tagline` drives the announcement bar that
+   * sits above the navbar. Blank string = the bar falls back to a
+   * free-delivery message when global free delivery is on, or hides
+   * entirely when neither a tagline nor free delivery is configured.
+   */
+  homepage: {
+    tagline: string
+  }
+
   updatedAt: Date
   createdAt: Date
 }
@@ -36,6 +46,9 @@ const SettingsSchema = new Schema<ISettings>(
     freeDelivery: {
       enabled: { type: Boolean, default: false },
       threshold: { type: Number, default: 0, min: 0 },
+    },
+    homepage: {
+      tagline: { type: String, default: '', trim: true, maxlength: 240 },
     },
   },
   { timestamps: true, minimize: false },
@@ -54,7 +67,12 @@ export default Settings
 export async function getSettings(): Promise<ISettings> {
   const doc = await Settings.findOneAndUpdate(
     { key: SETTINGS_SINGLETON_KEY },
-    { $setOnInsert: { freeDelivery: { enabled: false, threshold: 0 } } },
+    {
+      $setOnInsert: {
+        freeDelivery: { enabled: false, threshold: 0 },
+        homepage: { tagline: '' },
+      },
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   ).lean<ISettings>()
   // findOneAndUpdate with upsert + new always returns the doc.

@@ -6,12 +6,21 @@ import { getAuthAdmin } from '@/lib/getAuthUser'
 import { apiError, logRouteError } from '@/lib/apiError'
 import Settings, { SETTINGS_SINGLETON_KEY, getSettings } from '@/models/Settings'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const updateSchema = z
   .object({
     freeDelivery: z
       .object({
         enabled: z.boolean(),
         threshold: z.number().nonnegative().max(1_000_000).default(0),
+      })
+      .strict()
+      .optional(),
+    homepage: z
+      .object({
+        tagline: z.string().trim().max(240),
       })
       .strict()
       .optional(),
@@ -38,6 +47,9 @@ export async function GET(req: NextRequest) {
         freeDelivery: {
           enabled: !!s.freeDelivery?.enabled,
           threshold: s.freeDelivery?.threshold ?? 0,
+        },
+        homepage: {
+          tagline: s.homepage?.tagline ?? '',
         },
       },
     })
@@ -73,6 +85,9 @@ export async function PATCH(req: NextRequest) {
       update['freeDelivery.enabled'] = parsed.data.freeDelivery.enabled
       update['freeDelivery.threshold'] = parsed.data.freeDelivery.threshold
     }
+    if (parsed.data.homepage) {
+      update['homepage.tagline'] = parsed.data.homepage.tagline
+    }
 
     const doc = await Settings.findOneAndUpdate(
       { key: SETTINGS_SINGLETON_KEY },
@@ -86,6 +101,9 @@ export async function PATCH(req: NextRequest) {
         freeDelivery: {
           enabled: !!doc?.freeDelivery?.enabled,
           threshold: doc?.freeDelivery?.threshold ?? 0,
+        },
+        homepage: {
+          tagline: doc?.homepage?.tagline ?? '',
         },
       },
     })

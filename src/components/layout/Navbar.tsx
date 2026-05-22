@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { useSearch } from '@/context/SearchContext'
+import { useStoreSettings } from '@/lib/useStoreSettings'
 
 interface BrandOption {
   _id: string
@@ -31,6 +32,26 @@ export default function Navbar() {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { openCart, totalItems } = useCart()
   const { openSearch } = useSearch()
+  const { settings: storeSettings } = useStoreSettings()
+
+  /**
+   * Top-bar copy resolves in this order:
+   *   1. Admin-configured tagline (Dashboard → Homepage Message)
+   *   2. Auto-generated free-delivery message when the store has global
+   *      free delivery turned on
+   *   3. null → the bar is hidden entirely
+   * That way the operator can ship store-wide promotions without code
+   * changes, and turning free delivery off also turns off the free-delivery
+   * brag without leaving stale copy on the site.
+   */
+  const adminTagline = storeSettings.homepage.tagline.trim()
+  const { enabled: freeDeliveryOn, threshold } = storeSettings.freeDelivery
+  const autoTagline = freeDeliveryOn
+    ? threshold > 0
+      ? `Free Shipping on Orders Over $${threshold.toFixed(2).replace(/\.00$/, '')}`
+      : 'Always Fast & Free Shipping — No Minimum Order'
+    : null
+  const topBarText = adminTagline || autoTagline
   const pathname = usePathname()
 
   useEffect(() => {
@@ -105,9 +126,11 @@ export default function Navbar() {
 
   return (
     <>
-      <div className="bg-[var(--color-cream-400)] text-[var(--color-gold-deep)] text-center text-[11px] sm:text-xs px-4 sm:px-6 py-2 tracking-widest uppercase font-semibold border-b border-[var(--color-border)]">
-        Always Fast &amp; Free Shipping — No Minimum Order
-      </div>
+      {topBarText && (
+        <div className="bg-[var(--color-cream-400)] text-[var(--color-gold-deep)] text-center text-[11px] sm:text-xs px-4 sm:px-6 py-2 tracking-widest uppercase font-semibold border-b border-[var(--color-border)]">
+          {topBarText}
+        </div>
+      )}
 
       <header
         className={`w-full z-50 transition-all duration-400 ${
