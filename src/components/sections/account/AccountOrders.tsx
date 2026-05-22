@@ -95,7 +95,7 @@ export default function AccountOrders() {
         ) : (
           orders.map((o) => {
             const isOpen = expanded === o._id
-            const shortId = `INS-${o._id.slice(-8).toUpperCase()}`
+            const shortId = `${o._id.slice(-8).toUpperCase()}`
             return (
               <div key={o._id}>
                 <button

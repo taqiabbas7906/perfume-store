@@ -114,7 +114,8 @@ export async function getCartWithCurrentPrices(owner: CartOwner): Promise<ICart 
       price: currentPrice, // Update with current price
       name: product.name, // Update with current name
       variantLabel: variant.label, // Update with current variant label
-      image: product.images?.[0]?.url ?? item.image // Update with current image
+      image: product.images?.[0]?.url ?? item.image, // Update with current image
+      freeDelivery: !!product.freeDelivery, // Snapshot current free-delivery flag
     }
   })
 
@@ -254,6 +255,7 @@ export async function addItem(args: {
             name: product.name,
             variantLabel: variant.label,
             image: product.images?.[0]?.url ?? '',
+            freeDelivery: !!product.freeDelivery,
             addedAt: new Date(),
           },
         },

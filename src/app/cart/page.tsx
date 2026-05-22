@@ -7,7 +7,6 @@ import { CartPageSkeleton } from '@/components/ui/Skeleton'
 import CartLineItem from '@/components/cart/CartLineItem'
 import CartOrderSummary from '@/components/cart/CartOrderSummary'
 
-const FREE_SHIPPING_THRESHOLD = 75
 
 export default function CartPage() {
   const {
@@ -117,7 +116,7 @@ export default function CartPage() {
             applying={applying}
             error={error}
             isSyncing={isSyncing}
-            freeShippingThreshold={FREE_SHIPPING_THRESHOLD}
+            items={items}
             onApplyVoucher={handleApplyVoucher}
             onRemoveVoucher={removeVoucher}
           />

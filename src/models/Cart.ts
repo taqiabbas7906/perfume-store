@@ -39,6 +39,11 @@ const CartItemSchema = new Schema(
     variantLabel: String,
     image: String,
 
+    /** Snapshot of the product's free-delivery flag. Hydrated on every cart
+     *  read by `enrichCartWithCurrentPrices`, so it stays in sync with the
+     *  admin product editor without needing an explicit migration. */
+    freeDelivery: { type: Boolean, default: false },
+
     addedAt: {
       type: Date,
       default: Date.now,

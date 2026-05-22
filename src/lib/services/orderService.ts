@@ -19,6 +19,8 @@ import type { IOrderLog } from '@/types'
 import { logger } from '@/lib/logger'
 import { sendEmail, buildOrderConfirmationEmail, buildStatusUpdateEmail } from '@/lib/email'
 import { getWorldRates } from '@/lib/worldRates'
+import { getSettings } from '@/models/Settings'
+import { evaluateFreeDelivery } from '@/lib/freeDelivery'
 
 /* ───────────────────────────────────────────── */
 
@@ -151,14 +153,29 @@ async function calculateServerShipping(args: {
   shippingAddress: IShippingAddress
   requestedAmount?: number
   forceFree: boolean
+  /**
+   * The subset of the cart that should actually be charged shipping. For
+   * mixed carts (some items product-level free, others not) this is the
+   * non-free items' subtotal. Defaults to `subtotal - discount` so the
+   * original behaviour is preserved when callers don't pass it.
+   */
+  shippableSubtotal?: number
 }): Promise<number> {
   if (args.forceFree) return 0
 
-  const taxableBase = Math.max(0, round2(args.subtotal - args.discount))
+  const fallbackBase = Math.max(0, round2(args.subtotal - args.discount))
+  const billable = round2(
+    args.shippableSubtotal != null ? args.shippableSubtotal : fallbackBase,
+  )
+
+  // If the only items left to ship are free-delivery products, there's
+  // nothing to charge for.
+  if (billable <= 0) return 0
+
   const rates = await getWorldRates({
     country: args.shippingAddress.country,
     state: args.shippingAddress.state,
-    subtotal: taxableBase,
+    subtotal: billable,
   })
 
   const requested = round2(args.requestedAmount ?? Number.NaN)
@@ -270,16 +287,38 @@ export async function createOrder(
   // Detect free shipping voucher
   const hasFreeShippingVoucher = cart?.vouchers?.some(v => v.code === 'FREESHIP') ?? false
 
-  // Check if all products have freeDelivery flag
-  let allProductsHaveFreeDelivery = false
+  /**
+   * Free-delivery evaluation — authoritative server-side check used for
+   * actual order pricing (not just UI). Combines:
+   *   - Store-wide setting (admin Dashboard → Free Delivery)
+   *   - Per-product `freeDelivery` flag
+   *   - Cart subtotal against any configured threshold
+   *
+   * Returns:
+   *   `allFree`            → every line ships free, set forceFree below
+   *   `shippableSubtotal`  → billed to the rate engine when not allFree
+   */
+  let freeDeliveryEvaluation = evaluateFreeDelivery({ items: [], settings: null })
   if (!hasFreeShippingVoucher) {
     const productIdsForFreeCheck = lines.map((l) => l.productId)
     const productsForFreeCheck = await Product.find({
       _id: { $in: productIdsForFreeCheck },
-    }).lean<IProduct[]>()
-    allProductsHaveFreeDelivery =
-      productsForFreeCheck.length > 0 &&
-      productsForFreeCheck.every((p) => p.freeDelivery === true)
+    })
+      .select('_id freeDelivery')
+      .lean<{ _id: Types.ObjectId; freeDelivery?: boolean }[]>()
+    const freeByProductId = new Map(
+      productsForFreeCheck.map((p) => [p._id.toString(), !!p.freeDelivery]),
+    )
+
+    const settings = await getSettings()
+    freeDeliveryEvaluation = evaluateFreeDelivery({
+      items: lines.map((l) => ({
+        price: l.unitPrice,
+        quantity: l.quantity,
+        freeDelivery: freeByProductId.get(l.productId.toString()) ?? false,
+      })),
+      settings: settings.freeDelivery,
+    })
   }
 
   const session = await safeStartSession()
@@ -304,7 +343,10 @@ export async function createOrder(
       discount,
       shippingAddress: input.shippingAddress,
       requestedAmount: input.shippingAmount,
-      forceFree: hasFreeShippingVoucher || allProductsHaveFreeDelivery,
+      forceFree: hasFreeShippingVoucher || freeDeliveryEvaluation.allFree,
+      shippableSubtotal: hasFreeShippingVoucher
+        ? undefined
+        : freeDeliveryEvaluation.shippableSubtotal,
     })
 
     /* SERVER-SIDE TAX COMPUTATION

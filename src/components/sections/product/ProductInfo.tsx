@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext'
 import { useWishlist } from '@/context/WishlistContext'
 import { useAuth } from '@/context/AuthContext'
 import { formatPrice } from '@/lib/utils/format'
+import { useStoreSettings } from '@/lib/useStoreSettings'
 import type { StorefrontProduct } from '@/types/storefront'
 
 interface ProductInfoProps {
@@ -17,7 +18,20 @@ export default function ProductInfo({ product }: ProductInfoProps) {
   const { user } = useAuth()
   const { addItem } = useCart()
   const { has: hasWish, toggle: toggleWish } = useWishlist()
+  const { settings } = useStoreSettings()
   const variants = product.variants ?? []
+
+  /**
+   * Show the "Free Shipping" badge under Add to Cart when ANY of:
+   *  - the product itself is flagged `freeDelivery`
+   *  - the store has free delivery on for ALL orders (enabled + no threshold)
+   * For threshold-based stores, we deliberately don't show the badge here —
+   * the cart progress bar communicates the threshold instead, so we don't
+   * promise something the customer hasn't yet earned.
+   */
+  const globalFreeForAll =
+    settings.freeDelivery.enabled && (settings.freeDelivery.threshold ?? 0) <= 0
+  const showsFreeShippingBadge = product.freeDelivery === true || globalFreeForAll
   const [selectedSku, setSelectedSku] = useState(variants[0]?.sku ?? '')
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
@@ -270,25 +284,40 @@ export default function ProductInfo({ product }: ProductInfoProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 pt-1">
-        {[
+      {(() => {
+        /** Free Shipping appears when the per-product `freeDelivery` flag
+         *  is on OR when the store is offering free delivery on every
+         *  order (enabled with no threshold). Threshold-based stores
+         *  defer to the cart progress bar instead. */
+        const badges = [
           { icon: 'ri-shield-check-line', label: '100% Authentic' },
-          { icon: 'ri-truck-line', label: 'Free Shipping' },
+          ...(showsFreeShippingBadge
+            ? [{ icon: 'ri-truck-line', label: 'Free Shipping' }]
+            : []),
           { icon: 'ri-exchange-line', label: 'Easy Returns' },
-        ].map((b) => (
+        ]
+        return (
           <div
-            key={b.label}
-            className="flex flex-col items-center gap-1 py-3 bg-[var(--color-cream-100)] border border-[var(--color-border-soft)]"
+            className={`grid gap-2 pt-1 ${
+              badges.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
+            }`}
           >
-            <div className="w-5 h-5 flex items-center justify-center">
-              <i className={`${b.icon} text-sm text-[var(--color-gold)]`} />
-            </div>
-            <span className="text-[9px] text-[var(--color-ink-muted)] tracking-wide text-center font-medium">
-              {b.label}
-            </span>
+            {badges.map((b) => (
+              <div
+                key={b.label}
+                className="flex flex-col items-center gap-1 py-3 bg-[var(--color-cream-100)] border border-[var(--color-border-soft)]"
+              >
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <i className={`${b.icon} text-sm text-[var(--color-gold)]`} />
+                </div>
+                <span className="text-[9px] text-[var(--color-ink-muted)] tracking-wide text-center font-medium">
+                  {b.label}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       <div className="h-px bg-[var(--color-border-soft)]" />
 

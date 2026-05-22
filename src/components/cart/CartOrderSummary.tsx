@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import type { CartVoucher } from '@/context/CartContext'
+import type { CartItem, CartVoucher } from '@/context/CartContext'
 import { formatPrice } from '@/lib/utils/format'
 import CartVoucherForm from './CartVoucherForm'
-import FreeShippingProgress from './FreeShippingProgress'
+import FreeDeliveryBanner from './FreeDeliveryBanner'
 
 interface CartOrderSummaryProps {
   subtotal: number
@@ -16,7 +16,7 @@ interface CartOrderSummaryProps {
   applying: boolean
   error: string
   isSyncing: boolean
-  freeShippingThreshold: number
+  items: CartItem[]
   onApplyVoucher: (event: React.FormEvent) => void
   onRemoveVoucher: (code: string) => void
 }
@@ -31,7 +31,7 @@ export default function CartOrderSummary({
   applying,
   error,
   isSyncing,
-  freeShippingThreshold,
+  items,
   onApplyVoucher,
   onRemoveVoucher,
 }: CartOrderSummaryProps) {
@@ -42,12 +42,7 @@ export default function CartOrderSummary({
           Order Summary
         </h2>
 
-        <FreeShippingProgress
-          total={subtotal}
-          threshold={freeShippingThreshold}
-          label="Free Shipping"
-          className="mb-5"
-        />
+        <FreeDeliveryBanner items={items} className="mb-5" />
 
         <CartVoucherForm
           voucherCode={voucherCode}

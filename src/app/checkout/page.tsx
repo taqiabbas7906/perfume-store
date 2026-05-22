@@ -9,6 +9,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useCart } from '@/context/CartContext'
 import { ALL_COUNTRIES, US_STATES } from '@/lib/worldRates'
 import { CheckoutSkeleton, Skeleton } from '@/components/ui/Skeleton'
+import { useStoreSettings } from '@/lib/useStoreSettings'
+import { evaluateFreeDelivery } from '@/lib/freeDelivery'
 
 /* ─── Types ─── */
 interface CartItem {
@@ -16,6 +18,9 @@ interface CartItem {
   variantSku: string
   quantity: number
   price: number
+  /** Snapshotted on the cart line from the product's freeDelivery flag,
+   *  used for the mixed-cart shipping calculation. */
+  freeDelivery?: boolean
   name?: string
   variantLabel?: string
   image?: string
@@ -399,8 +404,8 @@ function Summary({
   removeVoucher,
   applyingVoucher,
   ratesLoading,
-  freeThreshold,
   hasFreeShippingVoucher,
+  allItemsFreeDelivery,
 }: {
   cart: CartSummary
   selectedShipping: ShippingOption | null
@@ -413,10 +418,13 @@ function Summary({
   removeVoucher: (code: string) => void
   applyingVoucher: boolean
   ratesLoading: boolean
-  freeThreshold: number | null
   hasFreeShippingVoucher: boolean
+  allItemsFreeDelivery: boolean
 }) {
-  const shippingCost = hasFreeShippingVoucher ? 0 : (selectedShipping?.price ?? 0)
+  const shippingCost =
+    hasFreeShippingVoucher || allItemsFreeDelivery
+      ? 0
+      : (selectedShipping?.price ?? 0)
   const taxAmount = tax?.amount ?? 0
   const grandTotal = cart.total + shippingCost + taxAmount
   const itemCount = cart.items.reduce((s, i) => s + i.quantity, 0)
@@ -612,16 +620,6 @@ function Summary({
             </span>
           </div>
         </div>
-
-        {!ratesLoading &&
-          !hasFreeShippingVoucher &&
-          freeThreshold !== null &&
-          cart.subtotal < freeThreshold && (
-            <div className="bg-[var(--color-cream-300)] border border-[var(--color-gold-soft)] px-3 py-2 text-[10px] text-[var(--color-gold-deep)] mb-5 tracking-wide">
-              Add <strong>{fmt(freeThreshold - cart.subtotal)}</strong> more for
-              free shipping
-            </div>
-          )}
 
         <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[var(--color-border-soft)]">
           {[
@@ -826,6 +824,7 @@ export default function CheckoutPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
   const { flush: flushCart, isSyncing: cartSyncing } = useCart()
+  const { settings: storeSettings } = useStoreSettings()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Stable idempotency keys so accidental double-submits don't create two orders.
   const orderIdempotencyRef = useRef<string | null>(null)
@@ -1074,6 +1073,19 @@ export default function CheckoutPage() {
     const sel = rates?.shipping[selectedIdx] ?? null
     const hasFreeShippingVoucher =
       cart?.vouchers?.some((v) => v.code === 'FREESHIP') ?? false
+    // Mirror the server-side rules so what the customer sees matches what
+    // we ask the API to charge. The server still re-evaluates and is the
+    // authoritative source.
+    const submitEval = evaluateFreeDelivery({
+      items: (cart?.items ?? []).map((i) => ({
+        price: i.price,
+        quantity: i.quantity,
+        freeDelivery: i.freeDelivery,
+      })),
+      settings: storeSettings.freeDelivery,
+    })
+    const shippingChargeable =
+      !hasFreeShippingVoucher && !submitEval.allFree
     // Reuse the same idempotency keys for the entire submission so retries on
     // network failure don't create duplicate orders / charges.
     if (!orderIdempotencyRef.current)
@@ -1101,7 +1113,7 @@ export default function CheckoutPage() {
           idempotencyKey: orderIdempotencyRef.current,
           voucherCodes: cart!.vouchers.map((v) => v.code),
           guestEmail: !user ? guestEmail : undefined,
-          shippingAmount: hasFreeShippingVoucher ? 0 : (sel?.price ?? 0),
+          shippingAmount: shippingChargeable ? (sel?.price ?? 0) : 0,
           taxAmount,
         }),
       })
@@ -1181,9 +1193,19 @@ export default function CheckoutPage() {
   const selectedShipping = rates?.shipping[selectedIdx] ?? null
   const hasFreeShippingVoucher =
     cart.vouchers?.some((v) => v.code === 'FREESHIP') ?? false
-  const shippingCost = hasFreeShippingVoucher
-    ? 0
-    : (selectedShipping?.price ?? 0)
+  // Authoritative server-side calc still happens in orderService when the
+  // order is placed; here we just mirror those rules so the displayed
+  // shipping line matches what the customer will actually be charged.
+  const freeDeliveryEval = evaluateFreeDelivery({
+    items: cart.items.map((i) => ({
+      price: i.price,
+      quantity: i.quantity,
+      freeDelivery: i.freeDelivery,
+    })),
+    settings: storeSettings.freeDelivery,
+  })
+  const allItemsFree = hasFreeShippingVoucher || freeDeliveryEval.allFree
+  const shippingCost = allItemsFree ? 0 : (selectedShipping?.price ?? 0)
   const grandTotal = cart.total + shippingCost + taxAmount
   const cardDigits = card.number.replace(/\D/g, '')
   const activeCardBrand = detectCardBrand(cardDigits)
@@ -1931,8 +1953,8 @@ export default function CheckoutPage() {
             removeVoucher={removeVoucher}
             applyingVoucher={applyingVoucher}
             ratesLoading={ratesLoading}
-            freeThreshold={rates?.freeShippingThreshold ?? null}
             hasFreeShippingVoucher={hasFreeShippingVoucher}
+            allItemsFreeDelivery={freeDeliveryEval.allFree}
           />
         </div>
       </div>

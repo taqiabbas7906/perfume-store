@@ -6,9 +6,7 @@ import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/utils/format'
 import { CartPanelSkeleton } from '@/components/ui/Skeleton'
 import CartLineItem from '@/components/cart/CartLineItem'
-import FreeShippingProgress from '@/components/cart/FreeShippingProgress'
-
-const FREE_SHIPPING_THRESHOLD = 75
+import FreeDeliveryBanner from '@/components/cart/FreeDeliveryBanner'
 
 export default function CartPanel() {
   const {
@@ -117,13 +115,7 @@ export default function CartPanel() {
 
         {items.length > 0 && (
           <div className="border-t border-[var(--color-border-soft)] px-6 py-5 bg-[var(--color-cream-50)]">
-            <FreeShippingProgress
-              total={totalPrice}
-              threshold={FREE_SHIPPING_THRESHOLD}
-              label="Free Shipping Progress"
-              className="mb-4"
-              showUnlocked
-            />
+            <FreeDeliveryBanner items={items} className="mb-4" />
 
             <div className="flex justify-between items-baseline mb-4">
               <span className="text-xs text-gray-500 tracking-widest uppercase">

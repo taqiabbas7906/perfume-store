@@ -90,15 +90,6 @@ function uid() {
   return String(++_uid)
 }
 
-function toDateInput(iso?: string | null) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  // datetime-local expects "YYYY-MM-DDTHH:mm"
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 /* ═══════════════════════════════════════════════════════════
  * FORM
  * ═══════════════════════════════════════════════════════════ */
@@ -127,12 +118,11 @@ export default function ProductForm({ initial }: ProductFormProps) {
   const [active, setActive] = useState(initial?.active ?? true)
   const [featured, setFeatured] = useState(initial?.featured ?? false)
   const [freeDelivery, setFreeDelivery] = useState(initial?.freeDelivery ?? false)
-  const [isLimited, setIsLimited] = useState(initial?.isLimitedEdition ?? false)
-  const [isSample, setIsSample] = useState(initial?.isSample ?? false)
-  const [giftOn, setGiftOn] = useState(initial?.giftWrapping?.available ?? false)
-  const [giftPrice, setGiftPrice] = useState(
-    String(initial?.giftWrapping?.price ?? 0),
-  )
+  /* `isLimitedEdition` and `isSample` are no longer surfaced in the form,
+   *  but we keep whatever the document already had so editing a product
+   *  doesn't silently wipe those flags. */
+  const isLimited = initial?.isLimitedEdition ?? false
+  const isSample = initial?.isSample ?? false
 
   /* images — legacy items loaded from the API don't have a publicId, so
      we leave it blank and skip the Cloudinary delete for those. */
@@ -211,16 +201,6 @@ export default function ProductForm({ initial }: ProductFormProps) {
   const [seoTitle, setSeoTitle] = useState(initial?.seo?.metaTitle ?? '')
   const [seoDesc, setSeoDesc] = useState(initial?.seo?.metaDescription ?? '')
   const [seoCanonical, setSeoCanonical] = useState(initial?.seo?.canonicalUrl ?? '')
-
-  /* flash sale */
-  const [flashActive, setFlashActive] = useState(initial?.flashSale?.active ?? false)
-  const [flashDiscount, setFlashDiscount] = useState(
-    initial?.flashSale?.discountPercent != null
-      ? String(initial.flashSale.discountPercent)
-      : '',
-  )
-  const [flashStart, setFlashStart] = useState(toDateInput(initial?.flashSale?.startsAt))
-  const [flashEnd, setFlashEnd] = useState(toDateInput(initial?.flashSale?.endsAt))
 
   /* submit */
   const [saving, setSaving] = useState(false)
@@ -440,19 +420,16 @@ export default function ProductForm({ initial }: ProductFormProps) {
       freeDelivery,
       isLimitedEdition: isLimited,
       isSample,
-      giftWrapping: { available: giftOn, price: parseFloat(giftPrice) || 0 },
       attributes: buildAttrs(),
       seo: {
         ...(seoTitle.trim() && { metaTitle: seoTitle.trim() }),
         ...(seoDesc.trim() && { metaDescription: seoDesc.trim() }),
         ...(seoCanonical.trim() && { canonicalUrl: seoCanonical.trim() }),
       },
-      flashSale: {
-        active: flashActive,
-        discountPercent: parseFloat(flashDiscount) || 0,
-        ...(flashStart && { startsAt: new Date(flashStart).toISOString() }),
-        ...(flashEnd && { endsAt: new Date(flashEnd).toISOString() }),
-      },
+      // Gift wrapping and flash sale are admin-managed elsewhere — the
+      // product editor no longer exposes them, and we deliberately omit
+      // them from the payload so a save here leaves any existing values
+      // on the document untouched.
     }
 
     setSaving(true)
@@ -1023,39 +1000,6 @@ export default function ProductForm({ initial }: ProductFormProps) {
               checked={freeDelivery}
               onChange={setFreeDelivery}
             />
-            <Toggle
-              id="limited"
-              label="Limited edition"
-              checked={isLimited}
-              onChange={setIsLimited}
-            />
-            <Toggle
-              id="sample"
-              label="Sample / tester"
-              checked={isSample}
-              onChange={setIsSample}
-            />
-          </Card>
-
-          <Card title="Gift wrapping">
-            <Toggle
-              id="giftOn"
-              label="Offer gift wrapping"
-              checked={giftOn}
-              onChange={setGiftOn}
-            />
-            {giftOn && (
-              <Field label="Wrapping fee ($)" className="mt-3">
-                <input
-                  type="number"
-                  value={giftPrice}
-                  onChange={(e) => setGiftPrice(e.target.value)}
-                  min="0"
-                  step="0.01"
-                  className={inp}
-                />
-              </Field>
-            )}
           </Card>
 
           <Card title="Tags">
@@ -1106,47 +1050,6 @@ export default function ProductForm({ initial }: ProductFormProps) {
                 className={inp}
               />
             </Field>
-          </Card>
-
-          <Card title="Flash sale">
-            <Toggle
-              id="flashActive"
-              label="Enable flash sale"
-              checked={flashActive}
-              onChange={setFlashActive}
-            />
-            {flashActive && (
-              <div className="space-y-4 mt-3">
-                <Field label="Discount %" hint="Applied on top of regular price (0–99).">
-                  <input
-                    type="number"
-                    value={flashDiscount}
-                    onChange={(e) => setFlashDiscount(e.target.value)}
-                    min="0"
-                    max="99"
-                    step="1"
-                    placeholder="20"
-                    className={inp}
-                  />
-                </Field>
-                <Field label="Starts at" hint="Leave blank for immediate start.">
-                  <input
-                    type="datetime-local"
-                    value={flashStart}
-                    onChange={(e) => setFlashStart(e.target.value)}
-                    className={inp}
-                  />
-                </Field>
-                <Field label="Ends at" hint="Leave blank for no expiry.">
-                  <input
-                    type="datetime-local"
-                    value={flashEnd}
-                    onChange={(e) => setFlashEnd(e.target.value)}
-                    className={inp}
-                  />
-                </Field>
-              </div>
-            )}
           </Card>
 
           <button

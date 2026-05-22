@@ -36,6 +36,8 @@ export interface CartItem {
   image: string
   slug?: string
   brand?: string
+  /** Whether the product itself qualifies for free delivery. */
+  freeDelivery?: boolean
   addedAt?: string
 }
 
