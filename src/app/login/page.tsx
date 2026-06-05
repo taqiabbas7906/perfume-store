@@ -10,6 +10,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  updateProfile,
 } from 'firebase/auth'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -21,14 +22,16 @@ import { LoginPageSkeleton } from '@/components/ui/Skeleton'
 
 type AuthMode = 'login' | 'register' | 'forgot'
 
-async function syncUserToDB(token: string) {
+async function syncUserToDB(token: string, name?: string) {
   const res = await fetch('/api/auth/sync', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({}),
+    // Pass the registration name as a fallback so the server uses it when
+    // the Firebase token's displayName claim hasn't propagated yet.
+    body: JSON.stringify(name ? { name } : {}),
   })
   if (!res.ok) throw new Error('Sync failed')
 }
@@ -125,8 +128,8 @@ export default function LoginPage() {
     if (!loading && user && !authLoading) router.push(getRedirectDest())
   }, [user, loading, authLoading, router])
 
-  const afterAuth = async (token: string) => {
-    await syncUserToDB(token)
+  const afterAuth = async (token: string, registrationName?: string) => {
+    await syncUserToDB(token, registrationName)
     await mergeGuestCart(token)
     router.push(getRedirectDest())
   }
@@ -206,12 +209,27 @@ export default function LoginPage() {
       return
     }
 
+    const trimmedName = name.trim()
+    if (mode === 'register' && trimmedName.length < 2) {
+      setError('Please enter your full name.')
+      setAuthLoading(false)
+      return
+    }
+
     try {
-      const result =
-        mode === 'register'
-          ? await createUserWithEmailAndPassword(auth, email, password)
-          : await signInWithEmailAndPassword(auth, email, password)
-      await afterAuth(await result.user.getIdToken())
+      if (mode === 'register') {
+        const result = await createUserWithEmailAndPassword(auth, email, password)
+        // Persist the entered name to the Firebase profile so future logins
+        // (and the token's `name` claim) carry it. Force a token refresh so
+        // the very first /api/auth/sync call sees the updated displayName
+        // instead of falling back to the email prefix.
+        await updateProfile(result.user, { displayName: trimmedName })
+        const token = await result.user.getIdToken(true)
+        await afterAuth(token, trimmedName)
+      } else {
+        const result = await signInWithEmailAndPassword(auth, email, password)
+        await afterAuth(await result.user.getIdToken())
+      }
     } catch (err) {
       const code = (err as FirebaseAuthError)?.code
       const msgs: Record<string, string> = {
@@ -536,6 +554,8 @@ export default function LoginPage() {
                     <input
                       id="register-name"
                       type="text"
+                      required
+                      minLength={2}
                       placeholder="Jane Smith"
                       value={name}
                       onChange={(e) => setName(e.target.value)}

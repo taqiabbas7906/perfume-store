@@ -6,8 +6,20 @@ import type { IUser } from '@/types'
 
 type DecodedToken = Awaited<ReturnType<typeof verifyIdToken>>
 
-function displayNameFor(decoded: DecodedToken, email: string) {
-  const raw = decoded.name?.trim() || email.split('@')[0]?.trim() || 'Customer'
+function displayNameFor(
+  decoded: DecodedToken,
+  email: string,
+  requestedName?: string,
+) {
+  // Preference order: explicit name from the signup request (most
+  // trustworthy — it's what the customer typed), then Firebase's profile
+  // name (set on social logins / after updateProfile), then the email
+  // prefix as a last resort.
+  const raw =
+    requestedName?.trim() ||
+    decoded.name?.trim() ||
+    email.split('@')[0]?.trim() ||
+    'Customer'
   return raw.length >= 2 ? raw.slice(0, 100) : 'Customer'
 }
 
@@ -46,7 +58,8 @@ export async function getUserFromToken(token: string) {
 }
 
 export async function ensureUserFromDecoded(
-  decoded: DecodedToken
+  decoded: DecodedToken,
+  requestedName?: string,
 ): Promise<IUser | null> {
   if (!decoded.uid || !decoded.email) return null
 
@@ -54,11 +67,14 @@ export async function ensureUserFromDecoded(
 
   const email = decoded.email.toLowerCase()
   const now = new Date()
-  const name = displayNameFor(decoded, email)
-  const set: Record<string, unknown> = {
-    name,
-    lastLogin: now,
-  }
+  // Only overwrite an existing user's name when the request or the token
+  // carries one — otherwise we'd downgrade a stored full name to the email
+  // prefix on every subsequent login.
+  const hasIncomingName =
+    !!(requestedName?.trim() || decoded.name?.trim())
+  const name = displayNameFor(decoded, email, requestedName)
+  const set: Record<string, unknown> = { lastLogin: now }
+  if (hasIncomingName) set.name = name
 
   if (decoded.email_verified) set.emailVerified = now
   if (isPasswordProvider(decoded)) set.hasPassword = true
@@ -131,10 +147,10 @@ export async function ensureUserFromDecoded(
   }
 }
 
-export async function syncUserToDB(token: string) {
+export async function syncUserToDB(token: string, requestedName?: string) {
   try {
     const decoded = await verifyIdToken(token)
-    return ensureUserFromDecoded(decoded)
+    return ensureUserFromDecoded(decoded, requestedName)
   } catch (err) {
     logger.warn({ err }, 'firebase token verification failed during sync')
     return null

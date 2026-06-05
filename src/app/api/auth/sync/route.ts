@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
     const token = auth.slice(7).trim()
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const user = await syncUserToDB(token)
+    const body = (await req.json().catch(() => null)) as { name?: unknown } | null
+    const requestedName =
+      typeof body?.name === 'string' ? body.name.trim().slice(0, 100) : undefined
+
+    const user = await syncUserToDB(token, requestedName)
     if (!user) {
       return NextResponse.json({ error: 'Failed to sync user' }, { status: 401 })
     }
