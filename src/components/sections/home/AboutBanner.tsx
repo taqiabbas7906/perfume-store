@@ -23,7 +23,7 @@ export default function AboutBanner() {
               <div className="relative w-full h-[420px]">
                 <Image
                   src="https://readdy.ai/api/search-image?query=two%20professional%20perfume%20shop%20owners%20standing%20in%20elegant%20fragrance%20boutique%2C%20surrounded%20by%20luxury%20perfume%20bottles%20on%20shelves%2C%20well%20dressed%20confident%20business%20owners%2C%20warm%20inviting%20store%20interior%2C%20golden%20lighting%2C%20professional%20portrait%20photography&width=600&height=420&seq=about1&orientation=landscape"
-                  alt="About Inscentives Perfume"
+                  alt="About Minzoshop Perfume"
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"
                   className="object-cover object-top"
@@ -47,7 +47,7 @@ export default function AboutBanner() {
               <strong className="font-bold">Retailer</strong>
             </h2>
             <p className="text-gray-500 leading-relaxed mb-6 text-sm">
-              Inscentives Perfume is an independent fragrance retailer committed
+              Minzoshop Perfume is an independent fragrance retailer committed
               to bringing you the world&apos;s finest scents at prices that
               won&apos;t break the bank. Every bottle we carry is 100% authentic,
               sourced directly from brand distributors.

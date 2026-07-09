@@ -3,7 +3,7 @@ import AccountClient from './AccountClient'
 
 export const metadata: Metadata = {
   title: 'My Account',
-  description: 'Manage your Inscentives account, orders, and wishlist.',
+  description: 'Manage your Minzoshop account, orders, and wishlist.',
 }
 
 export default function AccountPage() {

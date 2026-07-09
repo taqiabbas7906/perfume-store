@@ -2,7 +2,7 @@ import AdminAuthGuard from '@/components/admin/AdminAuthGuard'
 import AdminLayout from '@/components/admin/AdminLayout'
 
 export const metadata = {
-  title: 'Admin · Inscentives',
+  title: 'Admin · Minzoshop',
 }
 
 export default function AdminRouteLayout({ children }: { children: React.ReactNode }) {

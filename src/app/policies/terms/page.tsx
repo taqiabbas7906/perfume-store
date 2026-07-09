@@ -1,4 +1,4 @@
-
+import Link from "next/link"
 
 interface PolicySection {
   id: string;
@@ -9,10 +9,10 @@ interface PolicySection {
 const sections: PolicySection[] = [
   {
     id: "about",
-    title: "1. About Inscentives",
+    title: "1. About Minzoshop",
     content: (
       <p>
-        Inscentives is an online retailer offering perfumes and fragrance-related products.
+        Minzoshop is an online retailer offering perfumes and fragrance-related products.
       </p>
     ),
   },
@@ -58,7 +58,7 @@ const sections: PolicySection[] = [
     content: (
       <>
         <p className="mb-3">Shipping times are estimates and may vary depending on your location and carrier delays.</p>
-        <p className="mb-3">Once an order has been shipped, Inscentives is not responsible for delays caused by shipping carriers, weather conditions, or other circumstances beyond our control.</p>
+        <p className="mb-3">Once an order has been shipped, Minzoshop is not responsible for delays caused by shipping carriers, weather conditions, or other circumstances beyond our control.</p>
         <p>Customers are responsible for providing accurate shipping information.</p>
       </>
     ),
@@ -80,7 +80,7 @@ const sections: PolicySection[] = [
     content: (
       <>
         <p className="mb-3">We strive to ensure that product descriptions, images, and pricing are accurate. However, slight variations in packaging, bottle design, or color may occur due to manufacturer updates.</p>
-        <p>Inscentives does not guarantee that every product description is completely free from errors.</p>
+        <p>Minzoshop does not guarantee that every product description is completely free from errors.</p>
       </>
     ),
   },
@@ -90,7 +90,7 @@ const sections: PolicySection[] = [
     content: (
       <p>
         All content on this website, including text, images, logos, graphics, product descriptions, and designs, is the
-        property of Inscentives or its licensors and may not be copied, reproduced, or distributed without prior written
+        property of Minzoshop or its licensors and may not be copied, reproduced, or distributed without prior written
         permission.
       </p>
     ),
@@ -116,7 +116,7 @@ const sections: PolicySection[] = [
     content: (
       <>
         <p className="mb-3">
-          To the fullest extent permitted by law, Inscentives shall not be liable for any indirect, incidental, special,
+          To the fullest extent permitted by law, Minzoshop shall not be liable for any indirect, incidental, special,
           or consequential damages arising from the use of our website or products.
         </p>
         <p>Our total liability shall not exceed the amount paid for the product giving rise to the claim.</p>
@@ -129,7 +129,7 @@ const sections: PolicySection[] = [
     content: (
       <>
         <p className="mb-3">All products are sold &ldquo;as is&rdquo; and &ldquo;as available.&rdquo;</p>
-        <p>Customers are responsible for reviewing product ingredients and avoiding fragrances that may cause allergic reactions or sensitivities. Inscentives is not responsible for adverse reactions resulting from the use of our products.</p>
+        <p>Customers are responsible for reviewing product ingredients and avoiding fragrances that may cause allergic reactions or sensitivities. Minzoshop is not responsible for adverse reactions resulting from the use of our products.</p>
       </>
     ),
   },
@@ -139,9 +139,9 @@ const sections: PolicySection[] = [
     content: (
       <p>
         Your use of our website is also governed by our{" "}
-        <a href="/policies/privacy" className="text-[var(--color-gold)] hover:underline transition-colors cursor-pointer font-medium">
+        <Link href="/policies/privacy" className="text-[var(--color-gold)] hover:underline transition-colors cursor-pointer font-medium">
           Privacy Policy
-        </a>.
+        </Link>.
       </p>
     ),
   },
@@ -170,14 +170,14 @@ const sections: PolicySection[] = [
     title: "15. Contact Us",
     content: (
       <div className="space-y-3">
-        <p className="font-semibold">Inscentives Perfume</p>
+        <p className="font-semibold">Minzoshop Perfume</p>
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
               <i className="ri-mail-line text-[var(--color-gold)] text-sm"></i>
             </div>
-            <a href="mailto:support@inscentives.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
-              support@inscentives.com
+            <a href="mailto:support@Minzoshop.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
+              support@Minzoshop.com
             </a>
           </div>
           <div className="flex items-start gap-3">
@@ -217,7 +217,7 @@ export default function TermsPage() {
               Effective Date: January 1, 2026
             </p>
             <p className="text-xs text-gray-500 mt-2 max-w-xl mx-auto leading-relaxed">
-              Welcome to Inscentives. By accessing or using our website, you agree to be bound by these Terms &amp;
+              Welcome to Minzoshop. By accessing or using our website, you agree to be bound by these Terms &amp;
               Conditions. If you do not agree with these terms, please do not use our website.
             </p>
           </div>

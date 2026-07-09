@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
  * sender works out of the box — including for the dev account that owns the
  * API key — so the newsletter editor isn't blocked.
  */
-const FROM = process.env.EMAIL_FROM ?? 'Inscentives <devlivered@resend.dev>'
+const FROM = process.env.EMAIL_FROM ?? 'Minzoshop <devlivered@resend.dev>'
 
 /* ─── send helpers ───────────────────────────────── */
 
@@ -96,7 +96,7 @@ export function buildCampaignEmail(args: {
   unsubscribeUrl: string
   brand?: string
 }) {
-  const brand = args.brand ?? 'Inscentives'
+  const brand = args.brand ?? 'Minzoshop'
   const previewText = (args.previewText || '').slice(0, 240)
 
   return `<!DOCTYPE html>

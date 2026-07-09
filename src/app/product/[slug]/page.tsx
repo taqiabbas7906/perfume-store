@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     title: `${product.name} — ${product.brand}`,
     description:
       product.description?.slice(0, 160) ??
-      `Buy ${product.name} by ${product.brand} at Inscentives.`,
+      `Buy ${product.name} by ${product.brand} at Minzoshop.`,
     openGraph: {
       title: product.name,
       description: product.description?.slice(0, 160),

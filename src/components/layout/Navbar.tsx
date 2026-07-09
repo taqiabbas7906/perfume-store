@@ -145,7 +145,7 @@ export default function Navbar() {
               <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
             </div>
             <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
-              Inscentives
+              Minzoshop
             </span>
             <span className="tracking-[0.2em] uppercase text-[9px] text-[var(--color-gold)] -mt-0.5">
               Perfume

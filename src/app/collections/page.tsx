@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Collections',
   description:
-    'Browse curated Inscentives collections — seasonal edits, limited editions, and category spotlights.',
+    'Browse curated Minzoshop collections — seasonal edits, limited editions, and category spotlights.',
 }
 
 interface CollectionRow {

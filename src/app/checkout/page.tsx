@@ -809,10 +809,10 @@ function SuccessScreen({
       <p className="mt-10 text-[10px] text-gray-400 tracking-wide">
         Questions? Email us at{' '}
         <a
-          href="mailto:support@inscentives.com"
+          href="mailto:support@Minzoshop.com"
           className="text-[var(--color-gold)] hover:underline"
         >
-          support@inscentives.com
+          support@Minzoshop.com
         </a>
       </p>
     </div>
@@ -1257,7 +1257,7 @@ export default function CheckoutPage() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <p className="text-[10px] tracking-[0.4em] uppercase text-[var(--color-gold)] font-bold mb-2">
-              Inscentives Perfume
+              Minzoshop Perfume
             </p>
             <h1 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)]">
               Checkout

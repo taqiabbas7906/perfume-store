@@ -12,7 +12,7 @@
  *   WAREHOUSE_COUNTRY             → ISO-2 country code (used to detect
  *                                    domestic shipping)
  *
- * Defaults to the Inscentives storefront's West Palm Beach, FL location.
+ * Defaults to the Minzoshop storefront's West Palm Beach, FL location.
  *
  * If geocoding fails on both sides, the caller can detect that
  * (`source: 'fallback'`) and fall back to a flat zone table.
@@ -48,7 +48,7 @@ function warehouseOrigin(): { point: GeoPoint; country: string } {
   if (Number.isFinite(lat) && Number.isFinite(lng)) {
     return { point: { lat, lng, source: 'live' }, country }
   }
-  // Default: West Palm Beach, Florida (Inscentives' base of operations).
+  // Default: West Palm Beach, Florida (Minzoshop' base of operations).
   return {
     point: { lat: 26.7153, lng: -80.0534, source: 'fallback' },
     country: 'US',

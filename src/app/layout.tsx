@@ -23,8 +23,8 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Inscentives — Luxury Niche & Designer Perfumes',
-    template: '%s | Inscentives',
+    default: 'Minzoshop — Luxury Niche & Designer Perfumes',
+    template: '%s | Minzoshop',
   },
   description:
     'Discover the world\'s most coveted niche and designer fragrances. Authentic scents, honest prices, always free shipping.',
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   ),
   openGraph: {
     type: 'website',
-    siteName: 'Inscentives',
-    title: 'Inscentives — Luxury Niche & Designer Perfumes',
+    siteName: 'Minzoshop',
+    title: 'Minzoshop — Luxury Niche & Designer Perfumes',
     description:
       'Authentic niche and designer fragrances, curated for the discerning few.',
   },

@@ -3,9 +3,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'About Inscentives — Our Story',
+  title: 'About Minzoshop — Our Story',
   description:
-    'Inscentives is an independent fragrance retailer in West Palm Beach, Florida. Discover our story, our values, and the team behind the bottles.',
+    'Minzoshop is an independent fragrance retailer in West Palm Beach, Florida. Discover our story, our values, and the team behind the bottles.',
 }
 
 const values = [
@@ -78,7 +78,7 @@ export default function AboutPage() {
       <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
         <Image
           src="https://readdy.ai/api/search-image?query=luxury%20perfume%20boutique%20interior%20store%20beautiful%20bright%20white%20marble%20walls%20and%20floors%2C%20elegant%20glass%20perfume%20displays%2C%20warm%20golden%20accent%20lighting%2C%20high-end%20fragrance%20shop%20atmosphere%2C%20airy%20sophisticated%20retail%20space%2C%20crystal%20clear%20bottles%20on%20white%20shelves%2C%20minimalist%20luxury%20aesthetic%2C%20editorial%20photography%20quality&width=1600&height=900&seq=about-hero-1&orientation=landscape"
-          alt="Inscentives Perfume Boutique"
+          alt="Minzoshop Perfume Boutique"
           fill
           priority
           sizes="100vw"
@@ -97,7 +97,7 @@ export default function AboutPage() {
             <h1 className="font-serif text-6xl md:text-7xl font-light text-[var(--color-ink)] leading-tight mb-6">
               About
               <br />
-              <span className="font-bold">Inscentives</span>
+              <span className="font-bold">Minzoshop</span>
             </h1>
             <p className="text-[var(--color-ink-soft)] text-base font-light max-w-md leading-relaxed tracking-wide">
               Born out of a love for fine fragrance and a belief that luxury
@@ -142,7 +142,7 @@ export default function AboutPage() {
 
             <div className="space-y-5 text-[var(--color-ink-soft)] text-sm leading-relaxed font-light">
               <p>
-                Inscentives Perfume was founded in West Palm Beach, Florida, by
+                Minzoshop Perfume was founded in West Palm Beach, Florida, by
                 a group of fragrance enthusiasts who grew tired of paying
                 inflated retail prices for authentic luxury scents. We believed
                 then — and still believe today — that everyone deserves access

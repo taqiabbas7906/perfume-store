@@ -327,10 +327,10 @@ export default function CustomerOrderDetailPage() {
         <p className="text-[10px] text-gray-400 tracking-wide text-center mt-8">
           Questions? Email{' '}
           <a
-            href="mailto:support@inscentives.com"
+            href="mailto:support@Minzoshop.com"
             className="text-[var(--color-gold)] hover:underline"
           >
-            support@inscentives.com
+            support@Minzoshop.com
           </a>
         </p>
       </div>

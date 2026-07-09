@@ -279,7 +279,7 @@ export default function LoginPage() {
       <div className="relative hidden lg:flex flex-col justify-end p-12 overflow-hidden">
         <Image
           src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=900&h=1200&fit=crop&q=80"
-          alt="Inscentives Perfume"
+          alt="Minzoshop Perfume"
           fill
           priority
           sizes="50vw"
@@ -295,7 +295,7 @@ export default function LoginPage() {
             <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
           </div>
           <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
-            Inscentives
+            Minzoshop
           </span>
           <span className="tracking-[0.2em] uppercase text-[9px] text-[var(--color-gold)] -mt-0.5">
             Perfume
@@ -305,7 +305,7 @@ export default function LoginPage() {
         <div className="relative z-10 max-w-md">
           <div className="w-8 h-[1px] bg-[var(--color-gold)] mb-5" />
           <p className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold mb-3">
-            Welcome to Inscentives
+            Welcome to Minzoshop
           </p>
           <p className="font-serif text-5xl md:text-6xl font-light text-[var(--color-ink)] leading-[1.05] mb-4">
             The art of
@@ -331,7 +331,7 @@ export default function LoginPage() {
               <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
             </div>
             <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
-              Inscentives
+              Minzoshop
             </span>
             <span className="tracking-[0.2em] uppercase text-[9px] text-[var(--color-gold)] -mt-0.5">
               Perfume
@@ -421,7 +421,7 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Join <span className="font-bold">Inscentives</span>
+                    Join <span className="font-bold">Minzoshop</span>
                   </>
                 )}
               </h1>

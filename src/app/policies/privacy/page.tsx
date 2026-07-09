@@ -118,7 +118,7 @@ const sections: PolicySection[] = [
     title: "8. Children&rsquo;s Privacy",
     content: (
       <p>
-        Inscentives does not knowingly collect personal information from children under the age of 13. If we become aware
+        Minzoshop does not knowingly collect personal information from children under the age of 13. If we become aware
         that we have collected such information, we will promptly delete it.
       </p>
     ),
@@ -138,14 +138,14 @@ const sections: PolicySection[] = [
     title: "10. Contact Us",
     content: (
       <div className="space-y-3">
-        <p className="font-semibold">Inscentives Perfume</p>
+        <p className="font-semibold">Minzoshop Perfume</p>
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
               <i className="ri-mail-line text-[var(--color-gold)] text-sm"></i>
             </div>
-            <a href="mailto:support@inscentives.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
-              support@inscentives.com
+            <a href="mailto:support@Minzoshop.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
+              support@Minzoshop.com
             </a>
           </div>
           <div className="flex items-start gap-3">
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
               Effective Date: January 1, 2026
             </p>
             <p className="text-xs text-gray-500 mt-2 max-w-xl mx-auto leading-relaxed">
-              Welcome to Inscentives. We value your privacy and are committed to protecting your personal information.
+              Welcome to Minzoshop. We value your privacy and are committed to protecting your personal information.
               This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit
               our website or make a purchase.
             </p>

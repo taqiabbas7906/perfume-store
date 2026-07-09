@@ -152,14 +152,14 @@ function renderPage({ ok, message }: { ok: boolean; message: string }) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Unsubscribe — Inscentives</title>
+  <title>Unsubscribe — Minzoshop</title>
 </head>
 <body style="margin:0;padding:0;background:#FDF9F3;font-family:Georgia,serif;color:#1A1A1A;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center" style="padding:64px 16px;">
       <table role="presentation" width="500" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #E8DCCF;border-radius:8px;">
         <tr><td style="padding:40px;text-align:center;">
-          <div style="font-size:24px;font-weight:600;letter-spacing:2px;color:#8C6F48;text-transform:uppercase;margin-bottom:12px;">Inscentives</div>
+          <div style="font-size:24px;font-weight:600;letter-spacing:2px;color:#8C6F48;text-transform:uppercase;margin-bottom:12px;">Minzoshop</div>
           <div style="height:1px;width:48px;background:#C4A882;margin:0 auto 32px;"></div>
           <h1 style="margin:0 0 8px;font-size:18px;color:#1A1A1A;">${ok ? 'Unsubscribed' : 'Cannot unsubscribe'}</h1>
           <p style="margin:0;color:#5E5E5E;font-size:14px;line-height:1.6;">${message}</p>

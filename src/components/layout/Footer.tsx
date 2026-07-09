@@ -2,11 +2,9 @@ import Link from 'next/link'
 
 const information = [
   { label: 'About Us', href: '/about' },
-  { label: 'How We Source Fragrances', href: '/about#sourcing' },
   { label: 'Cancellation Policy', href: '/policies/cancellation' },
   { label: 'Returns & Refund Policy', href: '/policies/returns' },
   { label: 'Shipping Policy', href: '/policies/shipping' },
-  { label: 'FAQs', href: '/faqs' },
   { label: 'Privacy Policy', href: '/policies/privacy' },
   { label: 'Terms of Service', href: '/policies/terms' },
 ]
@@ -14,11 +12,9 @@ const information = [
 const quickShop = [
   { label: 'Best Sellers', href: '/shop?sort=popular' },
   { label: 'New Arrivals', href: '/shop?sort=newest' },
-  { label: 'Niche Fragrances', href: '/shop?category=niche' },
   { label: 'Designer Brands', href: '/shop?category=designer' },
   { label: "Women's Perfumes", href: '/shop?category=women' },
   { label: "Men's Colognes", href: '/shop?category=men' },
-  { label: 'Gift Sets', href: '/shop?category=gift-sets' },
   { label: 'Sale Items', href: '/shop?sort=price_asc' },
 ]
 
@@ -42,7 +38,7 @@ export default function Footer() {
                 <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
               </div>
               <span className="tracking-[0.35em] uppercase text-sm font-semibold text-[var(--color-ink)]">
-                Inscentives
+                Minzoshop
               </span>
               <span className="tracking-[0.25em] uppercase text-[10px] text-[var(--color-gold)] mt-0.5">
                 Perfume
@@ -136,10 +132,10 @@ export default function Footer() {
                   <i className="ri-mail-line text-[var(--color-gold)] text-sm" />
                 </div>
                 <a
-                  href="mailto:support@inscentives.com"
+                  href="mailto:support@Minzoshop.com"
                   className="text-[11px] text-gray-500 hover:text-[var(--color-gold)] transition-colors"
                 >
-                  support@inscentives.com
+                  support@Minzoshop.com
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -170,7 +166,7 @@ export default function Footer() {
       <div className="border-t border-[var(--color-border)]">
         <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4 bg-[var(--color-cream-400)]">
           <p className="text-[10px] text-gray-400 tracking-wide">
-            &copy; {new Date().getFullYear()} Inscentives Perfume. All rights
+            &copy; {new Date().getFullYear()} Minzoshop Perfume. All rights
             reserved.
           </p>
           <div className="flex items-center gap-2 flex-wrap justify-center">

@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!c) return { title: 'Collection not found' }
   return {
     title: c.name,
-    description: c.description?.slice(0, 160) ?? `Shop the ${c.name} collection at Inscentives.`,
+    description: c.description?.slice(0, 160) ?? `Shop the ${c.name} collection at Minzoshop.`,
     openGraph: {
       title: c.name,
       description: c.description?.slice(0, 160),
