@@ -35,7 +35,7 @@ const AUDIENCES: AudienceTile[] = [
     label: "Men's Colognes",
     icon: 'ri-contrast-drop-line',
     image:
-      'https://images.unsplash.com/photo-1523293188086-b1b6d4f53bf1?w=640&h=440&fit=crop',
+      'https://images.unsplash.com/photo-1523293182086-7651a899d37f?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
     href: '/shop?audience=men',
     countQuery: 'tag=men',
   },

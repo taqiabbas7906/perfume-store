@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 /* EMAIL CONFIGURATION */
 /* ───────────────────────────────────────────── */
 
-const FROM_EMAIL = process.env.EMAIL_FROM || 'orders@perfumestore.com'
+const FROM_EMAIL = process.env.EMAIL_FROM || 'delivered@resend.dev'
 const COMPANY_NAME = process.env.COMPANY_NAME || 'Perfume Store'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 

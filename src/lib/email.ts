@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
  * sender works out of the box — including for the dev account that owns the
  * API key — so the newsletter editor isn't blocked.
  */
-const FROM = process.env.EMAIL_FROM ?? 'Inscentives <onboarding@resend.dev>'
+const FROM = process.env.EMAIL_FROM ?? 'Inscentives <devlivered@resend.dev>'
 
 /* ─── send helpers ───────────────────────────────── */
 

@@ -67,16 +67,16 @@ export default async function TopBrands() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
-            <p className="text-[#b89a6a] tracking-[0.4em] uppercase text-[10px] font-semibold mb-2">
+            <p className="text-[var(--color-gold)] tracking-[0.4em] uppercase text-[10px] font-semibold mb-2">
               Curated Houses
             </p>
             <h2
-              className="text-4xl md:text-5xl font-light text-[#1a1a1a]"
+              className="text-4xl md:text-5xl font-light text-[var(--color-ink)]"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
               Top Selling Brands
             </h2>
-            <div className="w-10 h-[1px] bg-[#b89a6a] mt-4" />
+            <div className="w-10 h-[1px] bg-[var(--color-gold)] mt-4" />
           </div>
           <p className="text-gray-400 text-sm max-w-xs text-right leading-relaxed hidden md:block">
             Wholesale pricing. Always in stock.
@@ -112,7 +112,7 @@ export default async function TopBrands() {
                   />
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                  <div className="absolute inset-0 bg-[#b89a6a]/0 group-hover:bg-[#b89a6a]/10 transition-all duration-500" />
+                  <div className="absolute inset-0 bg-[var(--color-gold)]/0 group-hover:bg-[var(--color-gold)]/10 transition-all duration-500" />
 
                   <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-300">
                     <div className="flex items-end justify-between">
@@ -125,8 +125,8 @@ export default async function TopBrands() {
                           {brand.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="w-5 h-[1px] bg-[#b89a6a]" />
-                          <span className="text-[9px] tracking-widest uppercase text-[#b89a6a] font-semibold">
+                          <div className="w-5 h-[1px] bg-[var(--color-gold)]" />
+                          <span className="text-[9px] tracking-widest uppercase text-[var(--color-gold)] font-semibold">
                             Shop Now
                           </span>
                         </div>
@@ -145,7 +145,7 @@ export default async function TopBrands() {
         <div className="text-center mt-12">
           <Link
             href="/shop"
-            className="inline-flex items-center gap-3 border border-[#b89a6a] text-[#b89a6a] hover:bg-[#b89a6a] hover:text-white text-[11px] tracking-[0.25em] uppercase font-bold px-14 py-4 transition-all duration-300 cursor-pointer whitespace-nowrap group"
+            className="inline-flex items-center gap-3 border border-[var(--color-gold)] text-[var(--color-gold)] hover:bg-[var(--color-gold)] hover:text-white text-[11px] tracking-[0.25em] uppercase font-bold px-14 py-4 transition-all duration-300 cursor-pointer whitespace-nowrap group"
           >
             Explore All Brands
             <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1" />
