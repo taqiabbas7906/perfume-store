@@ -823,7 +823,7 @@ function SuccessScreen({
 export default function CheckoutPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const { flush: flushCart, isSyncing: cartSyncing } = useCart()
+  const { flush: flushCart, isSyncing: cartSyncing, clearCart } = useCart()
   const { settings: storeSettings } = useStoreSettings()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Stable idempotency keys so accidental double-submits don't create two orders.
@@ -1158,6 +1158,7 @@ export default function CheckoutPage() {
       const pd = await payRes.json()
       if (pd.success) {
         setOrderId(od.order._id)
+        await clearCart()
         setSuccess(true)
       } else {
         setError(pd.error || 'Payment failed')
