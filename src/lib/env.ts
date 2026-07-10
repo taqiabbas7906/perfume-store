@@ -36,6 +36,8 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
+  // API Ninjas (ZIP-level US sales tax — https://api-ninjas.com/api/salestax)
+  API_NINJAS_KEY: z.string().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
   LOG_LEVEL: z.string().optional(),
 })

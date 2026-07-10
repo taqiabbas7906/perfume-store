@@ -191,50 +191,50 @@ const ZONE_CONFIG: Record<Zone, ZoneDef> = {
     freeThreshold: 75,
     options: [
       { id:'standard', label:'Standard (USPS)',     price:7.99,  estimatedDays:'5–7 business days',   carrier:'USPS Ground'     },
-      { id:'express',  label:'Express (FedEx)',      price:14.99, estimatedDays:'2–3 business days',   carrier:'FedEx Express'   },
-      { id:'priority', label:'Priority Overnight',  price:29.99, estimatedDays:'Next business day',    carrier:'FedEx Overnight' },
+      // { id:'express',  label:'Express (FedEx)',      price:14.99, estimatedDays:'2–3 business days',   carrier:'FedEx Express'   },
+      // { id:'priority', label:'Priority Overnight',  price:29.99, estimatedDays:'Next business day',    carrier:'FedEx Overnight' },
     ],
   },
   zone1: {       // Canada, Mexico
     freeThreshold: 120,
     options: [
       { id:'standard', label:'Standard International', price:9.99,  estimatedDays:'7–10 business days', carrier:'USPS Priority Intl' },
-      { id:'express',  label:'Express International',  price:19.99, estimatedDays:'3–5 business days',  carrier:'FedEx Intl Priority' },
+      // { id:'express',  label:'Express International',  price:19.99, estimatedDays:'3–5 business days',  carrier:'FedEx Intl Priority' },
     ],
   },
   zone2: {       // Europe + UK
     freeThreshold: 150,
     options: [
       { id:'standard', label:'Standard (DHL)',          price:12.99, estimatedDays:'7–14 business days', carrier:'DHL eCommerce'  },
-      { id:'express',  label:'Express (DHL)',            price:24.99, estimatedDays:'3–5 business days',  carrier:'DHL Express'    },
+      // { id:'express',  label:'Express (DHL)',            price:24.99, estimatedDays:'3–5 business days',  carrier:'DHL Express'    },
     ],
   },
   zone3: {       // Australia, NZ, Oceania
     freeThreshold: 200,
     options: [
       { id:'standard', label:'Standard International', price:14.99, estimatedDays:'10–18 business days', carrier:'Australia Post'  },
-      { id:'express',  label:'Express (DHL)',            price:29.99, estimatedDays:'5–7 business days',   carrier:'DHL Express'    },
+      // { id:'express',  label:'Express (DHL)',            price:29.99, estimatedDays:'5–7 business days',   carrier:'DHL Express'    },
     ],
   },
   zone4: {       // Asia-Pacific
     freeThreshold: 180,
     options: [
       { id:'standard', label:'Standard (DHL)',          price:13.99, estimatedDays:'10–18 business days', carrier:'DHL eCommerce'  },
-      { id:'express',  label:'Express (DHL)',            price:27.99, estimatedDays:'4–6 business days',   carrier:'DHL Express'    },
+      // { id:'express',  label:'Express (DHL)',            price:27.99, estimatedDays:'4–6 business days',   carrier:'DHL Express'    },
     ],
   },
   zone5: {       // Middle East, Africa, LatAm
     freeThreshold: 200,
     options: [
       { id:'standard', label:'Standard International', price:16.99, estimatedDays:'12–22 business days', carrier:'DHL eCommerce'  },
-      { id:'express',  label:'Express (DHL)',            price:32.99, estimatedDays:'5–8 business days',   carrier:'DHL Express'    },
+      // { id:'express',  label:'Express (DHL)',            price:32.99, estimatedDays:'5–8 business days',   carrier:'DHL Express'    },
     ],
   },
   zone6: {       // Rest of world
     freeThreshold: null,
     options: [
       { id:'standard', label:'Standard International', price:19.99, estimatedDays:'14–28 business days', carrier:'Intl Courier'   },
-      { id:'express',  label:'Express (DHL)',            price:39.99, estimatedDays:'7–12 business days',  carrier:'DHL Express'    },
+      // { id:'express',  label:'Express (DHL)',            price:39.99, estimatedDays:'7–12 business days',  carrier:'DHL Express'    },
     ],
   },
 }
@@ -411,6 +411,7 @@ function getTaxNote(countryCode: string): string | undefined {
 
 /* ═══════════════════════ MAIN EXPORT ════════════════════════ */
 import { calculateDistanceShipping } from '@/lib/distanceShipping'
+import { fetchZipSalesTax } from '@/lib/salesTaxApi'
 
 export interface WorldRateInput {
   country: string    // ISO-2
@@ -448,12 +449,40 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
   const subtotal = input.subtotal
   const postalCode = input.postalCode ?? null
 
-  /* ── US: state-level tax + domestic shipping ── */
+  /* ── US: ZIP-level tax (API Ninjas) → state-level tax fallback ── */
   if (country === 'US') {
     const state = (input.state ?? '').toUpperCase()
-    const taxRate = US_STATE_TAX[state] ?? 0
-    const taxAmount = Math.round(subtotal * taxRate * 100) / 100
     const stateName = US_STATE_NAMES[state] ?? state
+
+    // 1) Try the postal code first — API Ninjas gives a location-specific
+    //    combined rate (state + county + city + special district on the
+    //    premium plan). 2) If there's no ZIP, the ZIP isn't recognised, the
+    //    API key is missing, or the call fails, fall back to the
+    //    state-level table below.
+    const zipTax = await fetchZipSalesTax(postalCode)
+
+    let taxRate: number
+    let taxNote: string | undefined
+    let taxSource: 'live' | 'fallback'
+
+    if (zipTax) {
+      taxRate = zipTax.rate
+      taxSource = 'live'
+      taxNote = zipTax.isCombinedRate
+        ? `Combined rate for ZIP ${zipTax.zipCode}`
+        : `State rate for ZIP ${zipTax.zipCode} (upgrade API Ninjas plan for county/city rates)`
+    } else {
+      taxRate = US_STATE_TAX[state] ?? 0
+      taxSource = 'fallback'
+      taxNote =
+        taxRate === 0
+          ? 'No state sales tax'
+          : postalCode
+            ? `ZIP not found — using ${stateName} state rate`
+            : `${stateName} state rate`
+    }
+
+    const taxAmount = Math.round(subtotal * taxRate * 100) / 100
 
     // Try distance-based shipping first; fall back to the zone table.
     const distance = await calculateDistanceShipping({ country, postalCode })
@@ -483,11 +512,11 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
         rate: taxRate,
         label: 'Sales Tax',
         amount: taxAmount,
-        note: taxRate === 0 ? 'No state sales tax' : undefined,
+        note: taxNote,
       },
       shipping,
       freeShippingThreshold: freeThreshold,
-      rateSource: shippingSource === 'live' ? 'live' : 'fallback',
+      rateSource: taxSource === 'live' && shippingSource === 'live' ? 'live' : 'fallback',
     }
   }
 

@@ -748,7 +748,7 @@ function SuccessScreen({
         <p className="text-[9px] tracking-[0.4em] uppercase text-gray-400 font-semibold mb-1">
           Order Number
         </p>
-        <p className="font-serif text-2xl font-light text-[var(--color-gold)] tracking-wider">
+        <p className=" text-2xl font-light text-[var(--color-gold)] tracking-wider">
           {display}
         </p>
       </div>
@@ -1666,11 +1666,6 @@ export default function CheckoutPage() {
                       </span>
                       <span>{taxAmount > 0 ? fmt(taxAmount) : 'None'}</span>
                     </div>
-                    {taxInfo.note && (
-                      <p className="text-[10px] text-gray-500 mt-2 tracking-wide">
-                        {taxInfo.note}
-                      </p>
-                    )}
                   </div>
                 )}
 

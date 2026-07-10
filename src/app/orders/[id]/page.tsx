@@ -181,7 +181,7 @@ export default function CustomerOrderDetailPage() {
                   Order Detail
                 </span>
               </div>
-              <h1 className="font-serif text-3xl md:text-4xl font-light text-[var(--color-ink)]">
+              <h1 className=" text-3xl md:text-4xl font-light text-[var(--color-ink)]">
                 Order <span className="font-bold">#{orderShortId}</span>
               </h1>
               <p className="text-xs text-gray-400 tracking-wide mt-2">
@@ -259,7 +259,7 @@ export default function CustomerOrderDetailPage() {
                 <span className="text-xs tracking-[0.3em] uppercase font-bold text-[var(--color-ink)]">
                   Order Total
                 </span>
-                <span className="font-serif text-2xl font-light text-[var(--color-ink)]">
+                <span className="text-2xl font-light text-[var(--color-ink)]">
                   {fmtMoney(order.totalAmount)}
                 </span>
               </div>
