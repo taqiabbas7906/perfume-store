@@ -411,11 +411,12 @@ function getTaxNote(countryCode: string): string | undefined {
 
 /* ═══════════════════════ MAIN EXPORT ════════════════════════ */
 import { calculateDistanceShipping } from '@/lib/distanceShipping'
-import { fetchZipSalesTax } from '@/lib/salesTaxApi'
+import { fetchUsSalesTax } from '@/lib/salesTaxApi'
 
 export interface WorldRateInput {
   country: string    // ISO-2
   state?: string     // required when country === 'US'
+  city?: string
   subtotal: number
   /**
    * Customer's postal/ZIP code. When present we geocode it via
@@ -454,23 +455,32 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
     const state = (input.state ?? '').toUpperCase()
     const stateName = US_STATE_NAMES[state] ?? state
 
-    // 1) Try the postal code first — API Ninjas gives a location-specific
-    //    combined rate (state + county + city + special district on the
-    //    premium plan). 2) If there's no ZIP, the ZIP isn't recognised, the
-    //    API key is missing, or the call fails, fall back to the
-    //    state-level table below.
-    const zipTax = await fetchZipSalesTax(postalCode)
+    // 1) Try postal code first. 2) If that is unavailable, try city + state
+    // via API Ninjas. 3) Only then fall back to the hardcoded state table for
+    // exception cases such as upstream failures, timeouts, missing config, or
+    // API limits.
+    const liveTax = await fetchUsSalesTax({
+      zipCode: postalCode,
+      city: input.city,
+      state,
+    })
 
     let taxRate: number
     let taxNote: string | undefined
     let taxSource: 'live' | 'fallback'
 
-    if (zipTax) {
-      taxRate = zipTax.rate
+    if (liveTax) {
+      taxRate = liveTax.rate
       taxSource = 'live'
-      taxNote = zipTax.isCombinedRate
-        ? `Combined rate for ZIP ${zipTax.zipCode}`
-        : `State rate for ZIP ${zipTax.zipCode} (upgrade API Ninjas plan for county/city rates)`
+      if (liveTax.lookupType === 'zip') {
+        taxNote = liveTax.isCombinedRate
+          ? `Live combined rate for ZIP ${liveTax.zipCode}`
+          : `Live ZIP rate for ${liveTax.zipCode} using available API Ninjas fields`
+      } else {
+        taxNote = liveTax.isCombinedRate
+          ? `Live city rate for ${liveTax.locationLabel}`
+          : `Live city rate for ${liveTax.locationLabel} using available API Ninjas fields`
+      }
     } else {
       taxRate = US_STATE_TAX[state] ?? 0
       taxSource = 'fallback'
@@ -478,7 +488,9 @@ export async function getWorldRates(input: WorldRateInput): Promise<WorldRateRes
         taxRate === 0
           ? 'No state sales tax'
           : postalCode
-            ? `ZIP not found — using ${stateName} state rate`
+            ? `API tax lookup unavailable for ZIP ${postalCode} — using ${stateName} state rate`
+            : input.city
+              ? `API tax lookup unavailable for ${input.city}, ${stateName} — using ${stateName} state rate`
             : `${stateName} state rate`
     }
 

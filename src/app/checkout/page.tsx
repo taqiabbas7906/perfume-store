@@ -907,6 +907,7 @@ export default function CheckoutPage() {
       country: string,
       state: string,
       subtotal: number,
+      city?: string,
       postalCode?: string,
     ) => {
       if (!country) return
@@ -919,6 +920,9 @@ export default function CheckoutPage() {
           body: JSON.stringify({
             country,
             state: country === 'US' ? state : undefined,
+            ...(city && city.trim().length >= 1
+              ? { city: city.trim() }
+              : {}),
             subtotal,
             // Pass the ZIP when present so the server can price by
             // actual distance via Zippopotam.us. Empty/missing ZIP is
@@ -948,13 +952,13 @@ export default function CheckoutPage() {
     if (!cart) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(
-      () => fetchRates(addr.country, addr.state, cart.subtotal, addr.zip),
+      () => fetchRates(addr.country, addr.state, cart.subtotal, addr.city, addr.zip),
       500,
     )
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [addr.country, addr.state, addr.zip, cart, fetchRates])
+  }, [addr.country, addr.state, addr.city, addr.zip, cart, fetchRates])
 
   const taxRate = rates?.tax.rate ?? 0
   const taxAmount = cart

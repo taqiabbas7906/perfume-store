@@ -174,8 +174,10 @@ async function calculateServerShipping(args: {
 
   const rates = await getWorldRates({
     country: args.shippingAddress.country,
+    city: args.shippingAddress.city,
     state: args.shippingAddress.state,
     subtotal: billable,
+    postalCode: args.shippingAddress.zip,
   })
 
   const requested = round2(args.requestedAmount ?? Number.NaN)
@@ -358,8 +360,10 @@ export async function createOrder(
       const taxableBase = Math.max(0, round2(subtotal - discount))
       const rates = await getWorldRates({
         country: input.shippingAddress.country,
+        city: input.shippingAddress.city,
         state: input.shippingAddress.state,
         subtotal: taxableBase,
+        postalCode: input.shippingAddress.zip,
       })
       taxCost = round2(rates.tax.amount)
     } catch (err) {

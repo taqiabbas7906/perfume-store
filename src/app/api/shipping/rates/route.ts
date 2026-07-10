@@ -7,6 +7,7 @@ import { apiError } from '@/lib/apiError'
 const schema = z.object({
   country: z.string().length(2).toUpperCase(),
   state: z.string().length(2).toUpperCase().optional(),
+  city: z.string().trim().min(1).max(100).optional(),
   subtotal: z.number().nonnegative().max(1_000_000),
   /** Optional ZIP / postal code. When supplied, the rates engine geocodes
    *  it via Zippopotam.us and prices shipping by actual distance from the
@@ -26,10 +27,10 @@ export async function POST(req: NextRequest) {
     if (!parsed.success)
       return apiError(400, { error: 'Invalid request', details: parsed.error.flatten() })
 
-    const { country, state, subtotal, postalCode } = parsed.data
+    const { country, state, city, subtotal, postalCode } = parsed.data
     if (country === 'US' && !state) return apiError(400, { error: 'State required for US orders' })
 
-    const result = await getWorldRates({ country, state, subtotal, postalCode })
+    const result = await getWorldRates({ country, state, city, subtotal, postalCode })
     return NextResponse.json({ success: true, ...result })
   } catch {
     return apiError(500, { error: 'Internal server error' })
