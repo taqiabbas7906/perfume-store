@@ -16,6 +16,7 @@ import {
 import { authFetch } from '@/lib/api'
 import FreeDeliverySettingsCard from './FreeDeliverySettingsCard'
 import HomepageSettingsCard from './HomepageSettingsCard'
+import OrderInsightsSection from './OrderInsightsSection'
 
 /* ─── types ───────────────────────────────────────── */
 
@@ -636,6 +637,9 @@ export default function DashboardPanel() {
           )}
         </div>
       </div>
+
+      {/* Detailed order analytics */}
+      <OrderInsightsSection />
     </div>
   )
 }
