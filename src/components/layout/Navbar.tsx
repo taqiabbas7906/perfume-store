@@ -137,7 +137,7 @@ export default function Navbar() {
         className={`w-full z-50 transition-all duration-400 ${
           showSolid
             ? 'fixed top-0 bg-white border-b border-[var(--color-border-soft)]'
-            : 'absolute top-8 bg-transparent'
+            : 'absolute  top-4 bg-transparent'
         }`}
       >
         <div className="mt-[8px] max-w-7xl mx-auto px-6 flex items-center justify-between h-20">

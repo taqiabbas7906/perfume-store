@@ -5,7 +5,6 @@ import { getAuthAdmin } from '@/lib/getAuthUser'
 import Order from '@/models/Order'
 import { apiError, logRouteError } from '@/lib/apiError'
 import { transitionOrderStatus } from '@/lib/services/orderService'
-import { sendOrderStatusUpdateEmail } from '@/lib/services/emailService'
 import type { OrderStatus, IOrder, IUser } from '@/types'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -79,12 +78,6 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
           if (!order) return
           const recipient = (order.user as IUser | undefined)?.email ?? order.guestEmail
           if (!recipient) return
-          await sendOrderStatusUpdateEmail({
-            order,
-            recipientEmail: recipient,
-            oldStatus: result.previousStatus,
-            newStatus: result.order.status,
-          })
         } catch (err) {
           logRouteError('PATCH /api/admin/orders/[id] email', err)
         }

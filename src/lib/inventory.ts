@@ -5,10 +5,13 @@ import CartReservation from '@/models/CartReservation'
 import { logger } from './logger'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM_EMAIL = process.env.EMAIL_FROM || 'orders@perfumestore.com'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.EMAIL_FROM || 'admin@perfumestore.com'
 const RESERVATION_TTL_MS = 15 * 60 * 1000 // 15 minutes
+
+function getResend() {
+  return process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+}
 
 /* ───────────────────────────────────────────── */
 
@@ -60,7 +63,8 @@ async function maybeSendLowStockAlert(
   quantityAfter: number
 ) {
   try {
-    if (!process.env.RESEND_API_KEY) return
+    const resend = getResend()
+    if (!resend) return
     const product = await Product.findOne(
       { _id: productId, 'variants.sku': variantSku },
       { name: 1, slug: 1, 'variants.$': 1 }

@@ -447,9 +447,9 @@ export async function createOrder(
     logger.info({ orderId: order._id }, 'order created')
 
     // Fire confirmation email (non-blocking)
-    void resolveOrderEmail(order as IOrder).then((recipient) => {
+    void resolveOrderEmail(order as IOrder).then(async (recipient) => {
       if (!recipient) return
-      const tpl = buildOrderConfirmationEmail(order as IOrder, recipient.name)
+      const tpl = await buildOrderConfirmationEmail(order as IOrder, recipient.name)
       return sendEmail(recipient.email, tpl.subject, tpl.html)
     }).catch((err) => logger.warn({ err }, 'order confirmation email failed'))
 
@@ -612,9 +612,9 @@ export async function transitionOrderStatus(
 
   const EMAIL_STATUSES = ['paid', 'shipped', 'delivered', 'cancelled', 'refunded']
   if (EMAIL_STATUSES.includes(input.nextStatus)) {
-    void resolveOrderEmail(updated).then((recipient) => {
+    void resolveOrderEmail(updated).then(async (recipient) => {
       if (!recipient) return
-      const tpl = buildStatusUpdateEmail(updated, recipient.name, input.nextStatus)
+      const tpl = await buildStatusUpdateEmail(updated, recipient.name, input.nextStatus)
       if (!tpl) return
       return sendEmail(recipient.email, tpl.subject, tpl.html)
     }).catch((err) => logger.warn({ err }, 'status update email failed'))

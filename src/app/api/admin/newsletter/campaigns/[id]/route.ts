@@ -108,9 +108,10 @@ async function sendCampaignToRecipients(args: {
     recipients: args.recipients,
     subject: args.subject,
     html: '', // overridden per-recipient below
-    perRecipient: (email) => {
+    perRecipient: async (email) => {
       const url = unsubscribeUrl(email)
-      const html = buildCampaignEmail({
+      const html = await buildCampaignEmail({
+        subject: args.subject,
         previewText: args.previewText,
         content: args.content,
         unsubscribeUrl: url,
@@ -226,7 +227,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         return apiError(400, { error: 'No test recipient available' })
       }
       const url = unsubscribeUrl(target)
-      const html = buildCampaignEmail({
+      const html = await buildCampaignEmail({
+        subject: campaign.subject,
         previewText: campaign.previewText,
         content: campaign.content,
         unsubscribeUrl: url,

@@ -16,7 +16,7 @@ export default function CancellationPage() {
               Cancellation Policy
             </h1>
             <p className="text-xs text-gray-500 max-w-xl mx-auto leading-relaxed">
-              We understand plans can change. Here&apos;s everything you need to know about canceling your Inscentives order.
+              We understand plans can change. Here&apos;s everything you need to know about canceling your Minzoshop order.
             </p>
           </div>
         </div>
@@ -39,7 +39,7 @@ export default function CancellationPage() {
                 </p>
                 <p>To request a cancellation:</p>
                 <ul className="list-disc pl-6 space-y-1.5">
-                  <li>Email us at <a href="mailto:support@inscentives.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@inscentives.com</a> with your order number</li>
+                  <li>Email us at <a href="mailto:support@Minzoshop.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@Minzoshop.com</a> with your order number</li>
                   <li>Call us at <strong>+1 (561) 555-0194</strong> during business hours (Mon&ndash;Fri, 9 AM &ndash; 6 PM EST)</li>
                   <li>Include &ldquo;Cancellation Request&rdquo; in your subject line for fastest processing</li>
                 </ul>
@@ -105,8 +105,8 @@ export default function CancellationPage() {
                     <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                       <i className="ri-mail-line text-[#b89a6a] text-sm"></i>
                     </div>
-                    <a href="mailto:support@inscentives.com" className="hover:text-[#b89a6a] transition-colors cursor-pointer">
-                      support@inscentives.com
+                    <a href="mailto:support@Minzoshop.com" className="hover:text-[#b89a6a] transition-colors cursor-pointer">
+                      support@Minzoshop.com
                     </a>
                   </div>
                   <div className="flex items-center gap-3">
