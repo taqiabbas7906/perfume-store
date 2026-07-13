@@ -53,24 +53,26 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       return apiError(status, { error: result.message, code: result.code })
     }
 
-    // Email customer (best-effort, non-blocking)
-    void (async () => {
-      try {
-        const order = await Order.findById(id).populate('user', 'email').lean<IOrder & { user?: IUser }>()
-        if (!order) return
-        const recipient = (order.user as IUser | undefined)?.email ?? order.guestEmail
-        if (!recipient) return
-        await sendShippingConfirmationEmail({
-          order,
-          recipientEmail: recipient,
-          trackingNumber,
-          trackingCarrier,
-          trackingUrl: trackingUrl || undefined,
-        })
-      } catch (err) {
-        logRouteError('PATCH /api/admin/orders/[id]/tracking email', err)
-      }
-    })()
+    if (!result.alreadyShipped) {
+      // Email customer when the order is first marked as shipped.
+      void (async () => {
+        try {
+          const order = await Order.findById(id).populate('user', 'email').lean<IOrder & { user?: IUser }>()
+          if (!order) return
+          const recipient = (order.user as IUser | undefined)?.email ?? order.guestEmail
+          if (!recipient) return
+          await sendShippingConfirmationEmail({
+            order,
+            recipientEmail: recipient,
+            trackingNumber,
+            trackingCarrier,
+            trackingUrl: trackingUrl || undefined,
+          })
+        } catch (err) {
+          logRouteError('PATCH /api/admin/orders/[id]/tracking email', err)
+        }
+      })()
+    }
 
     return NextResponse.json({ success: true, order: result.order })
   } catch (err) {

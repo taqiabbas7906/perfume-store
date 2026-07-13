@@ -1,14 +1,27 @@
+import 'server-only'
+import { text as readStreamText } from 'node:stream/consumers'
+import { createElement } from 'react'
+import { prerenderToNodeStream } from 'react-dom/static'
 import { Resend } from 'resend'
 import type { IOrder } from '@/types'
+import NewsletterEmail from '@/components/emails/NewsletterEmail'
+import OrderConfirmationEmail from '@/components/emails/OrderConfirmationEmail'
+import OrderStatusEmail from '@/components/emails/OrderStatusEmail'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-/**
- * `EMAIL_FROM` should be a verified Resend sender (e.g. `Brand <hello@yourdomain.com>`).
- * Until the user verifies a custom domain, Resend's `onboarding@resend.dev`
- * sender works out of the box — including for the dev account that owns the
- * API key — so the newsletter editor isn't blocked.
- */
-const FROM = process.env.EMAIL_FROM ?? 'Minzoshop <devlivered@resend.dev>'
+const FROM = process.env.EMAIL_FROM ?? 'Minzoshop <delivered@resend.dev>'
+const BRAND = process.env.COMPANY_NAME ?? 'Minzoshop'
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  'http://localhost:3000'
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? 'support@Minzoshop.com'
+const NEWSLETTER_HERO_IMAGE =
+  process.env.NEWSLETTER_HERO_IMAGE_URL ??
+  'https://readdy.ai/api/search-image?query=Elegant%20summer%20lifestyle%20scene%20with%20luxury%20perfume%20bottles%20on%20marble%20surface%2C%20soft%20golden%20sunlight%2C%20fresh%20citrus%20and%20white%20flowers%2C%20minimalist%20luxury%20aesthetic%2C%20warm%20cream%20and%20beige%20tones%2C%20editorial%20fragrance%20photography&width=600&height=300&seq=newsletter-hero-summer&orientation=landscape'
+
+function getResend() {
+  return process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+}
 
 /* ─── send helpers ───────────────────────────────── */
 
@@ -18,7 +31,8 @@ export async function sendEmail(
   html: string,
   options: { headers?: Record<string, string> } = {},
 ) {
-  if (!process.env.RESEND_API_KEY) return
+  const resend = getResend()
+  if (!resend) return
   await resend.emails.send({
     from: FROM,
     to,
@@ -43,9 +57,14 @@ export async function sendCampaignBatch(args: {
   html: string
   /** Optional per-recipient transform — receives the recipient's email and
    *  returns the final HTML / headers for them. Defaults to the static body. */
-  perRecipient?: (email: string) => { html: string; headers?: Record<string, string> }
+  perRecipient?: (
+    email: string,
+  ) =>
+    | { html: string; headers?: Record<string, string> }
+    | Promise<{ html: string; headers?: Record<string, string> }>
 }): Promise<{ sent: number; failed: number }> {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend()
+  if (!resend) {
     return { sent: 0, failed: args.recipients.length }
   }
 
@@ -55,16 +74,17 @@ export async function sendCampaignBatch(args: {
 
   for (let i = 0; i < args.recipients.length; i += chunkSize) {
     const chunk = args.recipients.slice(i, i + chunkSize)
-    const payload = chunk.map((email) => {
+    const payload = await Promise.all(chunk.map(async (email) => {
       const custom = args.perRecipient?.(email)
+      const resolved = custom ? await custom : null
       return {
         from: FROM,
         to: email,
         subject: args.subject,
-        html: custom?.html ?? args.html,
-        ...(custom?.headers ? { headers: custom.headers } : {}),
+        html: resolved?.html ?? args.html,
+        ...(resolved?.headers ? { headers: resolved.headers } : {}),
       }
-    })
+    }))
 
     try {
       const result = await resend.batch.send(payload)
@@ -90,205 +110,223 @@ export async function sendCampaignBatch(args: {
  * the preview-text preheader (for inbox snippets), a header, and the legally
  * required unsubscribe footer.
  */
-export function buildCampaignEmail(args: {
+export async function buildCampaignEmail(args: {
+  subject?: string
   previewText: string
   content: string
   unsubscribeUrl: string
   brand?: string
 }) {
-  const brand = args.brand ?? 'Minzoshop'
+  const brand = args.brand ?? BRAND
   const previewText = (args.previewText || '').slice(0, 240)
+  const subject = args.subject?.trim() || `${brand} Newsletter`
+  const htmlContent = normalizeCampaignContent(args.content)
+  const body = await renderStaticEmail(
+    createElement(NewsletterEmail, {
+      brandName: brand,
+      edition: subject,
+      date: formatDate(new Date()),
+      heroTitle: subject,
+      heroSubtitle: previewText || 'Latest updates from our fragrance world.',
+      heroImage: NEWSLETTER_HERO_IMAGE,
+      contentHtml: htmlContent,
+      unsubscribeUrl: args.unsubscribeUrl,
+    }),
+  )
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-</head>
-<body style="margin:0;padding:0;background:#FDF9F3;font-family:Georgia,'Cormorant Garamond',serif;color:#1A1A1A;">
-  <!-- Preview text (hidden, shows as inbox snippet) -->
-  <div style="display:none;font-size:1px;color:#FDF9F3;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
-    ${previewText}
-  </div>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FDF9F3;">
-    <tr><td align="center" style="padding:32px 16px;">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #E8DCCF;">
-        <!-- Header -->
-        <tr><td style="padding:32px 40px;text-align:center;border-bottom:1px solid #F3EDE5;">
-          <div style="font-size:22px;font-weight:600;letter-spacing:2px;color:#8C6F48;text-transform:uppercase;">
-            ${brand}
-          </div>
-          <div style="height:1px;width:48px;background:#C4A882;margin:12px auto 0;"></div>
-        </td></tr>
-
-        <!-- Body -->
-        <tr><td style="padding:32px 40px;font-size:15px;line-height:1.7;color:#353535;">
-          ${args.content}
-        </td></tr>
-
-        <!-- Footer -->
-        <tr><td style="padding:24px 40px;background:#FDF9F3;text-align:center;font-size:12px;color:#818181;border-top:1px solid #F3EDE5;">
-          <p style="margin:0 0 8px;">You are receiving this email because you subscribed to ${brand} updates.</p>
-          <p style="margin:0;">
-            <a href="${args.unsubscribeUrl}" style="color:#A68558;text-decoration:underline;">Unsubscribe</a>
-            &nbsp;·&nbsp;
-            <span>${brand} — The Art of Fine Fragrance</span>
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`
+  return wrapEmailHtml(body, previewText)
 }
 
 /* ─── order confirmation ─────────────────────────── */
 
-export function buildOrderConfirmationEmail(order: IOrder, customerName: string) {
-  const itemRows = order.items
-    .map(
-      (item) => `
-      <tr>
-        <td style="padding:8px 0;border-bottom:1px solid #f0ece8;">${item.name} — ${item.variantSku}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f0ece8;text-align:center;">${item.quantity}</td>
-        <td style="padding:8px 0;border-bottom:1px solid #f0ece8;text-align:right;">$${item.subtotal.toFixed(2)}</td>
-      </tr>`
-    )
-    .join('')
+export async function buildOrderConfirmationEmail(order: IOrder, customerName: string) {
+  const orderNumber = shortOrderNumber(order)
+  const body = await renderStaticEmail(
+    createElement(OrderConfirmationEmail, {
+      brandName: BRAND,
+      supportEmail: SUPPORT_EMAIL,
+      customerName,
+      orderNumber,
+      orderDate: formatDate(order.createdAt),
+      items: order.items.map((item) => ({
+        name: item.name,
+        size: item.variantSku,
+        qty: item.quantity,
+        price: item.subtotal,
+        image: absoluteAssetUrl(item.image),
+      })),
+      shippingAddress: {
+        name: order.shippingAddress.name,
+        street: order.shippingAddress.address,
+        city: order.shippingAddress.city,
+        state: order.shippingAddress.state,
+        zip: order.shippingAddress.zip,
+        country: order.shippingAddress.country,
+      },
+      subtotal: order.subtotal,
+      shipping: order.shipping,
+      tax: order.tax,
+      discount: order.discount,
+      total: order.totalAmount,
+      estimatedDelivery: undefined,
+      paymentMethod: paymentMethodLabel(order),
+      orderUrl: orderDetailsUrl(order),
+      trackingUrl: order.trackingUrl,
+      privacyUrl: `${APP_URL}/policies/privacy`,
+      termsUrl: `${APP_URL}/policies/terms`,
+      returnsUrl: `${APP_URL}/policies/returns`,
+    }),
+  )
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:0;background:#faf8f5;font-family:Georgia,serif;color:#2d2016;">
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr><td align="center" style="padding:40px 20px;">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;">
-        <!-- Header -->
-        <tr><td style="background:#2d2016;padding:32px 40px;text-align:center;">
-          <h1 style="margin:0;color:#f5e6c8;font-size:24px;letter-spacing:2px;">ORDER CONFIRMED</h1>
-        </td></tr>
-        <!-- Body -->
-        <tr><td style="padding:40px;">
-          <p style="margin:0 0 8px;">Dear ${customerName},</p>
-          <p style="margin:0 0 24px;color:#6b5a4e;">Thank you for your order. We'll let you know when it ships.</p>
-
-          <p style="margin:0 0 4px;font-size:12px;color:#9e8c7e;text-transform:uppercase;letter-spacing:1px;">Order ID</p>
-          <p style="margin:0 0 24px;font-family:monospace;font-size:14px;">#${String(order._id).slice(-8).toUpperCase()}</p>
-
-          <!-- Items -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-            <thead>
-              <tr style="border-bottom:2px solid #2d2016;">
-                <th style="text-align:left;padding:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Item</th>
-                <th style="text-align:center;padding:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Qty</th>
-                <th style="text-align:right;padding:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Price</th>
-              </tr>
-            </thead>
-            <tbody>${itemRows}</tbody>
-          </table>
-
-          <!-- Totals -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-            ${order.discount > 0 ? `<tr><td style="padding:4px 0;color:#6b5a4e;">Discount</td><td style="text-align:right;color:#6b5a4e;">−$${order.discount.toFixed(2)}</td></tr>` : ''}
-            <tr><td style="padding:4px 0;color:#6b5a4e;">Shipping</td><td style="text-align:right;color:#6b5a4e;">${order.shipping === 0 ? 'Free' : '$' + order.shipping.toFixed(2)}</td></tr>
-            <tr><td style="padding:8px 0 0;font-weight:bold;font-size:16px;">Total</td><td style="text-align:right;font-weight:bold;font-size:16px;">$${order.totalAmount.toFixed(2)}</td></tr>
-          </table>
-
-          <!-- Shipping address -->
-          <p style="margin:0 0 4px;font-size:12px;color:#9e8c7e;text-transform:uppercase;letter-spacing:1px;">Ship To</p>
-          <p style="margin:0;line-height:1.6;">${order.shippingAddress.name}<br/>
-            ${order.shippingAddress.address}<br/>
-            ${order.shippingAddress.city}, ${order.shippingAddress.country} ${order.shippingAddress.zip}
-          </p>
-        </td></tr>
-        <!-- Footer -->
-        <tr><td style="background:#faf8f5;padding:24px 40px;text-align:center;font-size:12px;color:#9e8c7e;">
-          Questions? Reply to this email. We're here to help.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`
-
-  return { subject: `Order Confirmed — #${String(order._id).slice(-8).toUpperCase()}`, html }
+  return {
+    subject: `Order Confirmed — #${orderNumber}`,
+    html: wrapEmailHtml(body, `Your order #${orderNumber} has been confirmed.`),
+  }
 }
 
 /* ─── status update email ────────────────────────── */
 
-const STATUS_COPY: Record<string, { subject: string; headline: string; body: string }> = {
+const STATUS_COPY: Record<string, { subject: string; body: string }> = {
   paid: {
     subject: 'Payment Confirmed',
-    headline: 'Payment Received',
     body: 'Great news — your payment has been confirmed and your order is being prepared.',
   },
   shipped: {
     subject: 'Your Order Has Shipped',
-    headline: 'On Its Way',
     body: 'Your order is on its way to you.',
   },
   delivered: {
     subject: 'Order Delivered',
-    headline: 'Delivered',
     body: 'Your order has been delivered. We hope you love your new fragrance.',
   },
   cancelled: {
     subject: 'Order Cancelled',
-    headline: 'Order Cancelled',
     body: 'Your order has been cancelled. If you have questions, please contact us.',
   },
   refunded: {
     subject: 'Refund Processed',
-    headline: 'Refund Processed',
     body: 'Your refund has been processed. Please allow 3–5 business days to appear on your statement.',
   },
 }
 
-export function buildStatusUpdateEmail(
+export async function buildStatusUpdateEmail(
   order: IOrder,
   customerName: string,
   newStatus: string
 ) {
   const copy = STATUS_COPY[newStatus]
   if (!copy) return null
+  const oldStatus =
+    order.statusHistory.length > 1
+      ? prettifyStatus(order.statusHistory[order.statusHistory.length - 2]?.status)
+      : 'Pending'
+  const statusLabel = prettifyStatus(newStatus)
+  const body = await renderStaticEmail(
+    createElement(OrderStatusEmail, {
+      brandName: BRAND,
+      supportEmail: SUPPORT_EMAIL,
+      customerName,
+      orderNumber: shortOrderNumber(order),
+      oldStatus,
+      newStatus: statusLabel,
+      statusDate: formatDate(order.updatedAt ?? new Date()),
+      trackingNumber: order.trackingNumber,
+      carrier: order.trackingCarrier,
+      trackingUrl: order.trackingUrl,
+      items: order.items.map((item) => ({
+        name: item.name,
+        size: item.variantSku,
+        qty: item.quantity,
+        price: item.subtotal,
+        image: absoluteAssetUrl(item.image),
+      })),
+      estimatedDelivery: undefined,
+      orderUrl: orderDetailsUrl(order),
+    }),
+  )
 
-  const trackingBlock =
-    newStatus === 'shipped' && order.trackingNumber
-      ? `<div style="background:#f5e6c8;border-radius:6px;padding:16px 20px;margin:24px 0;">
-           <p style="margin:0 0 4px;font-size:12px;color:#9e8c7e;text-transform:uppercase;letter-spacing:1px;">Tracking</p>
-           <p style="margin:0;font-weight:bold;">${order.trackingCarrier ?? ''} ${order.trackingNumber}</p>
-           ${order.trackingUrl ? `<p style="margin:8px 0 0;"><a href="${order.trackingUrl}" style="color:#2d2016;">Track your package →</a></p>` : ''}
-         </div>`
-      : ''
+  return {
+    subject: `${copy.subject} — #${shortOrderNumber(order)}`,
+    html: wrapEmailHtml(body, copy.body),
+  }
+}
 
-  const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:0;background:#faf8f5;font-family:Georgia,serif;color:#2d2016;">
-  <table width="100%" cellpadding="0" cellspacing="0">
-    <tr><td align="center" style="padding:40px 20px;">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;">
-        <tr><td style="background:#2d2016;padding:32px 40px;text-align:center;">
-          <h1 style="margin:0;color:#f5e6c8;font-size:24px;letter-spacing:2px;">${copy.headline.toUpperCase()}</h1>
-        </td></tr>
-        <tr><td style="padding:40px;">
-          <p style="margin:0 0 8px;">Dear ${customerName},</p>
-          <p style="margin:0 0 24px;color:#6b5a4e;">${copy.body}</p>
-          ${trackingBlock}
-          <p style="margin:0 0 4px;font-size:12px;color:#9e8c7e;text-transform:uppercase;letter-spacing:1px;">Order ID</p>
-          <p style="margin:0;font-family:monospace;font-size:14px;">#${String(order._id).slice(-8).toUpperCase()}</p>
-        </td></tr>
-        <tr><td style="background:#faf8f5;padding:24px 40px;text-align:center;font-size:12px;color:#9e8c7e;">
-          Questions? Reply to this email. We're here to help.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+function wrapEmailHtml(body: string, previewText?: string) {
+  const preheader = (previewText || '').trim()
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+</head>
+<body style="margin:0;padding:0;background:#FDF9F3;">
+  <div style="display:none;font-size:1px;color:#FDF9F3;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    ${escapeHtml(preheader)}
+  </div>
+  ${body}
 </body>
 </html>`
+}
 
-  return { subject: `${copy.subject} — #${String(order._id).slice(-8).toUpperCase()}`, html }
+async function renderStaticEmail(node: ReturnType<typeof createElement>) {
+  const { prelude } = await prerenderToNodeStream(node)
+  return readStreamText(prelude)
+}
+
+function shortOrderNumber(order: IOrder) {
+  return String(order._id).slice(-8).toUpperCase()
+}
+
+function formatDate(value: Date | string | undefined) {
+  const date = value ? new Date(value) : new Date()
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function prettifyStatus(status: string | undefined) {
+  if (!status) return 'Pending'
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+function absoluteAssetUrl(url: string) {
+  if (!url) return `${APP_URL}/next.svg`
+  if (/^https?:\/\//i.test(url)) return url
+  return `${APP_URL}${url.startsWith('/') ? url : `/${url}`}`
+}
+
+function orderDetailsUrl(order: IOrder) {
+  return `${APP_URL}/orders/${order._id}`
+}
+
+function paymentMethodLabel(order: IOrder) {
+  if (order.paymentStatus === 'completed' || order.paymentStatus === 'authorized') {
+    return order.squarePaymentId ? 'Paid via Square' : 'Payment confirmed'
+  }
+  if (order.paymentStatus === 'pending') return 'Payment pending'
+  if (order.paymentStatus === 'failed') return 'Payment failed'
+  if (order.paymentStatus === 'refunded') return 'Payment refunded'
+  return `Payment ${order.paymentStatus}`
+}
+
+function escapeHtml(input: string) {
+  return input
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function normalizeCampaignContent(content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) return '<p></p>'
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) return trimmed
+
+  return trimmed
+    .split(/\n{2,}/)
+    .map((paragraph) => `<p style="margin:0 0 16px 0;">${escapeHtml(paragraph).replaceAll('\n', '<br />')}</p>`)
+    .join('')
 }
