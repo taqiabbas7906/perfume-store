@@ -157,8 +157,6 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.facebook.com' },
       // Apple
       { protocol: 'https', hostname: 'appleid.apple.com' },
-      // Readdy AI generated imagery used by the storefront
-      { protocol: 'https', hostname: 'readdy.ai' },
       // Stock/CDN imagery commonly used in seed data
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'plus.unsplash.com' },

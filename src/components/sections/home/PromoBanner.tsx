@@ -7,13 +7,12 @@ import { useStoreSettings } from '@/lib/useStoreSettings'
 const baseStats = [
   { value: '500+', label: 'Brands Available' },
   { value: '10K+', label: 'Happy Customers' },
-  { value: 'BBB', label: 'Accredited Business' },
 ]
 const freeStat = { value: 'Free', label: 'Fast Shipping Always' }
 
 const baseTrust = [
   { icon: 'ri-verified-badge-line', text: '100% Authentic' },
-  { icon: 'ri-shield-check-line', text: 'BBB Accredited' },
+  { icon: 'ri-lock-line', text: 'Secure Checkout' },
 ]
 const freeTrust = { icon: 'ri-truck-line', text: 'Free Shipping' }
 
@@ -83,7 +82,7 @@ export default function PromoBanner() {
 
         <div className="w-full lg:w-[52%] relative min-h-[280px] lg:min-h-0 flex-shrink-0">
           <Image
-            src="https://readdy.ai/api/search-image?query=luxury%20designer%20perfume%20bottles%20flat%20lay%20on%20bright%20white%20marble%20surface%2C%20multiple%20high-end%20fragrance%20bottles%20Chanel%20Dior%20Armani%20arranged%20beautifully%2C%20bright%20airy%20editorial%20photography%2C%20soft%20warm%20golden%20natural%20light%20on%20white%20marble%2C%20clean%20luminous%20premium%20aesthetic%2C%20ivory%20and%20champagne%20tones%2C%20elegant%20fresh%20and%20light%20atmosphere&width=900&height=520&seq=promo1light&orientation=landscape"
+            src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783956142/a240f9f8dcf0be925f7f3bda06dff918_p4xd4r.jpg"
             alt="Designer Fragrances"
             fill
             sizes="(min-width: 1024px) 52vw, 100vw"

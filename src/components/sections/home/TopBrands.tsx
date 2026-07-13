@@ -31,14 +31,14 @@ const layoutClasses = [
 ]
 
 const fallbackImages = [
-  'https://readdy.ai/api/search-image?query=Maison%20Francis%20Kurkdjian%20luxury%20perfume%20bottles%20collection%2C%20multiple%20elegant%20glass%20flacons%2C%20dark%20moody%20background%20with%20warm%20golden%20lighting%2C%20high-end%20niche%20fragrance%20brand%20display%2C%20opulent%20aesthetic&width=400&height=300&seq=b1&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Creed%20perfume%20bottles%20luxury%20collection%2C%20dark%20dramatic%20background%2C%20royal%20crest%20branding%2C%20multiple%20flagship%20fragrances%20displayed%20together%2C%20premium%20masculine%20editorial%20photography%2C%20deep%20moody%20tones&width=400&height=300&seq=b2&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Le%20Labo%20niche%20perfume%20apothecary%20bottles%20collection%2C%20industrial%20minimalist%20aesthetic%2C%20dark%20moody%20setting%20with%20warm%20amber%20lighting%2C%20artisanal%20fragrance%20brand%20photography%2C%20raw%20authentic%20mood&width=400&height=300&seq=b3&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Parfums%20de%20Marly%20luxury%20perfume%20bottles%20collection%2C%20baroque%20ornate%20gold%20bottles%2C%20dark%20royal%20background%2C%20opulent%20French%20perfume%20house%20display%2C%20regal%20and%20sophisticated%2C%20deep%20dark%20setting&width=400&height=300&seq=b4&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Tom%20Ford%20Black%20Orchid%20luxury%20perfume%20bottle%20collection%2C%20sleek%20modern%20dark%20bottles%2C%20dramatic%20black%20background%2C%20ultra%20luxurious%20editorial%20fragrance%20photography%2C%20bold%20masculine%20aesthetic&width=400&height=300&seq=b5&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Byredo%20perfume%20bottles%20collection%20minimalist%20Scandinavian%20design%2C%20clean%20simple%20glass%20flacons%2C%20dark%20moody%20studio%20background%2C%20modern%20luxury%20niche%20fragrance%20brand%2C%20elegant%20and%20understated&width=400&height=300&seq=b6&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Xerjoff%20luxury%20perfume%20Italian%20brand%20bottles%20collection%2C%20ornate%20decorative%20flacons%2C%20dark%20rich%20background%2C%20ultra%20premium%20niche%20fragrance%20photography%2C%20jewel-like%20opulent%20aesthetic&width=400&height=300&seq=b7&orientation=landscape',
-  'https://readdy.ai/api/search-image?query=Bond%20No%209%20New%20York%20luxury%20perfume%20collection%20bottles%20shaped%20like%20shields%2C%20colorful%20vibrant%20designs%2C%20dark%20background%20with%20dramatic%20lighting%2C%20NYC%20inspired%20fragrance%20brand%2C%20bold%20artistic%20display&width=400&height=300&seq=b8&orientation=landscape',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783954973/fddcbc872a233a4b4d20d25521af4a4b_y59ghk.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955050/4eec826f28d304f6042af58b442d4c6a_lsm1v6.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955149/4eec826f28d304f6042af58b442d4c6a_fdxagz.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955187/a85d39ca38d462d74b93942dbab15b2e_fmsfqc.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955235/19ef2ab296346ff863a70ef53a9cf283_tvlsmz.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955274/87471dd3955fcdb6b053a25c3b3af23e_e9mobk.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955302/7529a2d96df617bf96b566d96ff15174_ke06j3.jpg',
+  'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955330/325007ec3f720d02da6ce47531ecdd40_mz2fli.jpg',
 ]
 
 async function fetchTopBrands(): Promise<ApiBrand[]> {

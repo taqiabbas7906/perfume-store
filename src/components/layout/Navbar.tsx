@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
+import Image from "next/image"
 import { useSearch } from '@/context/SearchContext'
 import { useStoreSettings } from '@/lib/useStoreSettings'
 
@@ -141,14 +142,11 @@ export default function Navbar() {
       >
         <div className="mt-[8px] max-w-7xl mx-auto px-6 flex items-center justify-between h-20">
           <Link href="/" className="flex flex-col items-center group">
-            <div className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-              <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
+            <div className="w-12 h-12 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <Image src="/logo.svg" width={40} height={40} alt="Logo" />
             </div>
             <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
               Minzoshop
-            </span>
-            <span className="tracking-[0.2em] uppercase text-[9px] text-[var(--color-gold)] -mt-0.5">
-              Perfume
             </span>
           </Link>
 

@@ -1,10 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 const information = [
   { label: 'About Us', href: '/about' },
   { label: 'Cancellation Policy', href: '/policies/cancellation' },
   { label: 'Returns & Refund Policy', href: '/policies/returns' },
-  { label: 'Shipping Policy', href: '/policies/shipping' },
   { label: 'Privacy Policy', href: '/policies/privacy' },
   { label: 'Terms of Service', href: '/policies/terms' },
 ]
@@ -33,15 +33,12 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 pt-16 pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
           <div className="lg:col-span-1">
-            <Link href="/" className="flex flex-col mb-6">
-              <div className="w-10 h-10 flex items-center justify-center border border-[var(--color-gold-soft)] mb-3 bg-white">
-                <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
+            <Link href="/" className="flex flex-col items-center mb-6">
+              <div className="h-12 flex items-center justify-center mb-3">
+                <Image src="/logo.svg" width={50} height={50} className=" text-2xl" alt="Logo" />
               </div>
               <span className="tracking-[0.35em] uppercase text-sm font-semibold text-[var(--color-ink)]">
                 Minzoshop
-              </span>
-              <span className="tracking-[0.25em] uppercase text-[10px] text-[var(--color-gold)] mt-0.5">
-                Perfume
               </span>
             </Link>
             <p className="text-gray-500 text-xs leading-relaxed mb-6">
@@ -145,20 +142,6 @@ export default function Footer() {
                 <span className="text-[11px] text-gray-500">+1 (561) 555-0194</span>
               </li>
             </ul>
-
-            <div className="border border-[var(--color-gold-soft)] p-3 flex items-center gap-3 hover:border-[var(--color-gold)] transition-colors bg-white">
-              <div className="w-9 h-9 flex items-center justify-center bg-[#003f87] text-white font-extrabold text-xs rounded flex-shrink-0">
-                BBB
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-[var(--color-ink)]">
-                  Accredited Business
-                </p>
-                <p className="text-[9px] text-gray-400 tracking-wider mt-0.5">
-                  Independent Retailer
-                </p>
-              </div>
-            </div>
           </section>
         </div>
       </div>

@@ -289,16 +289,13 @@ export default function LoginPage() {
 
         <Link
           href="/"
-          className="absolute top-12 left-12 flex flex-col items-start group z-10"
+          className="absolute top-12 left-12 flex flex-col items-center group z-10"
         >
-          <div className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
-            <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
+          <div className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 mt-4">
+            <Image src="/logo.svg" width={32} height={32} className=" text-2xl text-[var(--color-gold)]" alt="Logo" />
           </div>
           <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
             Minzoshop
-          </span>
-          <span className="tracking-[0.2em] uppercase text-[9px] text-[var(--color-gold)] -mt-0.5">
-            Perfume
           </span>
         </Link>
 
@@ -328,7 +325,7 @@ export default function LoginPage() {
             className="flex flex-col items-center mb-10 lg:hidden"
           >
             <div className="w-8 h-8 flex items-center justify-center">
-              <i className="ri-leaf-line text-2xl text-[var(--color-gold)]" />
+              <Image src="/logo.svg" width={32} height={32} className="text-2xl text-[var(--color-gold)]" alt="Logo" />
             </div>
             <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
               Minzoshop

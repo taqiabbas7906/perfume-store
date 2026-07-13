@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function NotFound() {
   return (
@@ -7,7 +8,7 @@ export default function NotFound() {
         <div className="max-w-2xl mx-auto px-6 text-center">
           {/* Decorative Icon */}
           <div className="w-20 h-20 flex items-center justify-center mx-auto mb-8 border border-[#e8d5b7] bg-[#fdf4e8]/60">
-            <i className="ri-leaf-line text-4xl text-[#b89a6a] opacity-40"></i>
+            <Image src="/logo.svg" width={80} height={80} className=" text-4xl text-[#b89a6a] opacity-40" alt="Logo" />
           </div>
 
           {/* 404 */}

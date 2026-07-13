@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useStoreSettings } from '@/lib/useStoreSettings'
 
 const baseTrust = [
-  { icon: 'ri-shield-check-line', text: 'BBB Accredited Business' },
   { icon: 'ri-store-line', text: 'Independent Fragrance Retailer' },
 ]
 const freeTrust = { icon: 'ri-truck-line', text: 'Always Fast & Free Shipping' }
@@ -22,7 +21,7 @@ export default function AboutBanner() {
             <div className="relative">
               <div className="relative w-full h-[420px]">
                 <Image
-                  src="https://readdy.ai/api/search-image?query=two%20professional%20perfume%20shop%20owners%20standing%20in%20elegant%20fragrance%20boutique%2C%20surrounded%20by%20luxury%20perfume%20bottles%20on%20shelves%2C%20well%20dressed%20confident%20business%20owners%2C%20warm%20inviting%20store%20interior%2C%20golden%20lighting%2C%20professional%20portrait%20photography&width=600&height=420&seq=about1&orientation=landscape"
+                  src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783955369/254b2a47e1203c9317e5a858013187b2_fv5o9b.jpg"
                   alt="About Minzoshop Perfume"
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"

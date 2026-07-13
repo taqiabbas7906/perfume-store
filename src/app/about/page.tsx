@@ -47,28 +47,28 @@ const team = [
     role: 'Founder & Chief Curator',
     bio: "Former luxury retail consultant with 15 years in fine fragrance. Marcus' nose is legendary in the industry.",
     image:
-      'https://readdy.ai/api/search-image?query=professional%20man%20portrait%20business%20founder%20clean%20white%20background%2C%20warm%20confident%20smile%2C%20mid%2030s%2C%20elegant%20minimal%20clothing%2C%20studio%20photography%20quality%2C%20soft%20warm%20lighting%2C%20sophisticated%20look&width=300&height=380&seq=team1&orientation=portrait',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956177/6a0532ebfd2bbfd329ab63ec1eabdd07_pemj9m.jpg',
   },
   {
     name: 'Sophia Chen',
     role: 'Head of Curation',
     bio: "Trained perfumer with a Master's in fragrance chemistry. Sophia ensures every bottle we carry meets our exacting standards.",
     image:
-      'https://readdy.ai/api/search-image?query=professional%20woman%20portrait%20business%20elegant%20clean%20white%20background%2C%20warm%20confident%20smile%2C%20late%2020s%20asian%20woman%2C%20minimal%20stylish%20clothing%2C%20studio%20photography%20quality%2C%20soft%20natural%20lighting%2C%20sophisticated%20look&width=300&height=380&seq=team2&orientation=portrait',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956207/417b1deb236587e0893c72299d9a1035_ucumsa.jpg',
   },
   {
     name: 'James Thornton',
     role: 'Customer Experience Director',
     bio: 'James built our support team from scratch. His obsession? Making sure every customer has a 5-star experience.',
     image:
-      'https://readdy.ai/api/search-image?query=professional%20man%20portrait%20business%20customer%20director%20clean%20white%20background%2C%20friendly%20warm%20smile%2C%20early%2040s%2C%20smart%20casual%20clothing%2C%20studio%20photography%20quality%2C%20soft%20warm%20lighting%2C%20approachable%20look&width=300&height=380&seq=team3&orientation=portrait',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956239/27fe1c918975f8433655670ad00402d8_lqs616.jpg',
   },
   {
     name: 'Aisha Okonkwo',
     role: 'Brand Partnerships',
     bio: 'With direct relationships at 80+ fragrance houses, Aisha secures authentic inventory at prices our customers love.',
     image:
-      'https://readdy.ai/api/search-image?query=professional%20woman%20portrait%20business%20elegant%20clean%20white%20background%2C%20warm%20confident%20smile%2C%20early%2030s%20black%20woman%2C%20stylish%20professional%20clothing%2C%20studio%20photography%20quality%2C%20natural%20lighting%2C%20sophisticated%20look&width=300&height=380&seq=team4&orientation=portrait',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956268/b1f5133e31e03dfdcc83677dd9c74adf_omehxa.jpg',
   },
 ]
 
@@ -77,7 +77,7 @@ export default function AboutPage() {
     <main>
       <section className="relative w-full h-[70vh] min-h-[500px] overflow-hidden">
         <Image
-          src="https://readdy.ai/api/search-image?query=luxury%20perfume%20boutique%20interior%20store%20beautiful%20bright%20white%20marble%20walls%20and%20floors%2C%20elegant%20glass%20perfume%20displays%2C%20warm%20golden%20accent%20lighting%2C%20high-end%20fragrance%20shop%20atmosphere%2C%20airy%20sophisticated%20retail%20space%2C%20crystal%20clear%20bottles%20on%20white%20shelves%2C%20minimalist%20luxury%20aesthetic%2C%20editorial%20photography%20quality&width=1600&height=900&seq=about-hero-1&orientation=landscape"
+          src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783956398/2b9b3c92ab7624029573c4813439a671_zazqgl.jpg"
           alt="Minzoshop Perfume Boutique"
           fill
           priority
@@ -113,7 +113,7 @@ export default function AboutPage() {
           <div className="relative">
             <div className="relative aspect-[4/5] overflow-hidden">
               <Image
-                src="https://readdy.ai/api/search-image?query=elegant%20woman%20smelling%20luxury%20perfume%20bottle%20in%20bright%20white%20modern%20room%2C%20sunlight%20streaming%20through%20window%2C%20sophisticated%20fragrance%20shopping%20experience%2C%20warm%20golden%20light%2C%20ivory%20and%20cream%20interior%2C%20minimalist%20luxury%20lifestyle%20photography&width=600&height=750&seq=about-story-1&orientation=portrait"
+                src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783956430/a4f16772bb02f10b98d4b2b5b99e055e_nytrcy.jpg"
                 alt="Our Fragrance Story"
                 fill
                 sizes="(min-width: 1024px) 50vw, 100vw"
@@ -259,7 +259,7 @@ export default function AboutPage() {
 
       <section className="relative py-24 px-6 overflow-hidden">
         <Image
-          src="https://readdy.ai/api/search-image?query=top%20down%20flat%20lay%20of%20luxury%20perfume%20bottles%20on%20cream%20marble%20surface%2C%20golden%20light%2C%20soft%20shadows%2C%20editorial%20luxury%20fragrance%20photography%2C%20warm%20ivory%20tones%2C%20clean%20minimal%20arrangement%2C%20beautiful%20composition&width=1600&height=700&seq=about-cta-1&orientation=landscape"
+          src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783956473/40ca5340423ea48a5eae26a512cfbd53_mrib3o.jpg"
           alt="Shop Fragrances"
           fill
           sizes="100vw"

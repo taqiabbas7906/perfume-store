@@ -36,7 +36,7 @@ function fallbackCopy(text: string) {
 const slides = [
   {
     image:
-      'https://readdy.ai/api/search-image?query=ultra%20luxury%20perfume%20bottles%20collection%20bright%20clean%20studio%20photography%2C%20soft%20ivory%20and%20champagne%20gold%20tones%2C%20multiple%20designer%20fragrance%20bottles%20arranged%20artistically%20on%20white%20marble%20surface%2C%20soft%20natural%20diffused%20daylight%2C%20high-end%20couture%20editorial%20style%2C%20luminous%20airy%20background%2C%20warm%20golden%20highlights%2C%20ultra%20premium%20elegant%20perfumery%20aesthetics%2C%20white%20and%20cream%20palette&width=1600&height=900&seq=hero1light&orientation=landscape',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783955603/ca6afc90a137e7b8abd62b2aba29ca02_vtlncg.jpg',
     eyebrow: 'New Season Collection',
     headline: 'Top Niche &',
     headline2: 'Designer Fragrances',
@@ -46,7 +46,7 @@ const slides = [
   },
   {
     image:
-      'https://readdy.ai/api/search-image?query=single%20hero%20luxury%20perfume%20bottle%20on%20soft%20cream%20linen%20fabric%2C%20surrounded%20by%20fresh%20white%20rose%20petals%20and%20delicate%20dried%20flowers%2C%20professional%20fragrance%20advertisement%20photography%2C%20bright%20natural%20daylight%20ambiance%2C%20romantic%20sophisticated%20light%20atmosphere%2C%20airy%20editorial%20quality%20ultra%20sharp%20detail%2C%20ivory%20and%20blush%20tones%2C%20clean%20white%20background%20with%20beautiful%20warm%20highlights&width=1600&height=900&seq=hero2light&orientation=landscape',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956014/2482b4321038e480a641ed3a63b2040a_lzu9qh.jpg',
     eyebrow: 'Exclusive Limited Editions',
     headline: 'Rare & Exclusive',
     headline2: 'Collections',
@@ -56,7 +56,7 @@ const slides = [
   },
   {
     image:
-      'https://readdy.ai/api/search-image?query=flat%20lay%20overhead%20of%20multiple%20high-end%20niche%20perfume%20bottles%20on%20white%20marble%20with%20soft%20beige%20linen%2C%20gold%20caps%20and%20crystal%20flacons%2C%20beautifully%20lit%20from%20above%20with%20soft%20diffused%20natural%20light%2C%20premium%20couture%20fragrance%20editorial%20photography%2C%20bright%20opulent%20refined%20visual%20style%2C%20luxury%20accessories%20styling%20on%20white%20surface%2C%20clean%20airy%20warm%20cream%20tones&width=1600&height=900&seq=hero3light&orientation=landscape',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1783956070/fb6a4c46d0cbe405ef94e18a9292e6f2_pavjid.jpg',
     eyebrow: 'Designer Pricing — Unmatched',
     headline: 'Authentic Scents,',
     headline2: 'Honest Prices',
