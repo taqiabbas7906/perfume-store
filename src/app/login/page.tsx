@@ -135,7 +135,7 @@ export default function LoginPage() {
   }
 
   const handleSocialAuth = async (
-    providerName: 'google' | 'facebook' | 'apple',
+    providerName: 'google' | 'facebook',
   ) => {
     setAuthLoading(true)
     setError('')
@@ -167,15 +167,6 @@ export default function LoginPage() {
     }
 
     try {
-      if (providerName === 'apple') {
-        const provider = new OAuthProvider('apple.com')
-        provider.addScope('email')
-        provider.addScope('name')
-        provider.setCustomParameters({ response_mode: 'form_post' })
-        const result = await signInWithPopup(auth, provider)
-        await afterAuth(await result.user.getIdToken())
-        return
-      }
 
       if (providerName === 'facebook') {
         const provider = new FacebookAuthProvider()
@@ -442,7 +433,7 @@ export default function LoginPage() {
                   appear next to them. The previous 3-column row was so
                   cramped on phones that the Facebook word-mark wrapped
                   underneath its icon and hid it visually. */}
-              <div className="grid grid-cols-3 gap-2.5 mb-6">
+              <div className="grid grid-cols-2 gap-2.5 mb-6">
                 <button
                   type="button"
                   onClick={() => handleSocialAuth('google')}
@@ -500,25 +491,6 @@ export default function LoginPage() {
                     />
                   </svg>
                   <span className="hidden sm:inline">Facebook</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSocialAuth('apple')}
-                  disabled={authLoading}
-                  className="flex items-center justify-center gap-2 min-h-[48px] px-2 sm:px-3 py-3 border border-[var(--color-border)] hover:border-[var(--color-gold)] text-[var(--color-ink)] hover:text-[var(--color-gold)] text-[10px] tracking-[0.15em] uppercase font-semibold transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Continue with Apple"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="shrink-0 sm:w-[14px] sm:h-[14px]"
-                    aria-hidden="true"
-                  >
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                  </svg>
-                  <span className="hidden sm:inline">Apple</span>
                 </button>
               </div>
 

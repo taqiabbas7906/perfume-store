@@ -158,7 +158,7 @@ export default function CustomerOrderDetailPage() {
 
   const isDelivered = order.status === 'delivered'
   const reviewedProductId = order.review?.productId ?? null
-  const orderShortId = `INS-${order._id.slice(-8).toUpperCase()}`
+  const orderShortId = `${order._id.slice(-8).toUpperCase()}`
 
   return (
     <main className="pt-28 pb-20 bg-[var(--color-cream-600)] min-h-screen">
