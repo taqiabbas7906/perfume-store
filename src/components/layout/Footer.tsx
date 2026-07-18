@@ -153,7 +153,7 @@ export default function Footer() {
             reserved.
           </p>
           <div className="flex items-center gap-2 flex-wrap justify-center">
-            {['VISA', 'MC', 'AMEX', 'PAYPAL', 'DISCOVER'].map((card) => (
+            {['VISA', 'MC', 'AMEX', 'DISCOVER'].map((card) => (
               <span
                 key={card}
                 className="border border-[var(--color-gold-soft)] bg-white text-[8px] text-[var(--color-gold-deep)] font-extrabold tracking-widest px-2 py-1"

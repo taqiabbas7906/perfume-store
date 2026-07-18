@@ -1767,9 +1767,6 @@ export default function CheckoutPage() {
                   <h2 className="font-serif text-2xl font-light text-[var(--color-ink)] mb-1">
                     Payment Details
                   </h2>
-                  <p className="text-xs text-gray-400 tracking-wide mb-6">
-                    Square sandbox · test card 4111 1111 1111 1111
-                  </p>
 
                   <div className="flex flex-wrap items-center gap-2 mb-6">
                     <p className="text-[10px] text-gray-400 tracking-wide sm:mr-2 whitespace-nowrap">
