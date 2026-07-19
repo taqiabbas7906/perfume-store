@@ -87,47 +87,57 @@ export default function NewsletterEmail({
         </div>
       </div>
 
-      <div style={{ position: 'relative' }}>
-        <img
-          src={heroImage}
-          alt=""
-          width="600"
-          height="280"
-          style={{ display: 'block', width: '100%', height: 'auto' }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '28px 24px',
-            background: 'linear-gradient(transparent, rgba(0,0,0,0.5))',
-          }}
-        >
-          <h2
-            style={{
-              color: '#ffffff',
-              fontSize: '22px',
-              fontWeight: 400,
-              margin: '0 0 6px 0',
-              letterSpacing: '1px',
-            }}
-          >
-            {heroTitle}
-          </h2>
-          <p
-            style={{
-              color: 'rgba(255,255,255,0.85)',
-              fontSize: '11px',
-              margin: 0,
-              lineHeight: 1.5,
-            }}
-          >
-            {heroSubtitle}
-          </p>
-        </div>
-      </div>
+      <table
+        role="presentation"
+        width="100%"
+        cellPadding="0"
+        cellSpacing="0"
+        style={{ borderCollapse: 'collapse' }}
+      >
+        <tbody>
+          <tr>
+            <td>
+              <img
+                src={heroImage}
+                alt=""
+                width="600"
+                height="280"
+                style={{ display: 'block', width: '100%', height: 'auto' }}
+              />
+            </td>
+          </tr>
+          <tr>
+            <td
+              style={{
+                padding: '28px 24px',
+                backgroundColor: '#2b2118',
+              }}
+            >
+              <h2
+                style={{
+                  color: '#ffffff',
+                  fontSize: '22px',
+                  fontWeight: 400,
+                  margin: '0 0 6px 0',
+                  letterSpacing: '1px',
+                }}
+              >
+                {heroTitle}
+              </h2>
+              <p
+                style={{
+                  color: '#efe3d3',
+                  fontSize: '11px',
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                {heroSubtitle}
+              </p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <div style={{ padding: '28px 24px' }}>
         <div

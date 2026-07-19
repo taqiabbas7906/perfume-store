@@ -169,38 +169,57 @@ export default function OrderConfirmationEmail({
                 padding: '12px 0',
                 borderBottom:
                   i < items.length - 1 ? '1px solid #f0e8da' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
               }}
             >
-              <img
-                src={item.image}
-                alt={item.name}
-                width="52"
-                height="52"
-                style={{ borderRadius: '4px', objectFit: 'cover' }}
-              />
-              <div style={{ flex: 1 }}>
-                <p
-                  style={{
-                    fontSize: '13px',
-                    color: '#1a1a1a',
-                    margin: '0 0 2px 0',
-                    fontWeight: 500,
-                  }}
-                >
-                  {item.name}
-                </p>
-                <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>
-                  {item.size} · Qty: {item.qty}
-                </p>
-              </div>
-              <span
-                style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: 600 }}
+              <table
+                role="presentation"
+                width="100%"
+                cellPadding="0"
+                cellSpacing="0"
+                style={{ borderCollapse: 'collapse' }}
               >
-                ${item.price.toFixed(2)}
-              </span>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '52px', verticalAlign: 'middle' }}>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        width="52"
+                        height="52"
+                        style={{ borderRadius: '4px', objectFit: 'cover', display: 'block' }}
+                      />
+                    </td>
+                    <td style={{ width: '14px', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
+                    <td style={{ verticalAlign: 'middle' }}>
+                      <p
+                        style={{
+                          fontSize: '13px',
+                          color: '#1a1a1a',
+                          margin: '0 0 2px 0',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.name}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>
+                        {item.size} · Qty: {item.qty}
+                      </p>
+                    </td>
+                    <td
+                      style={{
+                        verticalAlign: 'middle',
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        fontSize: '13px',
+                        color: '#1a1a1a',
+                        fontWeight: 600,
+                      }}
+                    >
+                      ${item.price.toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ))}
         </div>
@@ -343,7 +362,7 @@ export default function OrderConfirmationEmail({
               Payment
             </p>
             <p style={{ fontSize: '11px', color: '#666', margin: 0 }}>
-              {paymentMethod}
+              Done
             </p>
           </div>
         </div>

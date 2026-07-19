@@ -153,22 +153,39 @@ export default function OrderStatusEmail({
         </div>
 
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            {statusSteps.map((step) => (
-              <span
-                key={step.label}
-                style={{
-                  fontSize: '9px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  color: step.active ? '#b89a6a' : '#ccc',
-                  fontWeight: step.active ? 600 : 400,
-                }}
-              >
-                {step.label}
-              </span>
-            ))}
-          </div>
+          <table
+            role="presentation"
+            width="100%"
+            cellPadding="0"
+            cellSpacing="0"
+            style={{ borderCollapse: 'collapse', marginBottom: '8px' }}
+          >
+            <tbody>
+              <tr>
+                {statusSteps.map((step, index) => (
+                  <td
+                    key={step.label}
+                    style={{
+                      width: `${100 / statusSteps.length}%`,
+                      fontSize: '9px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                      color: step.active ? '#b89a6a' : '#ccc',
+                      fontWeight: step.active ? 600 : 400,
+                      textAlign:
+                        index === 0
+                          ? 'left'
+                          : index === statusSteps.length - 1
+                            ? 'right'
+                            : 'center',
+                    }}
+                  >
+                    {step.label}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
           <div
             style={{
               height: '3px',
@@ -287,38 +304,57 @@ export default function OrderStatusEmail({
                 padding: '12px 0',
                 borderBottom:
                   i < items.length - 1 ? '1px solid #f0e8da' : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
               }}
             >
-              <img
-                src={item.image}
-                alt={item.name}
-                width="48"
-                height="48"
-                style={{ borderRadius: '4px', objectFit: 'cover' }}
-              />
-              <div style={{ flex: 1 }}>
-                <p
-                  style={{
-                    fontSize: '13px',
-                    color: '#1a1a1a',
-                    margin: '0 0 2px 0',
-                    fontWeight: 500,
-                  }}
-                >
-                  {item.name}
-                </p>
-                <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>
-                  {item.size} · Qty: {item.qty}
-                </p>
-              </div>
-              <span
-                style={{ fontSize: '13px', color: '#1a1a1a', fontWeight: 600 }}
+              <table
+                role="presentation"
+                width="100%"
+                cellPadding="0"
+                cellSpacing="0"
+                style={{ borderCollapse: 'collapse' }}
               >
-                ${item.price.toFixed(2)}
-              </span>
+                <tbody>
+                  <tr>
+                    <td style={{ width: '48px', verticalAlign: 'middle' }}>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        width="48"
+                        height="48"
+                        style={{ borderRadius: '4px', objectFit: 'cover', display: 'block' }}
+                      />
+                    </td>
+                    <td style={{ width: '14px', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
+                    <td style={{ verticalAlign: 'middle' }}>
+                      <p
+                        style={{
+                          fontSize: '13px',
+                          color: '#1a1a1a',
+                          margin: '0 0 2px 0',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.name}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#999', margin: 0 }}>
+                        {item.size} · Qty: {item.qty}
+                      </p>
+                    </td>
+                    <td
+                      style={{
+                        verticalAlign: 'middle',
+                        textAlign: 'right',
+                        whiteSpace: 'nowrap',
+                        fontSize: '13px',
+                        color: '#1a1a1a',
+                        fontWeight: 600,
+                      }}
+                    >
+                      ${item.price.toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           ))}
         </div>

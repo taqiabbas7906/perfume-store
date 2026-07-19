@@ -694,7 +694,7 @@ function SuccessScreen({
   ]
 
   const display = orderId
-    ? `INS-${orderId.slice(-8).toUpperCase()}`
+    ? `${orderId.slice(-8).toUpperCase()}`
     : '—'
 
   return (
