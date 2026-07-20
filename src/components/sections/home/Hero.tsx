@@ -157,6 +157,7 @@ export default function Hero() {
             src={s.image}
             alt={s.headline}
             fill
+            fetchPriority={i === 0 ? 'high' : 'auto'}
             sizes="100vw"
             priority={i === 0}
             className="object-cover object-center"

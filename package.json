@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "start": "npx cross-env PORT=3000 next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
@@ -44,6 +44,7 @@
     "@types/react-dom": "^19",
     "@types/ua-parser-js": "^0.7.39",
     "@vitest/coverage-v8": "^4.1.6",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
