@@ -129,10 +129,10 @@ export default function Footer() {
                   <i className="ri-mail-line text-[var(--color-gold)] text-sm" />
                 </div>
                 <a
-                  href="mailto:support@Minzoshop.com"
+                  href="mailto:support@minzooshop.com"
                   className="text-[11px] text-gray-500 hover:text-[var(--color-gold)] transition-colors"
                 >
-                  support@Minzoshop.com
+                  support@minzooshop.com
                 </a>
               </li>
             </ul>

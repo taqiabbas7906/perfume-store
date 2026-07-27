@@ -27,7 +27,7 @@ const AUDIENCES: AudienceTile[] = [
     label: "Women's Perfumes",
     icon: 'ri-seedling-line',
     image:
-      'https://images.unsplash.com/photo-1541643600914-78b084683601?w=640&h=440&fit=crop',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1785153569/laura-chouette-jmACQEf7T2A-unsplash_hxg1ak.jpg',
     href: '/shop?audience=women',
     countQuery: 'tag=women',
   },
@@ -51,7 +51,7 @@ const AUDIENCES: AudienceTile[] = [
     label: 'Beauty',
     icon: 'ri-magic-line',
     image:
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=640&h=440&fit=crop',
+      'https://res.cloudinary.com/dplgqdkde/image/upload/v1785153859/photo-1512496015851-a90fb38ba796_yf9fln.avif',
     href: '/shop?type=lipstick',
     countQuery: 'productType=lipstick',
   },

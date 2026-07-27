@@ -56,7 +56,7 @@ export default function ReturnsPage() {
                   <div className="w-8 h-8 flex items-center justify-center border border-[#b89a6a] rounded-full flex-shrink-0 text-[#b89a6a] font-bold text-sm bg-[#fdf4e8]">1</div>
                   <div>
                     <p className="font-semibold text-[#1a1a1a] mb-1">Contact Us</p>
-                    <p>Email <a href="mailto:support@Minzoshop.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@Minzoshop.com</a> with your order number and reason for return. For damaged items, please include clear photographs of the product and packaging.</p>
+                    <p>Email <a href="mailto:support@minzooshop.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@minzooshop.com</a> with your order number and reason for return. For damaged items, please include clear photographs of the product and packaging.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">

@@ -39,7 +39,7 @@ export default function CancellationPage() {
                 </p>
                 <p>To request a cancellation:</p>
                 <ul className="list-disc pl-6 space-y-1.5">
-                  <li>Email us at <a href="mailto:support@Minzoshop.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@Minzoshop.com</a> with your order number</li>
+                  <li>Email us at <a href="mailto:support@minzooshop.com" className="text-[#b89a6a] hover:underline cursor-pointer">support@minzooshop.com</a> with your order number</li>
                   <li>Call us at <strong>+1 (561) 555-0194</strong> during business hours (Mon&ndash;Fri, 9 AM &ndash; 6 PM EST)</li>
                   <li>Include &ldquo;Cancellation Request&rdquo; in your subject line for fastest processing</li>
                 </ul>
@@ -105,8 +105,8 @@ export default function CancellationPage() {
                     <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
                       <i className="ri-mail-line text-[#b89a6a] text-sm"></i>
                     </div>
-                    <a href="mailto:support@Minzoshop.com" className="hover:text-[#b89a6a] transition-colors cursor-pointer">
-                      support@Minzoshop.com
+                    <a href="mailto:support@minzooshop.com" className="hover:text-[#b89a6a] transition-colors cursor-pointer">
+                      support@minzooshop.com
                     </a>
                   </div>
                   <div className="flex items-center gap-3">

@@ -282,7 +282,7 @@ export default function LoginPage() {
           href="/"
           className="absolute top-12 left-12 flex flex-col items-center group z-10"
         >
-          <div className="w-8 h-8 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 mt-4">
+          <div className="w-8 h-8 flex items-center justify-center md:hidden transition-transform duration-300 group-hover:scale-110 mt-4">
             <Image src="/logo.svg" width={32} height={32} className=" text-2xl text-[var(--color-gold)]" alt="Logo" />
           </div>
           <span className="tracking-[0.3em] uppercase text-xs font-semibold text-[var(--color-ink)] mt-0.5">
