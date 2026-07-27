@@ -206,61 +206,6 @@ const formatPhoneNumber = (value: string, countryCode: string) => {
     .join(' ')
 }
 
-const detectCardBrand = (digits: string): CardBrand | null => {
-  if (!digits) return null
-  if (/^4/.test(digits)) return CARD_BRANDS.find((b) => b.id === 'visa') ?? null
-  if (/^(5[1-5]|2[2-7])/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'mastercard') ?? null
-  }
-  if (/^3[47]/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'amex') ?? null
-  }
-  if (/^(6011|65|64[4-9]|622)/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'discover') ?? null
-  }
-  if (/^3(0[0-5]|[68])/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'diners') ?? null
-  }
-  if (/^(2131|1800|35)/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'jcb') ?? null
-  }
-  if (/^62/.test(digits)) {
-    return CARD_BRANDS.find((b) => b.id === 'unionpay') ?? null
-  }
-  return null
-}
-
-const cardDigitLimit = (brand: CardBrand | null) => {
-  if (brand?.id === 'amex') return 15
-  if (brand?.id === 'diners') return 14
-  return 19
-}
-
-const cardGroups = (brand: CardBrand | null) => {
-  if (brand?.id === 'amex') return [4, 6, 5]
-  if (brand?.id === 'diners') return [4, 6, 4]
-  return [4, 4, 4, 4, 3]
-}
-
-const groupDigits = (digits: string, groups: number[]) => {
-  const out: string[] = []
-  let offset = 0
-  for (const size of groups) {
-    const part = digits.slice(offset, offset + size)
-    if (!part) break
-    out.push(part)
-    offset += size
-  }
-  return out.join(' ')
-}
-
-const formatCardNumber = (value: string) => {
-  const rawDigits = value.replace(/\D/g, '')
-  const brand = detectCardBrand(rawDigits)
-  const digits = rawDigits.slice(0, cardDigitLimit(brand))
-  return groupDigits(digits, cardGroups(brand))
-}
-
 function CardBrandLogo({
   brand,
   active = false,
@@ -830,6 +775,10 @@ export default function CheckoutPage() {
   const orderIdempotencyRef = useRef<string | null>(null)
   const paymentIdempotencyRef = useRef<string | null>(null)
   const submittingRef = useRef(false)
+  const squareCardRef = useRef<SquareCard | null>(null)
+  const [squareStatus, setSquareStatus] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading')
 
   const [cart, setCart] = useState<CartSummary | null>(null)
   const [cartEmpty, setCartEmpty] = useState(false)
@@ -861,9 +810,66 @@ export default function CheckoutPage() {
   const [voucherCode, setVoucherCode] = useState('')
   const [applyingVoucher, setApplyingVoucher] = useState(false)
 
-  const [card, setCard] = useState({ name: '', number: '', expiry: '', cvv: '' })
+  const [card, setCard] = useState({ name: '' })
   const selectedDial =
     PHONE_COUNTRIES.find((d) => d.iso === phoneCountry) ?? DEFAULT_PHONE_COUNTRY
+
+  // Initialize Square's hosted Card field once the payment step is visible.
+  // This is the real Square Web Payments SDK — it renders card number/expiry/
+  // CVV inside a Square-controlled iframe and hands back a one-time token
+  // (nonce) on tokenize(). Card data never touches our own state or server.
+  useEffect(() => {
+    if (step !== 3) return
+    let cancelled = false
+    let attachedCard: SquareCard | null = null
+
+    const init = async () => {
+      setSquareStatus('loading')
+      const appId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID
+      const locationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID
+
+      if (!appId || !locationId) {
+        console.error(
+          'Missing NEXT_PUBLIC_SQUARE_APPLICATION_ID / NEXT_PUBLIC_SQUARE_LOCATION_ID',
+        )
+        if (!cancelled) setSquareStatus('error')
+        return
+      }
+
+      // The SDK script loads async in the document head; wait for it.
+      for (let i = 0; i < 50 && !window.Square; i++) {
+        await new Promise((r) => setTimeout(r, 100))
+      }
+      if (!window.Square) {
+        if (!cancelled) setSquareStatus('error')
+        return
+      }
+
+      try {
+        const payments = window.Square.payments(appId, locationId)
+        const squareCard = await payments.card()
+        await squareCard.attach('#square-card-container')
+        if (cancelled) {
+          await squareCard.destroy()
+          return
+        }
+        attachedCard = squareCard
+        squareCardRef.current = squareCard
+        setSquareStatus('ready')
+      } catch (err) {
+        console.error('Square card init failed', err)
+        if (!cancelled) setSquareStatus('error')
+      }
+    }
+
+    init()
+
+    return () => {
+      cancelled = true
+      squareCardRef.current = null
+      attachedCard?.destroy().catch(() => {})
+    }
+  }, [step])
 
   const fetchCart = useCallback(
     async (params?: { voucherCode?: string; removeVoucher?: string }) => {
@@ -1081,6 +1087,36 @@ export default function CheckoutPage() {
     submittingRef.current = true
     setProcessing(true)
     setError('')
+
+    // Tokenize the card via Square's hosted field first, before touching the
+    // cart/order APIs, so an invalid/incomplete card fails fast without
+    // creating an order we'd then have to reconcile.
+    if (!squareCardRef.current) {
+      setError('Payment form is not ready yet. Please wait a moment and try again.')
+      submittingRef.current = false
+      setProcessing(false)
+      return
+    }
+    let sourceId: string
+    try {
+      const tokenResult = await squareCardRef.current.tokenize()
+      if (tokenResult.status !== 'OK' || !tokenResult.token) {
+        setError(
+          tokenResult.errors?.[0]?.message ??
+            'Please check your card details and try again.',
+        )
+        submittingRef.current = false
+        setProcessing(false)
+        return
+      }
+      sourceId = tokenResult.token
+    } catch {
+      setError('Please check your card details and try again.')
+      submittingRef.current = false
+      setProcessing(false)
+      return
+    }
+
     // Final flush — guarantees any in-flight cart mutation is persisted before
     // we lock in the order. Backend then re-validates prices, stock, taxes.
     await flushCart()
@@ -1155,7 +1191,7 @@ export default function CheckoutPage() {
         method: 'POST',
         body: JSON.stringify({
           orderId: od.order._id,
-          sourceId: 'cnon:card-nonce-ok',
+          sourceId,
           idempotencyKey: paymentIdempotencyRef.current,
         }),
       })
@@ -1223,13 +1259,6 @@ export default function CheckoutPage() {
   const allItemsFree = hasFreeShippingVoucher || freeDeliveryEval.allFree
   const shippingCost = allItemsFree ? 0 : (selectedShipping?.price ?? 0)
   const grandTotal = cart.total + shippingCost + taxAmount
-  const cardDigits = card.number.replace(/\D/g, '')
-  const activeCardBrand = detectCardBrand(cardDigits)
-  const cardNumberMaxLength = groupDigits(
-    '9'.repeat(cardDigitLimit(activeCardBrand)),
-    cardGroups(activeCardBrand),
-  ).length
-  const cvvMaxLength = activeCardBrand?.id === 'amex' ? 4 : 3
 
   if (success) {
     return (
@@ -1773,11 +1802,7 @@ export default function CheckoutPage() {
                       We accept:
                     </p>
                     {CARD_BRANDS.slice(0, 4).map((brand) => (
-                      <CardBrandLogo
-                        key={brand.id}
-                        brand={brand}
-                        active={activeCardBrand?.id === brand.id}
-                      />
+                      <CardBrandLogo key={brand.id} brand={brand} active={false} />
                     ))}
                   </div>
 
@@ -1796,91 +1821,28 @@ export default function CheckoutPage() {
                       />
                     </Field>
 
-                    <Field label="Card Number" req htmlFor="card-number">
-                      <div className="relative">
-                        <i className="ri-bank-card-line text-[var(--color-gold)] text-sm absolute left-4 top-1/2 -translate-y-1/2" />
-                        <input
-                          id="card-number"
-                          type="text"
-                          required
-                          inputMode="numeric"
-                          autoComplete="cc-number"
-                          maxLength={cardNumberMaxLength}
-                          value={card.number}
-                          onChange={(e) => {
-                            const nextNumber = formatCardNumber(e.target.value)
-                            const nextBrand = detectCardBrand(
-                              nextNumber.replace(/\D/g, ''),
-                            )
-                            const nextCvvMax = nextBrand?.id === 'amex' ? 4 : 3
-                            setCard({
-                              ...card,
-                              number: nextNumber,
-                              cvv: card.cvv.slice(0, nextCvvMax),
-                            })
-                          }}
-                          placeholder="4111 1111 1111 1111"
-                          className={`${inputDefault} pl-11 pr-24 font-mono tracking-wider`}
-                        />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {activeCardBrand ? (
-                            <CardBrandLogo brand={activeCardBrand} active />
-                          ) : (
-                            <span className="border border-[var(--color-border)] bg-white text-[8px] text-gray-300 font-extrabold tracking-widest px-2 py-1">
-                              CARD
-                            </span>
-                          )}
-                        </div>
-                        <span className="sr-only" aria-live="polite">
-                          {activeCardBrand
-                            ? `Card type: ${activeCardBrand.label}`
-                            : 'Card type not detected yet'}
-                        </span>
-                      </div>
+                    <Field label="Card Details" req htmlFor="square-card-container">
+                      {/* Square's Web Payments SDK renders the card number,
+                          expiry, and CVV fields inside this container as a
+                          secure hosted iframe. Card data never touches our
+                          own state or server — Square hands back a one-time
+                          token which we send to our backend instead. */}
+                      <div
+                        id="square-card-container"
+                        className={`${inputDefault} !h-auto min-h-[46px] py-3`}
+                      />
+                      {squareStatus === 'loading' && (
+                        <p className="text-[11px] text-gray-400 mt-2">
+                          Loading secure card entry…
+                        </p>
+                      )}
+                      {squareStatus === 'error' && (
+                        <p className="text-[11px] text-red-600 mt-2">
+                          Couldn&apos;t load the payment form. Please refresh
+                          the page and try again.
+                        </p>
+                      )}
                     </Field>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <Field label="Expiry (MM/YY)" req htmlFor="card-expiry">
-                        <input
-                          id="card-expiry"
-                          type="text"
-                          required
-                          inputMode="numeric"
-                          autoComplete="cc-exp"
-                          maxLength={5}
-                          value={card.expiry}
-                          onChange={(e) => {
-                            let v = e.target.value.replace(/\D/g, '')
-                            if (v.length >= 2)
-                              v = v.slice(0, 2) + '/' + v.slice(2)
-                            setCard({ ...card, expiry: v })
-                          }}
-                          placeholder="12/28"
-                          className={`${inputDefault} font-mono tracking-wider`}
-                        />
-                      </Field>
-                      <Field label="CVV" req htmlFor="card-cvv">
-                        <input
-                          id="card-cvv"
-                          type="text"
-                          required
-                          inputMode="numeric"
-                          autoComplete="cc-csc"
-                          maxLength={cvvMaxLength}
-                          value={card.cvv}
-                          onChange={(e) =>
-                            setCard({
-                              ...card,
-                              cvv: e.target.value
-                                .replace(/\D/g, '')
-                                .slice(0, cvvMaxLength),
-                            })
-                          }
-                          placeholder="123"
-                          className={`${inputDefault} font-mono`}
-                        />
-                      </Field>
-                    </div>
 
                     <div className="flex flex-wrap items-center gap-3 sm:gap-6 border border-[var(--color-border)] bg-[var(--color-cream-50)] px-5 py-4">
                       {[

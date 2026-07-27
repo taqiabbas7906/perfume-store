@@ -1,7 +1,7 @@
 const isDev = process.env.NODE_ENV === 'development'
 
 /* ─────────────────────────────────────────────
- * CSP - Firebase + Google + Facebook + Apple compatible
+ * CSP - Firebase + Google + Facebook + Apple + Square compatible
  * ───────────────────────────────────────────── */
 
 const scriptSrc = isDev
@@ -9,6 +9,8 @@ const scriptSrc = isDev
       "'self'",
       "'unsafe-inline'",
       "'unsafe-eval'",
+      // Square Payments
+      'https://squarecdn.com',
       // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
@@ -24,6 +26,8 @@ const scriptSrc = isDev
   : [
       "'self'",
       "'unsafe-inline'",
+      // Square Payments
+      'https://squarecdn.com',
       // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
@@ -47,9 +51,12 @@ const cspDirectives = [
   // Fonts (Remixicon shipped from /public, Google fonts via next/font self-hosted)
   "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net",
 
-  // API calls made by Firebase SDK, Facebook SDK, Apple JS
+  // API calls made by Firebase SDK, Facebook SDK, Apple JS, Square SDK
   [
     "connect-src 'self'",
+    // Square Infrastructure
+    'https://*.squarecdn.com',
+    'https://pki.goog',
     // Google / Firebase
     'https://*.googleapis.com',
     'https://*.firebaseio.com',
@@ -67,9 +74,12 @@ const cspDirectives = [
   // Images — Google, Facebook profile pics, Apple
   "img-src 'self' data: blob: https: https://*.fbcdn.net https://*.facebook.com https://appleid.apple.com",
 
-  // OAuth popup / redirect frames
+  // OAuth popup / redirect frames + Square Credit Card fields iframe
   [
     "frame-src 'self'",
+    // Square Payment Forms
+    'https://squarecdn.com',
+    // Google / Firebase
     'https://accounts.google.com',
     'https://*.firebaseapp.com',
     'https://apis.google.com',

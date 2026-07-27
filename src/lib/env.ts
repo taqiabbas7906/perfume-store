@@ -30,8 +30,13 @@ const envSchema = z.object({
   SQUARE_ACCESS_TOKEN: z.string().optional(),
   SQUARE_APPLICATION_ID: z.string().optional(),
   SQUARE_LOCATION_ID: z.string().optional(),
+  SQUARE_ENVIRONMENT: z.enum(['sandbox', 'production']).optional(),
   SQUARE_WEBHOOK_SIGNATURE_KEY:z.string().optional(),
   SQUARE_WEBHOOK_URL: z.string().optional(),
+  // Web Payments SDK (client side - public)
+  NEXT_PUBLIC_SQUARE_APPLICATION_ID: z.string().optional(),
+  NEXT_PUBLIC_SQUARE_LOCATION_ID: z.string().optional(),
+  NEXT_PUBLIC_SQUARE_ENVIRONMENT: z.enum(['sandbox', 'production']).optional(),
   RESEND_API_KEY: z.string().optional(),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),

@@ -59,7 +59,11 @@ export default function RootLayout({
         />
         <script
           type="text/javascript"
-          src="https://sandbox.web.squarecdn.com/v1/square.js"
+          src={
+            process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === 'production'
+              ? 'https://web.squarecdn.com/v1/square.js'
+              : 'https://sandbox.web.squarecdn.com/v1/square.js'
+          }
           async
         />
       </head>
