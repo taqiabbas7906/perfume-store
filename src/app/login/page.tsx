@@ -269,7 +269,7 @@ export default function LoginPage() {
       {/* ── Visual Panel ── */}
       <div className="relative hidden lg:flex flex-col justify-end p-12 overflow-hidden">
         <Image
-          src="https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=900&h=1200&fit=crop&q=80"
+          src="https://res.cloudinary.com/dplgqdkde/image/upload/v1785150152/laura-chouette-2H_8WbVPRxM-unsplash_rcjeeo.jpg"
           alt="Minzoshop Perfume"
           fill
           priority
@@ -292,7 +292,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 max-w-md">
           <div className="w-8 h-[1px] bg-[var(--color-gold)] mb-5" />
-          <p className="text-[var(--color-gold)] tracking-[0.5em] uppercase text-[10px] font-semibold mb-3">
+          <p className="text-[var(--color-ink)] tracking-[0.5em] uppercase text-[10px] font-semibold mb-3">
             Welcome to Minzoshop
           </p>
           <p className="font-serif text-5xl md:text-6xl font-light text-[var(--color-ink)] leading-[1.05] mb-4">

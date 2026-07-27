@@ -1822,27 +1822,27 @@ export default function CheckoutPage() {
                     </Field>
 
                     <Field label="Card Details" req htmlFor="square-card-container">
-                      {/* Square's Web Payments SDK renders the card number,
-                          expiry, and CVV fields inside this container as a
-                          secure hosted iframe. Card data never touches our
-                          own state or server — Square hands back a one-time
-                          token which we send to our backend instead. */}
-                      <div
-                        id="square-card-container"
-                        className={`${inputDefault} !h-auto min-h-[46px] py-3`}
-                      />
-                      {squareStatus === 'loading' && (
-                        <p className="text-[11px] text-gray-400 mt-2">
-                          Loading secure card entry…
-                        </p>
-                      )}
-                      {squareStatus === 'error' && (
-                        <p className="text-[11px] text-red-600 mt-2">
-                          Couldn&apos;t load the payment form. Please refresh
-                          the page and try again.
-                        </p>
-                      )}
-                    </Field>
+  {/* Square's Web Payments SDK renders the card number,
+      expiry, and CVV fields inside this container as a
+      secure hosted iframe. Card data never touches our
+      own state or server — Square hands back a one-time
+      token which we send to our backend instead. */}
+  <div
+    id="square-card-container"
+    className={`${inputDefault} !h-auto min-h-[50px] py-3.5 rounded-lg`} 
+  />
+  {squareStatus === 'loading' && (
+    <p className="text-[11px] text-gray-400 mt-2">
+      Loading secure card entry…
+    </p>
+  )}
+  {squareStatus === 'error' && (
+    <p className="text-[11px] text-red-600 mt-2">
+      Couldn&apos;t load the payment form. Please refresh
+      the page and try again.
+    </p>
+  )}
+</Field>
 
                     <div className="flex flex-wrap items-center gap-3 sm:gap-6 border border-[var(--color-border)] bg-[var(--color-cream-50)] px-5 py-4">
                       {[

@@ -164,9 +164,9 @@ export default function AboutPage() {
 
             <div className="grid grid-cols-3 gap-6 mt-10 pt-10 border-t border-[var(--color-border-soft)]">
               {[
-                { value: '500+', label: 'Fragrances' },
+                { value: '50+', label: 'Fragrances' },
                 { value: '80+', label: 'Brands' },
-                { value: '12K+', label: 'Happy Customers' },
+                { value: '10K+', label: 'Happy Customers' },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="font-serif text-3xl font-light text-[var(--color-gold)]">

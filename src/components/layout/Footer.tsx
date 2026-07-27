@@ -119,9 +119,9 @@ export default function Footer() {
                   <i className="ri-map-pin-2-line text-[var(--color-gold)] text-sm" />
                 </div>
                 <span className="text-[11px] text-gray-500 leading-relaxed">
-                  West Palm Beach,
+                  PO Box 17, Hightstown,
                   <br />
-                  Florida, USA
+                   NJ 08520, USA
                 </span>
               </li>
               <li className="flex items-center gap-3">
@@ -134,12 +134,6 @@ export default function Footer() {
                 >
                   support@Minzoshop.com
                 </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                  <i className="ri-phone-line text-[var(--color-gold)] text-sm" />
-                </div>
-                <span className="text-[11px] text-gray-500">+1 (561) 555-0194</span>
               </li>
             </ul>
           </section>

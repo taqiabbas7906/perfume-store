@@ -1,7 +1,7 @@
 const isDev = process.env.NODE_ENV === 'development'
 
 /* ─────────────────────────────────────────────
- * CSP - Firebase + Google + Facebook + Apple + Square compatible
+ * CSP - Firebase + Google + Facebook + Apple compatible
  * ───────────────────────────────────────────── */
 
 const scriptSrc = isDev
@@ -9,8 +9,6 @@ const scriptSrc = isDev
       "'self'",
       "'unsafe-inline'",
       "'unsafe-eval'",
-      // Square Payments
-      'https://squarecdn.com',
       // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
@@ -22,12 +20,13 @@ const scriptSrc = isDev
       // Apple
       'https://appleid.apple.com',
       'https://appleid.cdn-apple.com',
+      // Square (Web Payments SDK)
+      'https://sandbox.web.squarecdn.com',
+      'https://web.squarecdn.com',
     ]
   : [
       "'self'",
       "'unsafe-inline'",
-      // Square Payments
-      'https://squarecdn.com',
       // Google / Firebase
       'https://apis.google.com',
       'https://www.gstatic.com',
@@ -39,24 +38,24 @@ const scriptSrc = isDev
       // Apple
       'https://appleid.apple.com',
       'https://appleid.cdn-apple.com',
+      // Square (Web Payments SDK)
+      'https://sandbox.web.squarecdn.com',
+      'https://web.squarecdn.com',
     ]
 
 const cspDirectives = [
   "default-src 'self'",
   `script-src ${scriptSrc.join(' ')}`,
 
-  // Styles — Google Fonts + Apple + Remixicon CDN
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net",
+  // Styles — Google Fonts + Apple + Remixicon CDN + Square (card-wrapper.css)
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net https://sandbox.web.squarecdn.com https://web.squarecdn.com",
 
-  // Fonts (Remixicon shipped from /public, Google fonts via next/font self-hosted)
-  "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net",
+  // Fonts (Remixicon shipped from /public, Google fonts via next/font self-hosted, Square)
+  "font-src 'self' data: https://fonts.gstatic.com https://appleid.cdn-apple.com https://cdn.jsdelivr.net https://sandbox.web.squarecdn.com https://web.squarecdn.com",
 
-  // API calls made by Firebase SDK, Facebook SDK, Apple JS, Square SDK
+  // API calls made by Firebase SDK, Facebook SDK, Apple JS
   [
     "connect-src 'self'",
-    // Square Infrastructure
-    'https://*.squarecdn.com',
-    'https://pki.goog',
     // Google / Firebase
     'https://*.googleapis.com',
     'https://*.firebaseio.com',
@@ -69,17 +68,20 @@ const cspDirectives = [
     'https://graph.facebook.com',
     // Apple
     'https://appleid.apple.com',
+    // Square (Web Payments SDK — card tokenization + risk calls + its Sentry error reporting)
+    'https://sandbox.web.squarecdn.com',
+    'https://web.squarecdn.com',
+    'https://pci-connect.squareupsandbox.com',
+    'https://pci-connect.squareup.com',
+    'https://*.ingest.sentry.io',
   ].join(' '),
 
   // Images — Google, Facebook profile pics, Apple
   "img-src 'self' data: blob: https: https://*.fbcdn.net https://*.facebook.com https://appleid.apple.com",
 
-  // OAuth popup / redirect frames + Square Credit Card fields iframe
+  // OAuth popup / redirect frames
   [
     "frame-src 'self'",
-    // Square Payment Forms
-    'https://squarecdn.com',
-    // Google / Firebase
     'https://accounts.google.com',
     'https://*.firebaseapp.com',
     'https://apis.google.com',
@@ -89,6 +91,9 @@ const cspDirectives = [
     'https://staticxx.facebook.com',
     // Apple
     'https://appleid.apple.com',
+    // Square (hosted card-field iframe + 3DS challenge)
+    'https://sandbox.web.squarecdn.com',
+    'https://web.squarecdn.com',
   ].join(' '),
 
   "frame-ancestors 'none'",

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useStoreSettings } from '@/lib/useStoreSettings'
 
 const baseStats = [
-  { value: '500+', label: 'Brands Available' },
+  { value: '50+', label: 'Brands Available' },
   { value: '10K+', label: 'Happy Customers' },
   { value: '100%', label: 'Secure Checkout' },
 ]
