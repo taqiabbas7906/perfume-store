@@ -21,7 +21,7 @@ export default function AboutBanner() {
             <div className="relative">
               <div className="relative w-full h-[420px]">
                 <Image
-                  src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783955369/254b2a47e1203c9317e5a858013187b2_fv5o9b.jpg"
+                  src="https://res.cloudinary.com/dplgqdkde/image/upload/v1785298750/254b2a47e1203c9317e5a858013187b2_fv5o9b.jpg"
                   alt="About Minzoshop Perfume"
                   fill
                   sizes="(min-width: 1024px) 50vw, 100vw"

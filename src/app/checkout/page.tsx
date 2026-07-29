@@ -754,10 +754,10 @@ function SuccessScreen({
       <p className="mt-10 text-[10px] text-gray-400 tracking-wide">
         Questions? Email us at{' '}
         <a
-          href="mailto:support@minzooshop.com"
+          href="mailto:support@minzoshop.com"
           className="text-[var(--color-gold)] hover:underline"
         >
-          support@minzooshop.com
+          support@minzoshop.com
         </a>
       </p>
     </div>

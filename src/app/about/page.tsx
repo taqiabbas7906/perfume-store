@@ -16,8 +16,8 @@ const values = [
   },
   {
     icon: 'ri-truck-line',
-    title: 'Always Free Shipping',
-    desc: 'No minimum order. No gimmicks. Free, fast shipping on every single order we fulfill — because your experience matters.',
+    title: 'Fast Shipping',
+    desc: 'Fast shipping on every single order we fulfill — because your experience matters.',
   },
   {
     icon: 'ri-medal-line',
@@ -217,46 +217,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <section className="py-24 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[var(--color-gold)] tracking-[0.4em] uppercase text-[10px] font-semibold mb-3">
-              The People Behind the Bottles
-            </p>
-            <h2 className="font-serif text-4xl md:text-5xl font-light text-[var(--color-ink)]">
-              Meet Our Team
-            </h2>
-            <div className="w-10 h-[1px] bg-[var(--color-gold)] mx-auto mt-5" />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
-            {team.map((member) => (
-              <article key={member.name} className="group text-center">
-                <div className="relative overflow-hidden mb-5 aspect-[3/4]">
-                  <Image
-                    src={member.image}
-                    alt={member.name}
-                    fill
-                    sizes="(min-width: 768px) 25vw, 50vw"
-                    className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-[var(--color-gold)]/0 group-hover:bg-[var(--color-gold)]/10 transition-all duration-300" />
-                </div>
-                <h3 className="text-sm font-semibold text-[var(--color-ink)] tracking-wide">
-                  {member.name}
-                </h3>
-                <p className="text-[10px] text-[var(--color-gold)] tracking-widest uppercase font-bold mt-1 mb-3">
-                  {member.role}
-                </p>
-                <p className="text-xs text-gray-500 leading-relaxed font-light max-w-[200px] mx-auto">
-                  {member.bio}
-                </p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
+      
       <section className="relative py-24 px-6 overflow-hidden">
         <Image
           src="https://res.cloudinary.com/dplgqdkde/image/upload/v1783956473/40ca5340423ea48a5eae26a512cfbd53_mrib3o.jpg"

@@ -8,13 +8,13 @@ import NewsletterEmail from '@/components/emails/NewsletterEmail'
 import OrderConfirmationEmail from '@/components/emails/OrderConfirmationEmail'
 import OrderStatusEmail from '@/components/emails/OrderStatusEmail'
 
-const FROM = process.env.EMAIL_FROM ?? 'Minzoshop <support@minzooshop.com>'
+const FROM = process.env.EMAIL_FROM ?? 'Minzoshop <support@minzoshop.com>'
 const BRAND = process.env.COMPANY_NAME ?? 'Minzoshop'
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
   'http://localhost:3000'
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? 'support@minzooshop.com'
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? 'support@minzoshop.com'
 const NEWSLETTER_HERO_IMAGE =
   process.env.NEWSLETTER_HERO_IMAGE_URL ??
   'https://readdy.ai/api/search-image?query=Elegant%20summer%20lifestyle%20scene%20with%20luxury%20perfume%20bottles%20on%20marble%20surface%2C%20soft%20golden%20sunlight%2C%20fresh%20citrus%20and%20white%20flowers%2C%20minimalist%20luxury%20aesthetic%2C%20warm%20cream%20and%20beige%20tones%2C%20editorial%20fragrance%20photography&width=600&height=300&seq=newsletter-hero-summer&orientation=landscape'

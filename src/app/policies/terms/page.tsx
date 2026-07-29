@@ -176,21 +176,15 @@ const sections: PolicySection[] = [
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
               <i className="ri-mail-line text-[var(--color-gold)] text-sm"></i>
             </div>
-            <a href="mailto:support@minzooshop.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
-              support@minzooshop.com
+            <a href="mailto:support@minzoshop.com" className="hover:text-[var(--color-gold)] transition-colors cursor-pointer">
+              support@minzoshop.com
             </a>
           </div>
           <div className="flex items-start gap-3">
             <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">
               <i className="ri-map-pin-2-line text-[var(--color-gold)] text-sm"></i>
             </div>
-            <span>West Palm Beach, Florida, USA</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <i className="ri-phone-line text-[var(--color-gold)] text-sm"></i>
-            </div>
-            <span>+1 (561) 555-0194</span>
+            <span>PO Box 17, Hightstown, NJ 08520, USA</span>
           </div>
         </div>
       </div>
